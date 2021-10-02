@@ -39,6 +39,65 @@ async function searchChannel(id, module){
         }
     })
 }
+async function getVODlist(module_id){
+    // var module_id;
+    return new Promise(async (resolve, reject) => {
+        if(module){
+            try {
+                let module = require(`./modules/${module_id}`);
+                // module_id = module.Properties.MODULE_ID;
+                if(module.Properties.hasVOD){
+                    let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
+                    let cookies = JSON.parse(file);
+                    resolve(await module.getVOD(cookies.auth.cookies));
+                }
+            } catch (error) {
+                n = error.toString().indexOf('\n')
+                reject(`Loader| Something went wrong with the module ${module_id} - ${error.toString().substring(0, n != -1 ? n : error.length)}`)
+            }
+        }else reject("No module id provided")
+    })
+}
+async function getVOD(module_id, show_id, year, month){
+    // var module_id;
+    return new Promise(async (resolve, reject) => {
+        if(module){
+            try {
+                let module = require(`./modules/${module_id}`);
+                // module_id = module.Properties.MODULE_ID;
+                if(module.Properties.hasVOD){
+                    let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
+                    let cookies = JSON.parse(file);
+                    let res = await module.getShow(show_id, cookies.auth.cookies, year, month);
+                    resolve(res);
+                }
+            } catch (error) {
+                n = error.toString().indexOf('\n')
+                reject(`Loader| Something went wrong with the module ${module_id} - ${error.toString().substring(0, n != -1 ? n : error.length)}`)
+            }
+        }else reject("No module id provided")
+    })
+}
+async function getVOD_EP(module_id, show_id, epid){
+    // var module_id;
+    return new Promise(async (resolve, reject) => {
+        if(module){
+            try {
+                let module = require(`./modules/${module_id}`);
+                // module_id = module.Properties.MODULE_ID;
+                if(module.Properties.hasVOD){
+                    let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
+                    let cookies = JSON.parse(file);
+                    let res = await module.getEpisode(show_id, epid, cookies.auth.cookies);
+                    resolve(res);
+                }
+            } catch (error) {
+                n = error.toString().indexOf('\n')
+                reject(`Loader| Something went wrong with the module ${module_id} - ${error.toString().substring(0, n != -1 ? n : error.length)}`)
+            }
+        }else reject("No module id provided")
+    })
+}
 
 async function login(module_id, username, password){
     var module;
@@ -56,4 +115,4 @@ async function login(module_id, username, password){
 }
 
 
-module.exports = {modules,searchChannel, login}
+module.exports = {modules,searchChannel, login, getVODlist, getVOD, getVOD_EP}

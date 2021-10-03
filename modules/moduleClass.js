@@ -6,6 +6,16 @@ class Module {
         this.hasVOD = hasVOD;
         this.chList = chList;
         this.qualitiesList = qualitiesList;
+        this.liveChannels = dummy;
+        this.login = dummy;
+        this.getVOD = dummy;
+        this.getVOD_List = dummy;
+        this.getVOD_EP = dummy;
+        this.getVOD_EP_List = dummy;
+
+        function dummy() {
+            return "dummy function"
+        }
     }
 }
 

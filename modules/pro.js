@@ -4,14 +4,7 @@ const qualitiesList = [];
 
 const ModuleClass = require('./moduleClass')
 
-const Properties = new ModuleClass('pro', true, false, chList, qualitiesList)
-
-function liveChannels(id){
-    return `${MODULE_ID}: here is your stream for ${id}`
-}
-
-// publish a topic asynchronously
-// PubSub.publish('MY TOPIC', 'hello im test2');
+const Module = new ModuleClass('pro', true, false, chList, qualitiesList)
 
 
-module.exports = {Properties, liveChannels}
+module.exports = Module

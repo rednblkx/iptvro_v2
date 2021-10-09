@@ -24,9 +24,9 @@ async function searchChannel(id, module_id, valid_modules){
             try {
                 let module = require(`./modules/${module_id}`);
                 if(module.chList.includes(id)){
-                    let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
-                    let cookies = JSON.parse(file);
-                    resolve(await module.liveChannels(id, cookies.auth.cookies));
+                    let file = require('fs').existsSync(`./modules/${module_id}.json`) ? require('fs').readFileSync(`./modules/${module_id}.json`).toString() : null
+                    let parsed = file ? JSON.parse(file) : null;
+                    resolve(await module.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null));
                 }else reject(`Loader| Module ${module_id} doesn't have channel '${id}'`)
             } catch (error) {
                 n = error.toString().indexOf('\n')
@@ -38,8 +38,8 @@ async function searchChannel(id, module_id, valid_modules){
                     let module = require(`./modules/${val}`);
                     if(module.chList.includes(id)){
                         let file = require('fs').existsSync(`./modules/${val}.json`) ? require('fs').readFileSync(`./modules/${val}.json`).toString() : null
-                        let cookies = file ? JSON.parse(file) : null
-                        resolve(await module.liveChannels(id, cookies ? cookies.auth.cookies : null))
+                        let parsed = file ? JSON.parse(file) : null
+                        resolve(await module.liveChannels(id, parsed ? parsed.auth.cookies : null))
                     }else tries++
                 } catch (error) {
                     n = error.toString().indexOf('\n')

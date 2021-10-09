@@ -75,7 +75,7 @@ Module.login = async function login(username, password) {
     });
 }
 
-Module.liveChannels = async function liveChannels(channel, cookies) {
+Module.liveChannels = async function liveChannels(channel, cookies, lastupdated) {
   return new Promise(async (resolve, reject) => {
     try {
       if(!cookies || typeof cookies !== 'object'){
@@ -92,8 +92,18 @@ Module.liveChannels = async function liveChannels(channel, cookies) {
         mode: "cors",
       });
       if(consoleL && html.data) console.log(`${Module.MODULE_ID}| liveChannels: got HTML`);
-      // let setC = setCookies(html.headers['set-cookie']);
-      // if(consoleL) console.log(setC)
+  
+      let Difference_In_hours = ((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600);
+      if(Difference_In_hours >= 6){
+        let newCookies = html.headers['set-cookie']
+        console.log(newCookies);
+        let fs = require('fs');
+        let config = fs.readFileSync(`./modules/${Module.MODULE_ID}.json`);
+        let parsed = JSON.parse(config);
+        parsed.auth.cookies[parsed.auth.cookies.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
+        parsed.auth.cookies[parsed.auth.cookies.findIndex(el => el.includes('laravel_session'))] = newCookies[newCookies.findIndex(el => el.includes('laravel_session'))];
+        fs.writeFile(`./modules/${Module.MODULE_ID}.json`, JSON.stringify(parsed), () => {console.log(`${Module.MODULE_ID}| Cookies updated`);})
+      }
       let $ = cheerio.load(html.data);
         $ ? resolve(
           $(".video-container script")

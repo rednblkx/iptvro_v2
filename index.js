@@ -6,6 +6,8 @@ const app = express();
 
 const PORT = 3000;
 
+app.use(express.json());
+
 var valid_modules = modules.sanityCheck()
 
 console.log(`\nValid modules: ${valid_modules}\n`);
@@ -116,19 +118,21 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
     }
 })
 
-app.post("/:module/login", express.urlencoded({extended: false}), async (req,res) => {
+app.post("/:module/login", async (req,res) => {
+    console.log(req.body);
     let cookies;
     let body = {};
     let fs = require('fs');
     let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
     let config = JSON.parse(file)
     try {
-        if(modules.valid_modules.includes(req.params.module)){
+        if(valid_modules.includes(req.params.module)){
             cookies = await modules.login(req.params.module, req.body.username, req.body.password)
             if(cookies){
                 body.status = "OK";
                 body.cookies = cookies;
                 config.auth.cookies = cookies;
+                config.auth.lastupdated = new Date();
                 require('fs').writeFileSync(`./modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {

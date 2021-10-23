@@ -153,7 +153,14 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(module.chList.includes(id)){
                         let file = existsSync(`${__dirname}/../modules/${val}.json`) ? readFileSync(`${__dirname}/../modules/${val}.json`).toString() : null
                         let parsed: config = file ? JSON.parse(file) : null
-                        resolve(module.liveChannels(id, parsed ? parsed.auth.cookies : null))
+                        let cache = cacheFind(id, val)
+                        if(cache !== null && getConfig(val, 'cache_enabled')){
+                            resolve(cache)
+                        }else {
+                            let link = await module.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)
+                            cacheFill(id, val, link)
+                            resolve(link)
+                        }
                         return true;
                     }else tries++
                 } catch (error) {

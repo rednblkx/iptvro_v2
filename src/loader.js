@@ -36,6 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
+exports.login = exports.getVOD_EP = exports.getVOD = exports.getVODlist = exports.searchChannel = exports.sanityCheck = void 0;
 var fs_1 = require("fs");
 var path_1 = require("path");
 var Realm = require("realm");
@@ -58,6 +59,16 @@ var instance = new Realm({
     path: "cache.realm",
     schema: [CacheSchema.schema]
 });
+function getConfig(module_id, key) {
+    var file = (0, fs_1.existsSync)(__dirname + "/../modules/" + module_id + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString() : null;
+    var parsed = file ? JSON.parse(file) : null;
+    if (parsed === null) {
+        throw "Config file is not valid";
+    }
+    else {
+        return parsed.config[key];
+    }
+}
 function sanityCheck() {
     instance.close();
     var files_list = (0, fs_1.readdirSync)(__dirname + "/../modules");
@@ -76,49 +87,64 @@ function sanityCheck() {
         }
         catch (error) {
             var n = error.toString().indexOf('\n');
-            console.error("SanityCheck| Something went wrong loading module " + val + " - " + error.toString().substring(0, n != -1 ? n : error.length));
+            console.error("sanityCheck | Something went wrong loading module " + val + " - " + error.toString().substring(0, n != -1 ? n : error.length));
         }
     });
     return valid;
 }
+exports.sanityCheck = sanityCheck;
 function cacheFind(id, module_id) {
-    instance = new Realm({
-        path: "cache.realm",
-        schema: [CacheSchema.schema]
-    });
-    var coll = instance.objects("Cache");
-    var cache = coll.filtered("name == '" + id + "' and module == '" + module_id + "'");
-    if (cache[0]) {
-        if ((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= 6) {
-            var found = cache[0].link;
-            if (process.env.DEBUG == ('true' || true)) {
-                console.log("Loader - cacheFind| Cached link found for '" + id + "', module '" + module_id + "', lastudpated on '" + cache[0].lastupdated + "'");
+    try {
+        instance = new Realm({
+            path: "cache.realm",
+            schema: [CacheSchema.schema]
+        });
+        var cache = instance.objects("Cache").filtered("name == '" + id + "' and module == '" + module_id + "'");
+        var cachetime = getConfig(module_id, 'cachetime');
+        if (cache[0]) {
+            if ((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= cachetime ? cachetime : 6) {
+                var found = cache[0].link;
+                if (process.env.DEBUG == ('true' || true)) {
+                    console.log("cacheFind | Cached link found for '" + id + "', module '" + module_id + "', lastudpated on '" + cache[0].lastupdated + "'");
+                }
+                instance.close();
+                return found;
             }
-            instance.close();
-            return found;
+            else
+                return null;
         }
         else
             return null;
     }
-    else
-        return null;
+    catch (error) {
+        var n = error.toString().indexOf('\n');
+        console.error("cacheFind | " + error.toString().substring(0, n != -1 ? n : error.length));
+    }
 }
 function cacheFill(id, module_id, link) {
-    instance = new Realm({
-        path: "cache.realm",
-        schema: [CacheSchema.schema]
-    });
-    var cache = instance.write(function () {
-        instance.create("Cache", {
-            _id: new Realm.BSON.ObjectID,
-            name: id,
-            link: link,
-            module: module_id,
-            lastupdated: new Date()
+    try {
+        instance = new Realm({
+            path: "cache.realm",
+            schema: [CacheSchema.schema]
         });
-    });
-    instance.close();
-    return cache;
+        var cache = instance.write(function () {
+            var cache = instance.objects("Cache").filtered("name == '" + id + "' and module == '" + module_id + "'");
+            instance["delete"](cache);
+            instance.create("Cache", {
+                _id: new Realm.BSON.ObjectID,
+                name: id,
+                link: link,
+                module: module_id,
+                lastupdated: new Date()
+            });
+        });
+        instance.close();
+        return cache;
+    }
+    catch (error) {
+        var n = error.toString().indexOf('\n');
+        console.error("cacheFill | " + error.toString().substring(0, n != -1 ? n : error.length));
+    }
 }
 function searchChannel(id, module_id, valid_modules) {
     return __awaiter(this, void 0, void 0, function () {
@@ -134,10 +160,10 @@ function searchChannel(id, module_id, valid_modules) {
                     _a.trys.push([1, 10, , 12]);
                     module_2 = require("../modules/" + module_id);
                     if (!module_2.chList.includes(id)) return [3, 7];
-                    file = require('fs').existsSync("./modules/" + module_id + ".json") ? require('fs').readFileSync("./modules/" + module_id + ".json").toString() : null;
+                    file = (0, fs_1.existsSync)(__dirname + "/../modules/" + module_id + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString() : null;
                     parsed = file ? JSON.parse(file) : null;
                     cache = cacheFind(id, module_id);
-                    if (!(cache !== null)) return [3, 3];
+                    if (!(cache !== null && getConfig(module_id, 'cache_enabled'))) return [3, 3];
                     return [4, Promise.resolve(cache)];
                 case 2: return [2, _a.sent()];
                 case 3: return [4, module_2.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)];
@@ -160,9 +186,9 @@ function searchChannel(id, module_id, valid_modules) {
                             var module_3, file, parsed;
                             return __generator(this, function (_a) {
                                 try {
-                                    module_3 = require("../modules/" + val);
+                                    module_3 = require(__dirname + "/../modules/" + val);
                                     if (module_3.chList.includes(id)) {
-                                        file = require('fs').existsSync("./modules/" + val + ".json") ? require('fs').readFileSync("./modules/" + val + ".json").toString() : null;
+                                        file = (0, fs_1.existsSync)(__dirname + "/../modules/" + val + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + val + ".json").toString() : null;
                                         parsed = file ? JSON.parse(file) : null;
                                         resolve(module_3.liveChannels(id, parsed ? parsed.auth.cookies : null));
                                         return [2, true];
@@ -185,6 +211,7 @@ function searchChannel(id, module_id, valid_modules) {
         });
     });
 }
+exports.searchChannel = searchChannel;
 function getVODlist(module_id) {
     return __awaiter(this, void 0, void 0, function () {
         var module_4, file, cookies, _a, _b, error_2;
@@ -195,9 +222,9 @@ function getVODlist(module_id) {
                     _c.label = 1;
                 case 1:
                     _c.trys.push([1, 7, , 9]);
-                    module_4 = require("../modules/" + module_id);
+                    module_4 = require(__dirname + "/../modules/" + module_id);
                     if (!module_4.hasVOD) return [3, 4];
-                    file = require('fs').readFileSync("./modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
                     cookies = JSON.parse(file);
                     _b = (_a = Promise).resolve;
                     return [4, module_4.getVOD_List(cookies.auth.cookies)];
@@ -218,6 +245,7 @@ function getVODlist(module_id) {
         });
     });
 }
+exports.getVODlist = getVODlist;
 function getVOD(module_id, show_id, year, month) {
     return __awaiter(this, void 0, void 0, function () {
         var module_5, file, cookies, res, error_3;
@@ -228,9 +256,9 @@ function getVOD(module_id, show_id, year, month) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 7, , 9]);
-                    module_5 = require("../modules/" + module_id);
+                    module_5 = require(__dirname + "/../modules/" + module_id);
                     if (!module_5.hasVOD) return [3, 4];
-                    file = require('fs').readFileSync("./modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
                     cookies = JSON.parse(file);
                     return [4, module_5.getVOD(show_id, cookies.auth.cookies, year, month)];
                 case 2:
@@ -252,6 +280,7 @@ function getVOD(module_id, show_id, year, month) {
         });
     });
 }
+exports.getVOD = getVOD;
 function getVOD_EP(module_id, show_id, epid) {
     return __awaiter(this, void 0, void 0, function () {
         var module_6, file, cookies, cache, res, error_4;
@@ -262,12 +291,12 @@ function getVOD_EP(module_id, show_id, epid) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 10, , 12]);
-                    module_6 = require("../modules/" + module_id);
+                    module_6 = require(__dirname + "/../modules/" + module_id);
                     if (!module_6.hasVOD) return [3, 7];
-                    file = require('fs').readFileSync("./modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
                     cookies = JSON.parse(file);
                     cache = cacheFind(epid, module_id);
-                    if (!(cache !== null)) return [3, 3];
+                    if (!(cache !== null && getConfig(module_id, "cache_enabled"))) return [3, 3];
                     return [4, Promise.resolve(cache)];
                 case 2: return [2, _a.sent()];
                 case 3: return [4, module_6.getVOD_EP(show_id, epid, cookies.auth.cookies)];
@@ -292,26 +321,30 @@ function getVOD_EP(module_id, show_id, epid) {
         });
     });
 }
+exports.getVOD_EP = getVOD_EP;
 function login(module_id, username, password) {
     return __awaiter(this, void 0, void 0, function () {
         var module_7, _a, _b, error_5;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
-                    _c.trys.push([0, 3, , 5]);
-                    module_7 = require("../modules/" + module_id);
+                    _c.trys.push([0, 5, , 7]);
+                    if (!(username !== ('' || null || undefined) && password !== ('' || null || undefined))) return [3, 3];
+                    module_7 = require(__dirname + "/../modules/" + module_id);
                     _b = (_a = Promise).resolve;
                     return [4, module_7.login(username, password)];
                 case 1: return [4, _b.apply(_a, [_c.sent()])];
                 case 2: return [2, _c.sent()];
-                case 3:
+                case 3: throw "No Username/Password provided";
+                case 4: return [3, 7];
+                case 5:
                     error_5 = _c.sent();
                     return [4, Promise.reject("login| Something went wrong with the module " + module_id + " - " + error_5.toString().substring(0, 200))];
-                case 4: return [2, _c.sent()];
-                case 5: return [2];
+                case 6: return [2, _c.sent()];
+                case 7: return [2];
             }
         });
     });
 }
-module.exports = { sanityCheck: sanityCheck, searchChannel: searchChannel, login: login, getVODlist: getVODlist, getVOD: getVOD, getVOD_EP: getVOD_EP };
+exports.login = login;
 //# sourceMappingURL=loader.js.map

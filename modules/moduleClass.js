@@ -1,6 +1,7 @@
-class Module {
-    
-    constructor(MODULE_ID, hasLive, hasVOD, chList, qualitiesList){
+"use strict";
+exports.__esModule = true;
+var Module = (function () {
+    function Module(MODULE_ID, hasLive, hasVOD, chList, qualitiesList) {
         this.MODULE_ID = MODULE_ID;
         this.hasLive = hasLive;
         this.hasVOD = hasVOD;
@@ -12,11 +13,11 @@ class Module {
         this.getVOD_List = dummy;
         this.getVOD_EP = dummy;
         this.getVOD_EP_List = dummy;
-
         function dummy() {
-            return "dummy function"
+            return "dummy function";
         }
     }
-}
-
-module.exports = Module
+    return Module;
+}());
+exports["default"] = Module;
+//# sourceMappingURL=moduleClass.js.map

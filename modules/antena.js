@@ -1,4 +1,4 @@
-const chList = [  
+const chList = [
     "antena1",
     "happy-channel",
     "zu-tv",
@@ -13,7 +13,7 @@ const chList = [
 
 const qualitiesList = []
 
-const Class = require('./moduleClass').default;
+const Class = require('../src/moduleClass').default;
 
 var Module = new Class('antena', true, true, chList, qualitiesList)
 

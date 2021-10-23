@@ -4,13 +4,17 @@ const modules = require('./loader')
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
 var valid_modules = modules.sanityCheck()
 
 console.log(`\nValid modules: ${valid_modules}\n`);
+
+if(process.env.DEBUG == ('true' || true)){
+    console.log(`DEBUG env true, verbose enabled!\n`);
+}
 
 app.get("/live/:channel", async (req,res) => {
 
@@ -58,7 +62,7 @@ app.get("/:module/vod", async (req,res) => {
     var body = {};
 
     try {
-        if(req.params.module && modules.valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.includes(req.params.module)){
             body.status = "OK"
             body.data = await modules.getVODlist(req.params.module)
             res.json(body)
@@ -79,7 +83,7 @@ app.get("/:module/vod/:show", async (req,res) => {
     var body = {};
 
     try {
-        if(req.params.module && modules.valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.includes(req.params.module)){
             body.status = "OK"
             body.data = await modules.getVOD(req.params.module, req.params.show, req.query.year, req.query.month)
             res.json(body)
@@ -100,7 +104,7 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
     var body = {};
 
     try {
-        if(req.params.module && modules.valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.includes(req.params.module)){
             body.status = "OK"
             body.data = await modules.getVOD_EP(req.params.module, req.params.show , req.params.epid)
             res.json(body)
@@ -119,20 +123,18 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
 })
 
 app.post("/:module/login", async (req,res) => {
-    console.log(req.body);
     let cookies;
     let body = {};
     let fs = require('fs');
-    let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
-    let config = JSON.parse(file)
     try {
+        let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null, lastupdated: new Date()}, config: {}}
+        let config = typeof file === "object" ? file : JSON.parse(file)
         if(valid_modules.includes(req.params.module)){
             cookies = await modules.login(req.params.module, req.body.username, req.body.password)
             if(cookies){
                 body.status = "OK";
                 body.cookies = cookies;
                 config.auth.cookies = cookies;
-                config.auth.lastupdated = new Date();
                 require('fs').writeFileSync(`./modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {
@@ -150,9 +152,9 @@ app.post("/:module/login", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.cookies = null;
-        body.error = error
+        body.error = error.message ? error.message : error
         res.json(body)
     }
 })
 
-app.listen(PORT, () => { console.log(`This is listening on port ${PORT}`)})
+app.listen(PORT, () => { console.log(`Now accepting API requests on port ${PORT}`)})

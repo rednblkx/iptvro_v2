@@ -1,6 +1,6 @@
 const express = require('express');
 
-const modules = require('./loader')
+const modules = require('./src/loader')
 
 const app = express();
 

@@ -183,23 +183,36 @@ function searchChannel(id, module_id, valid_modules) {
                 case 12: return [3, 14];
                 case 13: return [2, new Promise(function (resolve, reject) {
                         valid_modules.some(function (val) { return __awaiter(_this, void 0, void 0, function () {
-                            var module_3, file, parsed;
+                            var module_3, file, parsed, cache, link, error_2;
                             return __generator(this, function (_a) {
-                                try {
-                                    module_3 = require(__dirname + "/../modules/" + val);
-                                    if (module_3.chList.includes(id)) {
+                                switch (_a.label) {
+                                    case 0:
+                                        _a.trys.push([0, 6, , 7]);
+                                        module_3 = require(__dirname + "/../modules/" + val);
+                                        if (!module_3.chList.includes(id)) return [3, 4];
                                         file = (0, fs_1.existsSync)(__dirname + "/../modules/" + val + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + val + ".json").toString() : null;
                                         parsed = file ? JSON.parse(file) : null;
-                                        resolve(module_3.liveChannels(id, parsed ? parsed.auth.cookies : null));
-                                        return [2, true];
-                                    }
-                                    else
+                                        cache = cacheFind(id, val);
+                                        if (!(cache !== null && getConfig(val, 'cache_enabled'))) return [3, 1];
+                                        resolve(cache);
+                                        return [3, 3];
+                                    case 1: return [4, module_3.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)];
+                                    case 2:
+                                        link = _a.sent();
+                                        cacheFill(id, val, link);
+                                        resolve(link);
+                                        _a.label = 3;
+                                    case 3: return [2, true];
+                                    case 4:
                                         tries++;
+                                        _a.label = 5;
+                                    case 5: return [3, 7];
+                                    case 6:
+                                        error_2 = _a.sent();
+                                        reject("searchChannel| Something went wrong with the module " + val + " - " + error_2.toString().substring(0, 200));
+                                        return [3, 7];
+                                    case 7: return [2];
                                 }
-                                catch (error) {
-                                    reject("searchChannel| Something went wrong with the module " + val + " - " + error.toString().substring(0, 200));
-                                }
-                                return [2];
                             });
                         }); });
                         if (tries === valid_modules.length) {
@@ -214,7 +227,7 @@ function searchChannel(id, module_id, valid_modules) {
 exports.searchChannel = searchChannel;
 function getVODlist(module_id) {
     return __awaiter(this, void 0, void 0, function () {
-        var module_4, file, cookies, _a, _b, error_2;
+        var module_4, file, cookies, _a, _b, error_3;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
@@ -234,8 +247,8 @@ function getVODlist(module_id) {
                 case 5: return [2, _c.sent()];
                 case 6: return [3, 9];
                 case 7:
-                    error_2 = _c.sent();
-                    return [4, Promise.reject("getVODlist| Something went wrong with the module " + module_id + " - " + error_2.toString().substring(0, 200))];
+                    error_3 = _c.sent();
+                    return [4, Promise.reject("getVODlist| Something went wrong with the module " + module_id + " - " + error_3.toString().substring(0, 200))];
                 case 8: return [2, _c.sent()];
                 case 9: return [3, 12];
                 case 10: return [4, Promise.reject("No module id provided")];
@@ -248,7 +261,7 @@ function getVODlist(module_id) {
 exports.getVODlist = getVODlist;
 function getVOD(module_id, show_id, year, month) {
     return __awaiter(this, void 0, void 0, function () {
-        var module_5, file, cookies, res, error_3;
+        var module_5, file, cookies, res, error_4;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -269,8 +282,8 @@ function getVOD(module_id, show_id, year, month) {
                 case 5: return [2, _a.sent()];
                 case 6: return [3, 9];
                 case 7:
-                    error_3 = _a.sent();
-                    return [4, Promise.reject("getVOD| Something went wrong with the module " + module_id + " - " + error_3.toString().substring(0, 200))];
+                    error_4 = _a.sent();
+                    return [4, Promise.reject("getVOD| Something went wrong with the module " + module_id + " - " + error_4.toString().substring(0, 200))];
                 case 8: return [2, _a.sent()];
                 case 9: return [3, 12];
                 case 10: return [4, Promise.reject("No module id provided")];
@@ -283,7 +296,7 @@ function getVOD(module_id, show_id, year, month) {
 exports.getVOD = getVOD;
 function getVOD_EP(module_id, show_id, epid) {
     return __awaiter(this, void 0, void 0, function () {
-        var module_6, file, cookies, cache, res, error_4;
+        var module_6, file, cookies, cache, res, error_5;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -310,8 +323,8 @@ function getVOD_EP(module_id, show_id, epid) {
                 case 8: return [2, _a.sent()];
                 case 9: return [3, 12];
                 case 10:
-                    error_4 = _a.sent();
-                    return [4, Promise.reject("getVOD_EP| Something went wrong with the module " + module_id + " - " + error_4.toString().substring(0, 200))];
+                    error_5 = _a.sent();
+                    return [4, Promise.reject("getVOD_EP| Something went wrong with the module " + module_id + " - " + error_5.toString().substring(0, 200))];
                 case 11: return [2, _a.sent()];
                 case 12: return [3, 15];
                 case 13: return [4, Promise.reject("No module id provided")];
@@ -324,7 +337,7 @@ function getVOD_EP(module_id, show_id, epid) {
 exports.getVOD_EP = getVOD_EP;
 function login(module_id, username, password) {
     return __awaiter(this, void 0, void 0, function () {
-        var module_7, _a, _b, error_5;
+        var module_7, _a, _b, error_6;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
@@ -338,8 +351,8 @@ function login(module_id, username, password) {
                 case 3: throw "No Username/Password provided";
                 case 4: return [3, 7];
                 case 5:
-                    error_5 = _c.sent();
-                    return [4, Promise.reject("login| Something went wrong with the module " + module_id + " - " + error_5.toString().substring(0, 200))];
+                    error_6 = _c.sent();
+                    return [4, Promise.reject("login| Something went wrong with the module " + module_id + " - " + error_6.toString().substring(0, 200))];
                 case 6: return [2, _c.sent()];
                 case 7: return [2];
             }

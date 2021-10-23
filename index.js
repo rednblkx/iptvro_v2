@@ -22,11 +22,11 @@ app.get("/live/:channel", async (req,res) => {
 
     try {
         body.status = "OK"
-        body.link = await modules.searchChannel(req.params.channel, null, valid_modules)
+        body.data = await modules.searchChannel(req.params.channel, null, valid_modules)
         res.json(body);
     } catch (error) {
         body.status = "ERROR"
-        body.link = null;
+        body.data = null;
         body.error = error;
         res.json(body)
     }
@@ -40,21 +40,43 @@ app.get("/:module/live/:channel", async (req,res) => {
     try {
         if(req.params.module && valid_modules.includes(req.params.module)){
             body.status = "OK"
-            body.link = await modules.searchChannel(req.params.channel, req.params.module)
+            body.data = await modules.searchChannel(req.params.channel, req.params.module)
             res.json(body)
         }else {
             body.status = "ERROR"
-            body.link = null;
+            body.data = null;
             body.error = `Module '${req.params.module}' not found`;
             res.json(body);
         }
     } catch (error) {
         body.status = "ERROR"
-        body.link = null;
+        body.data = null;
         body.error = error;
         res.json(body)
     }
 
+})
+
+app.get("/:module/live", async (req,res) => {
+    var body = {};
+
+    try {
+        if(req.params.module && valid_modules.includes(req.params.module)){
+            body.status = "OK"
+            body.data = require(`./modules/${req.params.module}`).chList;
+            res.json(body)
+        }else {
+            body.status = "ERROR"
+            body.data = null;
+            body.error = `Module '${req.params.module}' not found`;
+            res.json(body);
+        }
+    } catch (error) {
+        body.status = "ERROR"
+        body.data = null;
+        body.error = error;
+        res.json(body)
+    }
 })
 
 app.get("/:module/vod", async (req,res) => {

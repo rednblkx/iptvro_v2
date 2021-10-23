@@ -1,5 +1,5 @@
 import Module from "./moduleClass";
-import { readdirSync } from "fs";
+import { readdirSync, existsSync, readFileSync } from "fs";
 import { extname } from 'path';
 import Realm = require("realm");
 
@@ -26,9 +26,22 @@ var instance: Realm = new Realm({
     schema: [CacheSchema.schema]
 });
 
-function getConfig(module_id, key){
-    let file = require('fs').existsSync(`./modules/${module_id}.json`) ? require('fs').readFileSync(`./modules/${module_id}.json`).toString() : null
-    let parsed = file ? JSON.parse(file) : null;
+type config = {
+    auth: {
+        username: string;
+        password: string;
+        cookies: string[];
+        lastupdated: Date;
+    }
+    config: {
+        cache_enabled: boolean;
+        cachetime: number;
+    }
+}
+
+function getConfig(module_id: string, key: string){
+    let file = existsSync(`${__dirname}/../modules/${module_id}.json`) ? readFileSync(`${__dirname}/../modules/${module_id}.json`).toString() : null
+    let parsed: config = file ? JSON.parse(file) : null;
     if(parsed === null){
         throw "Config file is not valid"
     }else {
@@ -36,7 +49,7 @@ function getConfig(module_id, key){
     }
 }
 
-function sanityCheck(){
+export function sanityCheck(){
     instance.close()
     
     let files_list = readdirSync(__dirname + "/../modules");
@@ -66,8 +79,7 @@ function cacheFind(id, module_id){
             path: "cache.realm",
             schema: [CacheSchema.schema]
         });
-        let coll: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache")
-        const cache: Realm.Results<CacheSchema> = coll.filtered(`name == '${id}' and module == '${module_id}'`);
+        const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`name == '${id}' and module == '${module_id}'`);
         // console.log(JSON.stringify(cache));
         let cachetime = getConfig(module_id, 'cachetime')
         if(cache[0]){
@@ -92,7 +104,10 @@ function cacheFill(id, module_id, link){
             path: "cache.realm",
             schema: [CacheSchema.schema]
         });
+        
         let cache = instance.write(() => {
+            const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`name == '${id}' and module == '${module_id}'`);
+            instance.delete(cache);
             instance.create("Cache", {
                 _id: new Realm.BSON.ObjectID,
                 name: id,
@@ -109,16 +124,16 @@ function cacheFill(id, module_id, link){
     }
 }
 
-async function searchChannel(id: string, module_id: string, valid_modules: string[]){
+export async function searchChannel(id: string, module_id: string, valid_modules: string[]){
     var tries = 0;
     if(module_id){
         try {
             let module: Module = require(`../modules/${module_id}`);
             if(module.chList.includes(id)){
-                let file = require('fs').existsSync(`./modules/${module_id}.json`) ? require('fs').readFileSync(`./modules/${module_id}.json`).toString() : null
-                let parsed = file ? JSON.parse(file) : null;
+                let file = existsSync(`${__dirname}/../modules/${module_id}.json`) ? readFileSync(`${__dirname}/../modules/${module_id}.json`).toString() : null
+                let parsed: config = file ? JSON.parse(file) : null;
                 let cache = cacheFind(id, module_id)
-                if(cache !== null){
+                if(cache !== null && getConfig(module_id, 'cache_enabled')){
                     return await Promise.resolve(cache)
                 }else {
                     let link = await module.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)
@@ -134,10 +149,10 @@ async function searchChannel(id: string, module_id: string, valid_modules: strin
         return new Promise((resolve, reject) => {
             valid_modules.some(async val => {
                 try {
-                    let module: Module = require(`../modules/${val}`);
+                    let module: Module = require(`${__dirname}/../modules/${val}`);
                     if(module.chList.includes(id)){
-                        let file = require('fs').existsSync(`./modules/${val}.json`) ? require('fs').readFileSync(`./modules/${val}.json`).toString() : null
-                        let parsed = file ? JSON.parse(file) : null
+                        let file = existsSync(`${__dirname}/../modules/${val}.json`) ? readFileSync(`${__dirname}/../modules/${val}.json`).toString() : null
+                        let parsed: config = file ? JSON.parse(file) : null
                         resolve(module.liveChannels(id, parsed ? parsed.auth.cookies : null))
                         return true;
                     }else tries++
@@ -151,13 +166,13 @@ async function searchChannel(id: string, module_id: string, valid_modules: strin
         })
     }
 }
-async function getVODlist(module_id: string){
+export async function getVODlist(module_id: string){
     if(module_id){
         try {
-            let module: Module = require(`../modules/${module_id}`);
+            let module: Module = require(`${__dirname}/../modules/${module_id}`);
             if(module.hasVOD){
-                let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
-                let cookies = JSON.parse(file);
+                let file = readFileSync(`${__dirname}/../modules/${module_id}.json`).toString()
+                let cookies: config = JSON.parse(file);
                 return await Promise.resolve(await module.getVOD_List(cookies.auth.cookies));
             }else return await Promise.reject(`getVODlist| Module ${module_id} doesn't have VOD available`)
         } catch (error) {
@@ -165,13 +180,13 @@ async function getVODlist(module_id: string){
         }
     }else return await Promise.reject("No module id provided")
 }
-async function getVOD(module_id: string, show_id: string, year, month){
+export async function getVOD(module_id: string, show_id: string, year, month){
     if(module_id){
         try {
-            let module: Module = require(`../modules/${module_id}`);
+            let module: Module = require(`${__dirname}/../modules/${module_id}`);
             if(module.hasVOD){
-                let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
-                let cookies = JSON.parse(file);
+                let file = readFileSync(`${__dirname}/../modules/${module_id}.json`).toString()
+                let cookies: config = JSON.parse(file);
                 let res = await module.getVOD(show_id, cookies.auth.cookies, year, month);
                 return await Promise.resolve(res);
             }else return await Promise.reject(`getVOD| Module ${module_id} doesn't have VOD available`)
@@ -180,15 +195,15 @@ async function getVOD(module_id: string, show_id: string, year, month){
         }
     }else return await Promise.reject("No module id provided")
 }
-async function getVOD_EP(module_id: string, show_id: string, epid: string){
+export async function getVOD_EP(module_id: string, show_id: string, epid: string){
     if(module_id){
         try {
-            let module: Module = require(`../modules/${module_id}`);
+            let module: Module = require(`${__dirname}/../modules/${module_id}`);
             if(module.hasVOD){
-                let file = require('fs').readFileSync(`./modules/${module_id}.json`).toString()
-                let cookies = JSON.parse(file);
+                let file = readFileSync(`${__dirname}/../modules/${module_id}.json`).toString()
+                let cookies: config = JSON.parse(file);
                 let cache = cacheFind(epid, module_id)
-                if(cache !== null){
+                if(cache !== null && getConfig(module_id, "cache_enabled")){
                     return await Promise.resolve(cache)
                 }else {
                     let res = await module.getVOD_EP(show_id, epid, cookies.auth.cookies);
@@ -202,14 +217,16 @@ async function getVOD_EP(module_id: string, show_id: string, epid: string){
     }else return await Promise.reject("No module id provided")
 }
 
-async function login(module_id: string, username: string, password: string){
+export async function login(module_id: string, username: string, password: string){
     try {
-        let module: Module = require(`../modules/${module_id}`);
-        return await Promise.resolve(await module.login(username, password))
+        if(username !== ('' || null || undefined) && password !== ('' || null || undefined)){
+            let module: Module = require(`${__dirname}/../modules/${module_id}`);
+            return await Promise.resolve(await module.login(username, password))
+        }else throw "No Username/Password provided"
     } catch (error) {
         return await Promise.reject(`login| Something went wrong with the module ${module_id} - ${error.toString().substring(0, 200)}`)
     }
 }
 
 
-module.exports = {sanityCheck, searchChannel, login, getVODlist, getVOD, getVOD_EP}
+// module.exports = {sanityCheck, searchChannel, login, getVODlist, getVOD, getVOD_EP}

@@ -130,7 +130,7 @@ app.post("/:module/login", async (req,res) => {
         let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null, lastupdated: new Date()}, config: {}}
         let config = typeof file === "object" ? file : JSON.parse(file)
         if(valid_modules.includes(req.params.module)){
-            cookies = await modules.login(req.params.module, req.body.username, req.body.password)
+            cookies = await modules.login(req.params.module, req.body.username ? req.body.username : config.auth.username, req.body.password ? req.body.password : config.auth.password)
             if(cookies){
                 body.status = "OK";
                 body.cookies = cookies;
@@ -157,4 +157,4 @@ app.post("/:module/login", async (req,res) => {
     }
 })
 
-app.listen(PORT, () => { console.log(`Now accepting API requests on port ${PORT}`)})
+app.listen(PORT, () => { console.log(`Now accepting requests to API on port ${PORT}`)})

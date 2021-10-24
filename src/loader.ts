@@ -22,7 +22,7 @@ class CacheSchema {
 }
 
 var instance: Realm = new Realm({
-    path: "cache.realm",
+    path: "config.realm",
     schema: [CacheSchema.schema]
 });
 
@@ -76,17 +76,17 @@ export function sanityCheck(){
 function cacheFind(id, module_id){
     try {
         instance = new Realm({
-            path: "cache.realm",
+            path: "config.realm",
             schema: [CacheSchema.schema]
         });
         const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`name == '${id}' and module == '${module_id}'`);
-        // console.log(JSON.stringify(cache));
         let cachetime = getConfig(module_id, 'cachetime')
+        
         if(cache[0]){
-            if((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= cachetime ? cachetime : 6){
+            if((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
                 let found = cache[0].link;
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheFind | Cached link found for '${id}', module '${module_id}', lastudpated on '${cache[0].lastupdated}'`);
+                    console.log(`cacheFind | Cached link found for '${id}', module '${module_id}', lastudpated on '${cache[0].lastupdated}', hours elapsed '${(((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600))}'`);
                 }
                 instance.close();
                 return found
@@ -101,7 +101,7 @@ function cacheFind(id, module_id){
 function cacheFill(id, module_id, link){
     try {
         instance = new Realm({
-            path: "cache.realm",
+            path: "config.realm",
             schema: [CacheSchema.schema]
         });
         

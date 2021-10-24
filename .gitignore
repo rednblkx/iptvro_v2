@@ -4,3 +4,4 @@ yarn*
 modules/*.json
 cache*
 test*
+*.realm*

@@ -15,6 +15,8 @@ const qualitiesList = []
 
 const Class = require('../src/moduleClass').default;
 
+let fs = require('fs');
+
 var Module = new Class('antena', true, true, chList, qualitiesList)
 
 const debug = process.env.DEBUG;
@@ -70,7 +72,7 @@ Module.login = async function login(username, password) {
         logger("cookies found")
         return await Promise.resolve(cookies);
       } else {
-        return await Promise.reject(logger('Username/Password invalid or something went wrong'));
+        return await Promise.reject('Username/Password invalid or something went wrong');
       }
     } catch (error) {
       if(debug)
@@ -97,7 +99,6 @@ Module.liveChannels = async function liveChannels(channel, cookies, lastupdated)
 
     if((((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600)) >= 6){
       let newCookies = html.headers['set-cookie']
-      let fs = require('fs');
       let config = fs.readFileSync(`./modules/${Module.MODULE_ID}.json`);
       let parsed = JSON.parse(config);
       parsed.auth.cookies[parsed.auth.cookies.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
@@ -120,6 +121,29 @@ Module.liveChannels = async function liveChannels(channel, cookies, lastupdated)
         console.error(error);
         return await Promise.reject(logger(error));
   }
+}
+
+Module.getChannels = async function getChannels(){
+    //axios get request to url https://antenaplay.ro/live
+    var live = await axios.get('https://antenaplay.ro/live');
+  
+    //axios get response
+    var $ = cheerio.load(live.data);
+    //get section with class live-channels-listing and class item
+    var channels = $('.live-channels-listing .item');
+    //create array
+    var channelList = [];
+    //loop trough channels
+    channels.each(function(i, elem) {
+        //get channel href 
+        var channel = $(this).attr('href');
+        //cut "/live/" from channel href
+        channel = channel.substring(6);
+        //push channel to channelList
+        channelList.push(channel);
+    });
+    //return channelList
+    return channelList;
 }
 
 Module.getVOD_List = async function getVOD_List(cookies) {
@@ -157,7 +181,7 @@ Module.getVOD_List = async function getVOD_List(cookies) {
   }
 }
 
-Module.getVOD = async function getVOD(show, cookies, year, month) {
+Module.getVOD = async function getVOD(show, cookies, year, month, season) {
   try {
     if(!cookies || typeof cookies !== 'object'){
       throw `Cookies Missing/Invalid`
@@ -170,23 +194,41 @@ Module.getVOD = async function getVOD(show, cookies, year, month) {
       referrer: `https://antenaplay.ro/seriale`,
       referrerPolicy: "no-referrer-when-downgrade",
       mode: "cors",
+      maxRedirects: 0
     });
     let $ = cheerio.load(await html.data);
     let list = {};
-    if($("#js-selector-year option:not([disabled])").length > 0){
-      $("#js-selector-year option:not([disabled])").each(function loop_months(i, el) {
-        logger(`Available month(s) of year ${$(el).attr('value')}: ${($(el).attr('data-months')).split(";")}`)
-        $(el).attr('value') && (list[$(el).attr('value')] = ($(el).attr('data-months')).split(";"))
+    if($("#js-selector-year").length){
+      list.type = "calendar"
+      if($("#js-selector-year option:not([disabled])").length > 0){
+        $("#js-selector-year option:not([disabled])").each(function loop_months(i, el) {
+          logger(`Available month(s) of year ${$(el).attr('value')}: ${($(el).attr('data-months')).split(";")}`)
+          $(el).attr('value') && (list[$(el).attr('value')] = ($(el).attr('data-months')).split(";"))
+        })
+      }else list[$("#js-selector-year option:not([disabled])").attr('value')] = ($("#js-selector-year option:not([disabled])").attr('data-months')).split(";")
+    }else if($("#js-selector-season option").length){
+      list.type = "seasons"
+      $("#js-selector-season option").each(function loop_seasons(i, el) {
+        logger(`Available season: ${$(el).text()}`)
+        $(el).attr('value') && (list[$(el).attr('value')] = $(el).text())
       })
-    }else list[$("#js-selector-year option:not([disabled])").attr('value')] = ($("#js-selector-year option:not([disabled])").attr('data-months')).split(";")
-    if(!year || !month ){
-      logger("Year and month not provided, sending available dates")
-      return await Promise.resolve(list)
+    }
+
+    if(!year && !month){
+      if(season){
+        return await Promise.resolve(Module.getVOD_EP_List(
+          "https://antenaplay.ro" +
+          $("button.js-selector").attr("data-url"), cookies, "", "", season
+        ))
+      }else {
+        logger("Year and month or season not provided, sending available data")
+        return await Promise.resolve(list)
+      }
     }else if($){
-      return await Promise.resolve(Module.getVOD_EP_List(
+      return await Module.getVOD_EP_List(
         "https://antenaplay.ro" +
-          $(".js-slider-button.slide-right").attr("data-url"), year, month, cookies
-      ))
+        $("button.js-selector").attr("data-url"), cookies, year, month, ""
+      )
     }else return await Promise.reject(logger('Something went wrong'))
   } catch (error) {
     return await Promise.reject(logger(error));
@@ -195,22 +237,23 @@ Module.getVOD = async function getVOD(show, cookies, year, month) {
 
 Module.getVOD_EP_List = async function getVOD_EP_List(
   url,
+  cookies,
   year = new Date().getFullYear(),
   month = new Date().getMonth() + 1,
-  cookies
+  season
 ) {
   try {
     if(!cookies || typeof cookies !== 'object'){
       throw `Cookies Missing/Invalid`
     }
-    logger(`Getting Episodes List for year ${year} and month ${month}`)
-    let response = await axios.get(`${url}${year && month ? '&year=' + year + '&month=' + month : ''}`, {
+    logger(`Getting Episodes List for ${year && month ? "year " + year + " and " + month : "season id" + season}`)
+    let response = await axios.get(`${url}${year && month ? '&year=' + year + '&month=' + month : season ? `?show=${season}` : ""}`, {
       headers: {
         "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
         "x-requested-with": "XMLHttpRequest",
         cookie: cookies.join("; "),
       },
-      withCredentials: true,
+      withCredentials: true, 
       referrer: "https://antenaplay.ro/"
     });
     var $ = cheerio.load(response.data.view);
@@ -222,7 +265,7 @@ Module.getVOD_EP_List = async function getVOD_EP_List(
     });
     $(".container").each((i, el) => $(el).remove());
     logger(`Total episodes ${shows.length}`)
-    return shows.length > 0 ? await Promise.resolve(shows) : await Promise.reject(logger("Nothing in the list"))
+    return shows.length > 0 ? await Promise.resolve(shows) : await Promise.reject("Nothing in the list")
   } catch (error) {
     return Promise.reject(logger(error));
   }

@@ -23,17 +23,17 @@ app.get("/:module", (req,res) => {
     try {
         if(valid_modules.includes(req.params.module)){
             let mod = require(`./modules/${req.params.module}`)
-            let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString();
-            let parsed = JSON.parse(file)
+            // let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString();
+            // let parsed = JSON.parse(file)
             // console.log(parsed);
             body.status = "OK"
-            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: parsed.hasOwnProperty('config') && parsed.config.chList}
+            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: mod.getConfig('chList')}
             res.json(body);
         } else throw "Invalid Module ID"
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })
@@ -49,7 +49,7 @@ app.get("/live/:channel", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 
@@ -73,7 +73,7 @@ app.get("/:module/live/:channel", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 
@@ -98,7 +98,7 @@ app.get("/:module/live", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })
@@ -121,7 +121,7 @@ app.get("/:module/vod", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })
@@ -142,7 +142,7 @@ app.get("/:module/vod/:show", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })
@@ -163,7 +163,7 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.data = null;
-        body.error = error;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })
@@ -181,6 +181,7 @@ app.post("/:module/login", async (req,res) => {
                 body.status = "OK";
                 body.cookies = cookies;
                 config.auth.cookies = cookies;
+                config.auth.lastupdated = new Date();
                 fs.writeFileSync(`./modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {
@@ -198,13 +199,62 @@ app.post("/:module/login", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.cookies = null;
-        body.error = error.message ? error.message : error
+        body.error = error.message || error.toString().substring(0, 200);
+        res.json(body)
+    }
+})
+
+app.get("/:module/flushcache", async (req,res) => {
+    var body = {};
+
+    try {
+        if(req.params.module && valid_modules.includes(req.params.module)){
+            body.status = "OK"
+            body.data = await modules.flushCache(req.params.module)
+            res.json(body)
+        }else {
+            body.status = "ERROR"
+            body.data = null;
+            body.error = `Module '${req.params.module}' not found`;
+            res.json(body);
+        }
+    } catch (error) {
+        body.status = "ERROR"
+        body.data = null;
+        body.error = error.message || error.toString().substring(0, 200);
+        res.json(body)
+    }
+})
+
+app.get("/:module/updatechannels", async (req,res) => {
+    var body = {};
+
+    try {
+        if(req.params.module && valid_modules.includes(req.params.module)){
+            let mod = require(`${__dirname}/modules/${req.params.module}`)
+            body.status = "OK"
+            body.data = await mod.getChannels()
+            //save config
+            mod.setConfig('chList', body.data)
+            //log to console
+            console.log(`${req.params.module} channels updated`)
+            res.json(body)
+        }else {
+            body.status = "ERROR"
+            body.data = null;
+            body.error = `Module '${req.params.module}' not found`;
+            res.json(body);
+        }
+    } catch (error) {
+        let n = error.toString().indexOf('\n');
+        body.status = "ERROR"
+        body.data = null;
+        body.error = error.message || error
         res.json(body)
     }
 })
 
 app.get("/**", (_,res) => {
-    
     var body = {};
     body.status = "ERROR"
     body.data = valid_modules;

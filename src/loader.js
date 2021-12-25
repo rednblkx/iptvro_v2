@@ -60,7 +60,7 @@ var instance = new Realm({
     schema: [CacheSchema.schema]
 });
 function getConfig(module_id, key) {
-    var file = (0, fs_1.existsSync)(__dirname + "/../modules/" + module_id + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString() : null;
+    var file = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString() : null;
     var parsed = file ? JSON.parse(file) : null;
     if (parsed === null) {
         throw "Config file is not valid";
@@ -77,9 +77,12 @@ function sanityCheck() {
     console.log("Modules sanity check:\n");
     list.forEach(function (val) {
         try {
-            var module_1 = require("../modules/" + val);
+            var module_1 = require("../modules/".concat(val));
             if (module_1.MODULE_ID) {
-                console.log(" - Module '" + module_1.MODULE_ID + "' is present");
+                if (!(0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(module_1.MODULE_ID, ".json"))) {
+                    module_1.initializeConfig();
+                }
+                console.log(" - Module '".concat(module_1.MODULE_ID, "' is present"));
                 valid.push(module_1.MODULE_ID);
             }
             else
@@ -87,7 +90,7 @@ function sanityCheck() {
         }
         catch (error) {
             var n = error.toString().indexOf('\n');
-            console.error("sanityCheck | Something went wrong loading module " + val + " - " + error.toString().substring(0, n != -1 ? n : error.length));
+            console.error("sanityCheck | Something went wrong loading module ".concat(val, " - ").concat(error.toString().substring(0, n != -1 ? n : error.length)));
         }
     });
     return valid;
@@ -99,13 +102,13 @@ function cacheFind(id, module_id) {
             path: "config.realm",
             schema: [CacheSchema.schema]
         });
-        var cache = instance.objects("Cache").filtered("name == '" + id + "' and module == '" + module_id + "'");
+        var cache = instance.objects("Cache").filtered("name == '".concat(id, "' and module == '").concat(module_id, "'"));
         var cachetime = getConfig(module_id, 'cachetime');
         if (cache[0]) {
             if ((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)) {
                 var found = cache[0].link;
                 if (process.env.DEBUG == ('true' || true)) {
-                    console.log("cacheFind | Cached link found for '" + id + "', module '" + module_id + "', lastudpated on '" + cache[0].lastupdated + "', hours elapsed '" + (((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) + "'");
+                    console.log("cacheFind | Cached link found for '".concat(id, "', module '").concat(module_id, "', lastudpated on '").concat(cache[0].lastupdated, "', hours elapsed '").concat((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)), "'"));
                 }
                 instance.close();
                 return found;
@@ -118,7 +121,7 @@ function cacheFind(id, module_id) {
     }
     catch (error) {
         var n = error.toString().indexOf('\n');
-        console.error("cacheFind | " + error.toString().substring(0, n != -1 ? n : error.length));
+        console.error("cacheFind | ".concat(error.toString().substring(0, n != -1 ? n : error.length)));
     }
 }
 function cacheFill(id, module_id, link) {
@@ -128,7 +131,7 @@ function cacheFill(id, module_id, link) {
             schema: [CacheSchema.schema]
         });
         var cache = instance.write(function () {
-            var cache = instance.objects("Cache").filtered("name == '" + id + "' and module == '" + module_id + "'");
+            var cache = instance.objects("Cache").filtered("name == '".concat(id, "' and module == '").concat(module_id, "'"));
             instance["delete"](cache);
             instance.create("Cache", {
                 _id: new Realm.BSON.ObjectID,
@@ -143,25 +146,27 @@ function cacheFill(id, module_id, link) {
     }
     catch (error) {
         var n = error.toString().indexOf('\n');
-        console.error("cacheFill | " + error.toString().substring(0, n != -1 ? n : error.length));
+        console.error("cacheFill | ".concat(error.toString().substring(0, n != -1 ? n : error.length)));
     }
 }
 function searchChannel(id, module_id, valid_modules) {
     return __awaiter(this, void 0, void 0, function () {
-        var tries, module_2, file, parsed, cache, link, error_1;
+        var tries, module_2, file, list_ch, file_1, parsed, cache, link, get_ch, file_2, parsed, cache, link, error_1;
         var _this = this;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     tries = 0;
-                    if (!module_id) return [3, 13];
+                    if (!module_id) return [3, 20];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, 10, , 12]);
-                    module_2 = require("../modules/" + module_id);
-                    if (!module_2.chList.includes(id)) return [3, 7];
-                    file = (0, fs_1.existsSync)(__dirname + "/../modules/" + module_id + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString() : null;
-                    parsed = file ? JSON.parse(file) : null;
+                    _a.trys.push([1, 17, , 19]);
+                    module_2 = require("".concat(__dirname, "/../modules/").concat(module_id));
+                    file = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")) ? (0, fs_1.readFileSync)("./modules/".concat(module_id, ".json")).toString() : null;
+                    list_ch = JSON.parse(file);
+                    if (!(list_ch.hasOwnProperty('config') && list_ch.config.chList && list_ch.config.chList.includes(id))) return [3, 7];
+                    file_1 = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString() : null;
+                    parsed = file_1 ? JSON.parse(file_1) : null;
                     cache = cacheFind(id, module_id);
                     if (!(cache !== null && getConfig(module_id, 'cache_enabled'))) return [3, 3];
                     return [4, Promise.resolve(cache)];
@@ -172,26 +177,49 @@ function searchChannel(id, module_id, valid_modules) {
                     cacheFill(id, module_id, link);
                     return [4, Promise.resolve(link)];
                 case 5: return [2, _a.sent()];
-                case 6: return [3, 9];
-                case 7: return [4, Promise.reject("Module " + module_id + " doesn't have channel '" + id + "'")];
-                case 8: return [2, _a.sent()];
-                case 9: return [3, 12];
-                case 10:
+                case 6: return [3, 16];
+                case 7: return [4, module_2.getChannels()];
+                case 8:
+                    get_ch = _a.sent();
+                    if (!get_ch.includes(id)) return [3, 14];
+                    file_2 = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString() : null;
+                    parsed = file_2 ? JSON.parse(file_2) : null;
+                    if (parsed.hasOwnProperty('config')) {
+                        parsed.config.chList = get_ch;
+                    }
+                    (0, fs_1.writeFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json"), JSON.stringify(parsed));
+                    cache = cacheFind(id, module_id);
+                    if (!(cache !== null && getConfig(module_id, 'cache_enabled'))) return [3, 10];
+                    return [4, Promise.resolve(cache)];
+                case 9: return [2, _a.sent()];
+                case 10: return [4, module_2.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)];
+                case 11:
+                    link = _a.sent();
+                    cacheFill(id, module_id, link);
+                    return [4, Promise.resolve(link)];
+                case 12: return [2, _a.sent()];
+                case 13: return [3, 16];
+                case 14: return [4, Promise.reject("Module ".concat(module_id, " doesn't have channel '").concat(id, "'"))];
+                case 15: return [2, _a.sent()];
+                case 16: return [3, 19];
+                case 17:
                     error_1 = _a.sent();
-                    return [4, Promise.reject("searchChannel| Something went wrong with the module " + module_id + " - " + error_1.toString().substring(0, 200))];
-                case 11: return [2, _a.sent()];
-                case 12: return [3, 14];
-                case 13: return [2, new Promise(function (resolve, reject) {
+                    return [4, Promise.reject("".concat(error_1.toString().substring(0, 200)))];
+                case 18: return [2, _a.sent()];
+                case 19: return [3, 21];
+                case 20: return [2, new Promise(function (resolve, reject) {
                         valid_modules.some(function (val) { return __awaiter(_this, void 0, void 0, function () {
-                            var module_3, file, parsed, cache, link, error_2;
+                            var module_3, file, list_ch, file_3, parsed, cache, link, get_ch, file_4, parsed, cache, link, error_2;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
-                                        _a.trys.push([0, 6, , 7]);
-                                        module_3 = require(__dirname + "/../modules/" + val);
-                                        if (!module_3.chList.includes(id)) return [3, 4];
-                                        file = (0, fs_1.existsSync)(__dirname + "/../modules/" + val + ".json") ? (0, fs_1.readFileSync)(__dirname + "/../modules/" + val + ".json").toString() : null;
-                                        parsed = file ? JSON.parse(file) : null;
+                                        _a.trys.push([0, 11, , 12]);
+                                        module_3 = require("".concat(__dirname, "/../modules/").concat(val));
+                                        file = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(val, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(val, ".json")).toString() : null;
+                                        list_ch = JSON.parse(file);
+                                        if (!(list_ch.hasOwnProperty('config') && list_ch.config.chList && list_ch.config.chList.includes(id))) return [3, 4];
+                                        file_3 = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(val, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(val, ".json")).toString() : null;
+                                        parsed = file_3 ? JSON.parse(file_3) : null;
                                         cache = cacheFind(id, val);
                                         if (!(cache !== null && getConfig(val, 'cache_enabled'))) return [3, 1];
                                         resolve(cache);
@@ -203,23 +231,44 @@ function searchChannel(id, module_id, valid_modules) {
                                         resolve(link);
                                         _a.label = 3;
                                     case 3: return [2, true];
-                                    case 4:
+                                    case 4: return [4, module_3.getChannels()];
+                                    case 5:
+                                        get_ch = _a.sent();
+                                        if (!get_ch.includes(id)) return [3, 9];
+                                        file_4 = (0, fs_1.existsSync)("".concat(__dirname, "/../modules/").concat(val, ".json")) ? (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(val, ".json")).toString() : null;
+                                        parsed = file_4 ? JSON.parse(file_4) : null;
+                                        if (parsed.hasOwnProperty('config')) {
+                                            parsed.config.chList = get_ch;
+                                        }
+                                        (0, fs_1.writeFileSync)("".concat(__dirname, "/../modules/").concat(val, ".json"), JSON.stringify(parsed));
+                                        cache = cacheFind(id, val);
+                                        if (!(cache !== null && getConfig(val, 'cache_enabled'))) return [3, 6];
+                                        resolve(cache);
+                                        return [3, 8];
+                                    case 6: return [4, module_3.liveChannels(id, parsed ? parsed.auth.cookies : null, parsed ? parsed.auth.lastupdated : null)];
+                                    case 7:
+                                        link = _a.sent();
+                                        cacheFill(id, val, link);
+                                        resolve(link);
+                                        _a.label = 8;
+                                    case 8: return [2, true];
+                                    case 9:
                                         tries++;
-                                        _a.label = 5;
-                                    case 5: return [3, 7];
-                                    case 6:
+                                        _a.label = 10;
+                                    case 10: return [3, 12];
+                                    case 11:
                                         error_2 = _a.sent();
-                                        reject("searchChannel| Something went wrong with the module " + val + " - " + error_2.toString().substring(0, 200));
-                                        return [3, 7];
-                                    case 7: return [2];
+                                        reject("searchChannel| Something went wrong with the module ".concat(val, " - ").concat(error_2.toString().substring(0, 200)));
+                                        return [3, 12];
+                                    case 12: return [2];
                                 }
                             });
                         }); });
                         if (tries === valid_modules.length) {
-                            reject("searchChannel| No module has channel '" + id + "'");
+                            reject("searchChannel| No module has channel '".concat(id, "'"));
                         }
                     })];
-                case 14: return [2];
+                case 21: return [2];
             }
         });
     });
@@ -235,20 +284,20 @@ function getVODlist(module_id) {
                     _c.label = 1;
                 case 1:
                     _c.trys.push([1, 7, , 9]);
-                    module_4 = require(__dirname + "/../modules/" + module_id);
+                    module_4 = require("".concat(__dirname, "/../modules/").concat(module_id));
                     if (!module_4.hasVOD) return [3, 4];
-                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString();
                     cookies = JSON.parse(file);
                     _b = (_a = Promise).resolve;
                     return [4, module_4.getVOD_List(cookies.auth.cookies)];
                 case 2: return [4, _b.apply(_a, [_c.sent()])];
                 case 3: return [2, _c.sent()];
-                case 4: return [4, Promise.reject("getVODlist| Module " + module_id + " doesn't have VOD available")];
+                case 4: return [4, Promise.reject("getVODlist| Module ".concat(module_id, " doesn't have VOD available"))];
                 case 5: return [2, _c.sent()];
                 case 6: return [3, 9];
                 case 7:
                     error_3 = _c.sent();
-                    return [4, Promise.reject("getVODlist| Something went wrong with the module " + module_id + " - " + error_3.toString().substring(0, 200))];
+                    return [4, Promise.reject("".concat(error_3.toString().substring(0, 200)))];
                 case 8: return [2, _c.sent()];
                 case 9: return [3, 12];
                 case 10: return [4, Promise.reject("No module id provided")];
@@ -259,7 +308,7 @@ function getVODlist(module_id) {
     });
 }
 exports.getVODlist = getVODlist;
-function getVOD(module_id, show_id, year, month) {
+function getVOD(module_id, show_id, year, month, season) {
     return __awaiter(this, void 0, void 0, function () {
         var module_5, file, cookies, res, error_4;
         return __generator(this, function (_a) {
@@ -269,21 +318,21 @@ function getVOD(module_id, show_id, year, month) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 7, , 9]);
-                    module_5 = require(__dirname + "/../modules/" + module_id);
+                    module_5 = require("".concat(__dirname, "/../modules/").concat(module_id));
                     if (!module_5.hasVOD) return [3, 4];
-                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString();
                     cookies = JSON.parse(file);
-                    return [4, module_5.getVOD(show_id, cookies.auth.cookies, year, month)];
+                    return [4, module_5.getVOD(show_id, cookies.auth.cookies, year, month, season)];
                 case 2:
                     res = _a.sent();
                     return [4, Promise.resolve(res)];
                 case 3: return [2, _a.sent()];
-                case 4: return [4, Promise.reject("getVOD| Module " + module_id + " doesn't have VOD available")];
+                case 4: return [4, Promise.reject("getVOD| Module ".concat(module_id, " doesn't have VOD available"))];
                 case 5: return [2, _a.sent()];
                 case 6: return [3, 9];
                 case 7:
                     error_4 = _a.sent();
-                    return [4, Promise.reject("getVOD| Something went wrong with the module " + module_id + " - " + error_4.toString().substring(0, 200))];
+                    return [4, Promise.reject("".concat(error_4.toString().substring(0, 200)))];
                 case 8: return [2, _a.sent()];
                 case 9: return [3, 12];
                 case 10: return [4, Promise.reject("No module id provided")];
@@ -304,9 +353,9 @@ function getVOD_EP(module_id, show_id, epid) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 10, , 12]);
-                    module_6 = require(__dirname + "/../modules/" + module_id);
+                    module_6 = require("".concat(__dirname, "/../modules/").concat(module_id));
                     if (!module_6.hasVOD) return [3, 7];
-                    file = (0, fs_1.readFileSync)(__dirname + "/../modules/" + module_id + ".json").toString();
+                    file = (0, fs_1.readFileSync)("".concat(__dirname, "/../modules/").concat(module_id, ".json")).toString();
                     cookies = JSON.parse(file);
                     cache = cacheFind(epid, module_id);
                     if (!(cache !== null && getConfig(module_id, "cache_enabled"))) return [3, 3];
@@ -319,12 +368,12 @@ function getVOD_EP(module_id, show_id, epid) {
                     return [4, Promise.resolve(res)];
                 case 5: return [2, _a.sent()];
                 case 6: return [3, 9];
-                case 7: return [4, Promise.reject("getVOD_EP| Module " + module_id + " doesn't have VOD available")];
+                case 7: return [4, Promise.reject("getVOD_EP| Module ".concat(module_id, " doesn't have VOD available"))];
                 case 8: return [2, _a.sent()];
                 case 9: return [3, 12];
                 case 10:
                     error_5 = _a.sent();
-                    return [4, Promise.reject("getVOD_EP| Something went wrong with the module " + module_id + " - " + error_5.toString().substring(0, 200))];
+                    return [4, Promise.reject("".concat(error_5.toString().substring(0, 200)))];
                 case 11: return [2, _a.sent()];
                 case 12: return [3, 15];
                 case 13: return [4, Promise.reject("No module id provided")];
@@ -342,8 +391,8 @@ function login(module_id, username, password) {
             switch (_c.label) {
                 case 0:
                     _c.trys.push([0, 5, , 7]);
-                    if (!(username !== ('' || null || undefined) && password !== ('' || null || undefined))) return [3, 3];
-                    module_7 = require(__dirname + "/../modules/" + module_id);
+                    if (!(username && password)) return [3, 3];
+                    module_7 = require("".concat(__dirname, "/../modules/").concat(module_id));
                     _b = (_a = Promise).resolve;
                     return [4, module_7.login(username, password)];
                 case 1: return [4, _b.apply(_a, [_c.sent()])];
@@ -352,7 +401,7 @@ function login(module_id, username, password) {
                 case 4: return [3, 7];
                 case 5:
                     error_6 = _c.sent();
-                    return [4, Promise.reject("login| Something went wrong with the module " + module_id + " - " + error_6.toString().substring(0, 200))];
+                    return [4, Promise.reject("".concat(error_6.toString().substring(0, 200)))];
                 case 6: return [2, _c.sent()];
                 case 7: return [2];
             }

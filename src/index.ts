@@ -1,16 +1,17 @@
-const express = require('express');
+import express from 'express';
 
-const modules = require('./src/loader')
+import * as modules from './loader.js';
+
+import fs from 'fs';
+import Module from './moduleClass.js';
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-const fs = require('fs');
-
 app.use(express.json());
 
-var valid_modules = modules.sanityCheck()
+var valid_modules = await modules.sanityCheck()
 
 console.log(`\nValid modules: ${valid_modules}\n`);
 
@@ -18,11 +19,26 @@ if(process.env.DEBUG == ('true' || true)){
     console.log(`DEBUG env true, verbose enabled!\n`);
 }
 
-app.get("/:module", (req,res) => {
-    var body = {};
+class body_response {
+
+    status: string;
+    data: object | string;
+    error: string;
+    cookies? : string[];
+
+    constructor(status: string, data: object | string, error?: string, cookies?: string[]){
+        this.status = status;
+        this.data = data;
+        this.error = error;
+        this.cookies = cookies;
+    }
+}
+
+app.get("/:module", async (req,res) => {
+    var body : body_response = new body_response("", "", null);
     try {
-        if(valid_modules.includes(req.params.module)){
-            let mod = require(`./modules/${req.params.module}`)
+        if(valid_modules.find(x => x == req.params.module) != undefined){
+            let mod: Module = (await import(`./modules/${req.params.module}.js`)).default;
             // let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString();
             // let parsed = JSON.parse(file)
             // console.log(parsed);
@@ -40,7 +56,7 @@ app.get("/:module", (req,res) => {
 
 app.get("/live/:channel", async (req,res) => {
 
-    var body = {};
+    var body: body_response = new body_response("", "", null);
 
     try {
         body.status = "OK"
@@ -57,12 +73,12 @@ app.get("/live/:channel", async (req,res) => {
 })
 app.get("/:module/live/:channel", async (req,res) => {
 
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             body.status = "OK"
-            body.data = await modules.searchChannel(req.params.channel, req.params.module)
+            body.data = await modules.searchChannel(req.params.channel, req.params.module, valid_modules)
             res.json(body)
         }else {
             body.status = "ERROR"
@@ -80,10 +96,10 @@ app.get("/:module/live/:channel", async (req,res) => {
 })
 
 app.get("/:module/live", async (req,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString()
             let parsed = JSON.parse(file)
             body.status = "OK"
@@ -105,10 +121,10 @@ app.get("/:module/live", async (req,res) => {
 
 app.get("/:module/vod", async (req,res) => {
     
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             body.status = "OK"
             body.data = await modules.getVODlist(req.params.module)
             res.json(body)
@@ -126,12 +142,12 @@ app.get("/:module/vod", async (req,res) => {
     }
 })
 app.get("/:module/vod/:show", async (req,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             body.status = "OK"
-            body.data = await modules.getVOD(req.params.module, req.params.show, req.query.year, req.query.month, req.query.season)
+            body.data = await modules.getVOD(req.params.module, req.params.show, req.query.year, req.query.month, req.query.season, req.query.showfilters)
             res.json(body)
         }else {
             body.status = "ERROR"
@@ -147,10 +163,10 @@ app.get("/:module/vod/:show", async (req,res) => {
     }
 })
 app.get("/:module/vod/:show/:epid", async (req,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             body.status = "OK"
             body.data = await modules.getVOD_EP(req.params.module, req.params.show , req.params.epid)
             res.json(body)
@@ -170,12 +186,11 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
 
 app.post("/:module/login", async (req,res) => {
     let cookies;
-    let body = {};
-    let fs = fs;
+    let body: body_response = new body_response("", "", "", null);
     try {
         let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
         let config = typeof file === "object" ? file : JSON.parse(file)
-        if(valid_modules.includes(req.params.module)){
+        if(valid_modules.find(x => x == req.params.module) != undefined){
             cookies = await modules.login(req.params.module, req.body.username ||= config.auth.username, req.body.password ||= config.auth.password)
             if(cookies){
                 body.status = "OK";
@@ -205,12 +220,12 @@ app.post("/:module/login", async (req,res) => {
 })
 
 app.get("/:module/flushcache", async (req,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             body.status = "OK"
-            body.data = await modules.flushCache(req.params.module)
+            body.data = modules.flushCache(req.params.module)
             res.json(body)
         }else {
             body.status = "ERROR"
@@ -227,11 +242,11 @@ app.get("/:module/flushcache", async (req,res) => {
 })
 
 app.get("/:module/updatechannels", async (req,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
 
     try {
-        if(req.params.module && valid_modules.includes(req.params.module)){
-            let mod = require(`${__dirname}/modules/${req.params.module}`)
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
+            let mod: Module = (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default;
             body.status = "OK"
             body.data = await mod.getChannels()
             //save config
@@ -255,10 +270,10 @@ app.get("/:module/updatechannels", async (req,res) => {
 })
 
 app.get("/**", (_,res) => {
-    var body = {};
+    var body : body_response = new body_response("", "", null);
     body.status = "ERROR"
     body.data = valid_modules;
-    body.error = "No module selected, listing all available modules";
+    body.error = "Endpoint did not match any route, listing all available modules";
     res.status(404).json(body)
 })
 

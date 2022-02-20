@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFile } from "fs";
+import { existsSync, readFileSync, writeFile, writeFileSync } from "fs";
 
 type config = {
     auth: {
@@ -60,14 +60,13 @@ class Module {
               }
             }
             //write config to file
-            writeFile(`${__dirname}/../modules/${MODULE_ID}.json`, JSON.stringify(config, null, 2), () => {
-                console.log(`${MODULE_ID} config file created`);
-                return config;
-            });
+            writeFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(config, null, 2));
+            //log config
+            console.log(`${MODULE_ID} config file created`);
         };
 
         this.getAuth = function getAuth(){
-            let file = existsSync(`${__dirname}/../modules/${MODULE_ID}.json`) ? readFileSync(`${__dirname}/../modules/${MODULE_ID}.json`).toString() : null
+            let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
             if(parsed === null){
                 throw "Config file is not valid"
@@ -77,20 +76,20 @@ class Module {
         }
 
         this.setAuth = function setAuth(auth: {username: string, password: string, cookies: string[], lastupdated: Date}){
-            let file = existsSync(`${__dirname}/../modules/${MODULE_ID}.json`) ? readFileSync(`${__dirname}/../modules/${MODULE_ID}.json`).toString() : null
+            let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
             if(parsed === null){
                 throw "Config file is not valid"
             }else {
                 parsed.auth = auth;
-                writeFile(`${__dirname}/../modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
+                writeFile(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
                     console.log(`${MODULE_ID} | config file updated - credentials changed`);
                 });
             }
         }
 
         this.getConfig = function getConfig(key: string){
-            let file = existsSync(`${__dirname}/../modules/${MODULE_ID}.json`) ? readFileSync(`${__dirname}/../modules/${MODULE_ID}.json`).toString() : null
+            let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
             if(parsed === null){
                 throw "Config file is not valid"
@@ -100,14 +99,14 @@ class Module {
         };
 
         this.setConfig = function setConfig(key: string, value: any){
-            let file = existsSync(`${__dirname}/../modules/${MODULE_ID}.json`) ? readFileSync(`${__dirname}/../modules/${MODULE_ID}.json`).toString() : null
+            let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
             if(parsed === null){
                 throw "Config file is not valid"
             }else {
                 parsed.config[key] = value;
-                writeFile(`${__dirname}/../modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
-                    console.log(`${MODULE_ID} | config file updated`);
+                writeFile(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
+                    console.log(`${MODULE_ID} | config file updated - ${key} changed`);
                 });
             }
         };

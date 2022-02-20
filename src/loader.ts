@@ -1,30 +1,14 @@
 import Module from "./moduleClass";
 import { readdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { extname } from 'path';
-import Realm from "realm";
+import { JSONFile, Low } from "lowdb";
 
-class CacheSchema {
-    public static schema: Realm.ObjectSchema = {
-        name: "Cache",
-        properties: {
-          _id: "objectId",
-          name: "string",
-          link: "string",
-          module: "string",
-          lastupdated: "date"
-        },
-      };
-    public _id: Realm.BSON.ObjectId;
-    public name: string;
-    public link: string;
-    public module: string;
-    public lastupdated: Date;
+type cache = {
+    name: string,
+    link: string,
+    module: string,
+    lastupdated: Date
 }
-
-// var instance: Realm = new Realm({
-//     path: "config.realm",
-//     schema: [CacheSchema.schema]
-// });
 
 type config = {
     auth: {
@@ -80,26 +64,26 @@ export async function sanityCheck(): Promise<string[]> {
 }
 
 
-function cacheFind(id: string, module_id: string){
+async function cacheFind(id: string, module_id: string){
     try {
-        var instance = new Realm({
-            path: "config.realm",
-            schema: [CacheSchema.schema]
-        });
-        const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`name == '${id}' and module == '${module_id}'`);
+        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+        const db = new Low(adapter)
+        await db.read();
+
+        const cache = db.data && db.data.find(a => a.name === id && a.module === module_id);
         // let cachetime = getConfig(module_id, 'cachetime')
         let file = existsSync(`${process.cwd()}/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/modules/${module_id}.json`).toString() : null
         let parsed: config = file ? JSON.parse(file) : null;
 
         let cachetime = parsed.config.cachetime
         
-        if(cache[0]){
-            if((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
-                let found = cache[0].link;
+        if(cache){
+            if((((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
+                let found = cache.link;
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheFind| Cached link found for '${id}', module '${module_id}', lastudpated on '${cache[0].lastupdated}', hours elapsed '${(((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600))}'`);
+                    console.log(`cacheFind| Cached link found for '${id}', module '${module_id}', lastudpated on '${cache.lastupdated}', hours elapsed '${(((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600))}'`);
                 }
-                instance.close();
+                // instance.close();
                 return found
             }else return null
         } else return null
@@ -108,26 +92,25 @@ function cacheFind(id: string, module_id: string){
     }
 }
 
-function cacheFill(id: string, module_id: string, link: string){
+async function cacheFill(id: string, module_id: string, link: string){
     try {
-        var instance = new Realm({
-            path: "config.realm",
-            schema: [CacheSchema.schema]
-        });
-        
-        let cache = instance.write(() => {
-            const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`name == '${id}' and module == '${module_id}'`);
-            instance.delete(cache);
-            instance.create("Cache", {
-                _id: new Realm.BSON.ObjectID,
+        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+        const db = new Low(adapter)
+        await db.read();
+        const cache = db.data && db.data.findIndex(a => a.name === id && a.module === module_id);
+        if(cache !== -1){
+            db.data[cache].link = link;
+            db.data[cache].lastupdated = new Date();
+            await db.write();
+        }else{
+            db.data.push({
                 name: id,
                 link: link,
                 module: module_id,
                 lastupdated: new Date()
             })
-        })
-        instance.close();
-        return cache
+            await db.write();
+        }
     } catch (error) {
         console.error(`cacheFill| ${error.message || error.toString().substring(0, 200)}`);
     }
@@ -135,15 +118,12 @@ function cacheFill(id: string, module_id: string, link: string){
 
 export function flushCache(module_id){
     try {
-        var instance = new Realm({
-            path: "config.realm",
-            schema: [CacheSchema.schema]
-        });
-        instance.write(() => {
-            const cache: Realm.Results<CacheSchema> = instance.objects<CacheSchema>("Cache").filtered(`module == '${module_id}'`);
-            instance.delete(cache);
+        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+        const db = new Low(adapter)
+        db.read().then(() => {
+            db.data = db.data.filter(a => a.module !== module_id)
+            db.write();
         })
-        instance.close();
         //log to console
         console.log(`flushCache| Flushed cache for module '${module_id}'`)
         return `flushCache| Flushed cache for module '${module_id}'`
@@ -204,7 +184,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(list_ch.hasOwnProperty('config') && list_ch.config.chList && list_ch.config.chList.includes(id)){
                         let file = existsSync(`${process.cwd()}/modules/${val}.json`) ? readFileSync(`${process.cwd()}/modules/${val}.json`).toString() : null
                         let parsed: config = file ? JSON.parse(file) : null
-                        let cache = cacheFind(id, val)
+                        let cache = await cacheFind(id, val)
                         if(cache !== null && parsed.config.cache_enabled){
                             resolve(cache)
                         }else {
@@ -222,7 +202,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                             }
                             //set parsed to file
                             writeFileSync(`${process.cwd()}/modules/${val}.json`, JSON.stringify(parsed))
-                            let cache = cacheFind(id, val)
+                            let cache = await cacheFind(id, val)
                             if(cache !== null && parsed.config.cache_enabled){
                                 resolve(cache)
                             }else {
@@ -278,7 +258,7 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
             if(module.hasVOD){
                 let file = readFileSync(`${process.cwd()}/modules/${module_id}.json`).toString()
                 let config: config = JSON.parse(file);
-                let cache = cacheFind(epid, module_id)
+                let cache = await cacheFind(epid, module_id)
                 if(cache !== null && config.config.cache_enabled){
                     return await Promise.resolve(cache)
                 }else {

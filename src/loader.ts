@@ -63,8 +63,7 @@ export async function sanityCheck(): Promise<string[]> {
             if(val && val.MODULE_ID){
                 //check if config file exists
                 if(!existsSync(`${process.cwd()}/modules/${val.MODULE_ID}.json`)){
-                    val.initializeConfig()
-                    val.getChannels().then(ch => {
+                    val.chList && val.chList.length > 0 ? val.initializeConfig(val.chList) : val.getChannels().then(ch => {
                         val.setConfig("chList", ch);
                     })
                 }

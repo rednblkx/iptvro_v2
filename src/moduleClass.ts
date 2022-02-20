@@ -46,7 +46,7 @@ class Module {
         this.getVOD_EP = dummy;
         this.getVOD_EP_List = dummy;
         this.getChannels = dummy;
-        this.initializeConfig = async function initializeConfig(){
+        this.initializeConfig = async function initializeConfig(chList?: string[]){
             var config = {
               "auth": {
                   "username": "",
@@ -56,7 +56,7 @@ class Module {
               "config": {
                   "cache_enabled": true,
                   "cachetime": 6,
-                  "chList": null
+                  "chList": chList || []
               }
             }
             //write config to file

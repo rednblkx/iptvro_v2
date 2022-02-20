@@ -5,5 +5,5 @@ modules/*.json
 cache*
 test*
 *.realm*
-src/*.js.map
-src/*.js
+**/*.js.map
+**/*.js

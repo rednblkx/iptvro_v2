@@ -1,7 +1,0 @@
-{
-  "auth": {
-    "username": "",
-    "password": ""
-  },
-  "config": { "cache_enabled": true, "cachetime": 6 }
-}

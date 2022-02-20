@@ -11,13 +11,20 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-var valid_modules = await modules.sanityCheck()
+try {
+    var valid_modules = await modules.sanityCheck()
+} catch (error) {
+    console.log(`${error.message || error}`);
+}
+
 
 console.log(`\nValid modules: ${valid_modules}\n`);
 
 if(process.env.DEBUG == ('true' || true)){
     console.log(`DEBUG env true, verbose enabled!\n`);
 }
+
+const debug = process.env.DEBUG;
 
 class body_response {
 
@@ -34,12 +41,33 @@ class body_response {
     }
 }
 
+type config = {
+    auth: {
+        username: string;
+        password: string;
+        cookies: string[];
+        lastupdated: Date;
+    }
+    config: {
+        cache_enabled: boolean;
+        cachetime: number;
+        chList: string[];
+    }
+}
+
+function logger(id, message, isError?) {
+    if(debug){
+      console.log(`index - ${id}: ${message}`);
+    }
+    return isError ? new Error(`index - ${id}: ${message}`) : `index - ${id}: ${message}`
+  };
+
 app.get("/:module", async (req,res) => {
     var body : body_response = new body_response("", "", null);
     try {
         if(valid_modules.find(x => x == req.params.module) != undefined){
-            let mod: Module = (await import(`./modules/${req.params.module}.js`)).default;
-            // let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString();
+            let mod: Module = (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default;
+            // let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString();
             // let parsed = JSON.parse(file)
             // console.log(parsed);
             body.status = "OK"
@@ -100,7 +128,7 @@ app.get("/:module/live", async (req,res) => {
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            let file = fs.existsSync(`./modules/${req.params.module}.json`) && fs.readFileSync(`./modules/${req.params.module}.json`).toString()
+            let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString()
             let parsed = JSON.parse(file)
             body.status = "OK"
             body.data = parsed.hasOwnProperty('config') && parsed.config.chList;
@@ -188,21 +216,23 @@ app.post("/:module/login", async (req,res) => {
     let cookies;
     let body: body_response = new body_response("", "", "", null);
     try {
-        let file = fs.existsSync(`./modules/${req.params.module}.json`) ? fs.readFileSync(`./modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
-        let config = typeof file === "object" ? file : JSON.parse(file)
+        let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
+        let config : config = typeof file === "object" ? file : JSON.parse(file)
+        req.body.username ? logger("login", `'${req.params.module}' login attempt with username "${req.body.username}" from request`) : logger("login", `'${req.params.module}' login attempt with username ${config.auth.username} from file (request empty)`)
         if(valid_modules.find(x => x == req.params.module) != undefined){
-            cookies = await modules.login(req.params.module, req.body.username ||= config.auth.username, req.body.password ||= config.auth.password)
+            cookies = await modules.login(req.params.module, req.body.username || config.auth.username, req.body.password || config.auth.password)
             if(cookies){
+                logger("login", `'${req.params.module}' login success, got cookies`)
                 body.status = "OK";
                 body.cookies = cookies;
                 config.auth.cookies = cookies;
                 config.auth.lastupdated = new Date();
-                fs.writeFileSync(`./modules/${req.params.module}.json`, JSON.stringify(config))
+                fs.writeFileSync(`${process.cwd()}/modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {
                 body.status = "ERROR"
                 body.cookies = null;
-                body.error = `Authentication cookies could not be retrieved for module ${req.params.module}`
+                body.error = `Authentication failed for module '${req.params.module}'`;
                 res.json(body);
             }
         }else {
@@ -252,7 +282,7 @@ app.get("/:module/updatechannels", async (req,res) => {
             //save config
             mod.setConfig('chList', body.data)
             //log to console
-            console.log(`${req.params.module} channels updated`)
+            console.log(`Channels updated for module '${req.params.module}'`)
             res.json(body)
         }else {
             body.status = "ERROR"

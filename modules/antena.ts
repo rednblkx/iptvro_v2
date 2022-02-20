@@ -26,15 +26,16 @@ const debug = process.env.DEBUG;
 // var axios = require('axios');
 // var cheerio = require('cheerio')
 
-function logger(id, message, isError?) {
+function logger(id: string, message: string, isError?: boolean){
   if(debug){
     console.log(`${Module.MODULE_ID} - ${id}: ${message}`);
   }
   return isError ? new Error(`${Module.MODULE_ID} - ${id}: ${message}`) : `${Module.MODULE_ID} - ${id}: ${message}`
 };
 
-Module.login = async function login(username, password) {
+Module.login = async function login(username: string, password: string): Promise<string[]> {
   try {
+    logger("login", "first step, getting login token")
     let tokens = await axios.get("https://antenaplay.ro/intra-in-cont", {
       headers: {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -44,7 +45,8 @@ Module.login = async function login(username, password) {
       },
     });
     let $ = cheerio.load(tokens.data);
-      const login = await axios.post(
+    logger("login", "got login token, trying login")
+    const login = await axios.post(
           'https://antenaplay.ro/intra-in-cont', 
       `email=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&_token=${$("input[name=_token]").val()}`, 
       {
@@ -57,16 +59,20 @@ Module.login = async function login(username, password) {
         'user-agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36",
       },
       maxRedirects: 0,
-      validateStatus: (status) => status === 302
+      validateStatus: (status) => status === 302,
     })
+    if(login.headers.location === login.config.url){
+      return Promise.reject(logger("login", "login failed, Username/Password invalid", true))
+    }
+    logger("login", "login success, getting required cookies")
     let live = await axios.get("https://antenaplay.ro/live/antena1", {
       headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Origin': 'https://antenaplay.ro',
-          referer: "https://antenaplay.ro",
-          cookie: login.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0]).join(";"),
-          'user-agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"
+          // 'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          // 'Origin': 'https://antenaplay.ro',
+          Referer: "https://antenaplay.ro/live",
+          Cookie: login.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0]).join(";"),
+          'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"
       },
     });
     var cookies = live.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0])
@@ -74,16 +80,16 @@ Module.login = async function login(username, password) {
         logger("login", "cookies found")
         return await Promise.resolve(cookies);
       } else {
-        return await Promise.reject(new Error('Username/Password invalid or something went wrong'));
+        return await Promise.reject(new Error('Something went wrong'));
       }
     } catch (error) {
-      if(debug)
-        console.error(error);
-      return Promise.reject(logger("login", error.message || error.toString().substring(0, 200), true));
+      // if(debug)
+      //   console.error(error.toString().substring(0, error.findIndex("\n")));
+      return Promise.reject(logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
     }
 }
 
-Module.liveChannels = async function liveChannels(channel, cookies, lastupdated) {
+Module.liveChannels = async function liveChannels(channel: string, cookies: string[], lastupdated: string) : Promise<string> {
   try {
     if(!cookies || typeof cookies !== 'object'){
       //get config
@@ -130,7 +136,7 @@ Module.liveChannels = async function liveChannels(channel, cookies, lastupdated)
   }
 }
 
-Module.getChannels = async function getChannels(){
+Module.getChannels = async function getChannels(): Promise<string[]>{
   try {
     //axios get request to url https://antenaplay.ro/live
     var live = await axios.get('https://antenaplay.ro/live');
@@ -153,13 +159,11 @@ Module.getChannels = async function getChannels(){
     //return channelList
     return channelList;
   } catch (error) {
-    if(debug)
-      console.error(error);
     return Promise.reject(logger("getChannels", error.message || error.toString().substring(0, 200), true));
   }
 }
 
-Module.getVOD_List = async function getVOD_List(cookies) {
+Module.getVOD_List = async function getVOD_List(cookies: string[]): Promise<object[]> {
   try {
     if(!cookies || typeof cookies !== 'object'){
       // throw new Error(`Cookies Missing/Invalid`)
@@ -198,7 +202,15 @@ Module.getVOD_List = async function getVOD_List(cookies) {
   }
 }
 
-Module.getVOD = async function getVOD(show, config) {
+type VOD_config = {
+  cookies: string[],
+  year? : string,
+  season? : string,
+  month? : string,
+  showfilters? : string,
+}
+
+Module.getVOD = async function getVOD(show: string, config: VOD_config): Promise<object[] | object> {
   try {
     if(!config.cookies || typeof config.cookies !== 'object'){
       // throw `Cookies Missing/Invalid`
@@ -254,17 +266,17 @@ Module.getVOD = async function getVOD(show, config) {
       if(config.season){
         return await Promise.resolve(Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), config.cookies, null, null, config.season
+          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: null, month: null, season: config.season}
         ))
       }else if(config.year && config.month){
         return await Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), config.cookies, config.year, config.month, ""
+          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: config.year, month: config.month, season: null}
         )
       }else 
         return await Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), config.cookies, null, null, $(".buton-adauga").attr("data-id")
+          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: null, month: null, season: $(".buton-adauga").attr("data-id")}
         )
     }
     else return await Promise.reject(new Error('Something went wrong'))
@@ -274,28 +286,24 @@ Module.getVOD = async function getVOD(show, config) {
 }
 
 Module.getVOD_EP_List = async function getVOD_EP_List(
-  url,
-  cookies,
-  year,
-  month,
-  season
-) {
+  url: string,config: VOD_config
+): Promise<object[]> {
   try {
-    if(!cookies || typeof cookies !== 'object'){
+    if(!config.cookies || typeof config.cookies !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get config
-      var config = Module.getAuth();
+      var auth = Module.getAuth();
       //get cookies
-      cookies = await Module.login(config.username, config.password);
+      config.cookies = await Module.login(auth.username, auth.password);
       //set cookies
-      Module.setAuth({username: config.username, password: config.password, cookies: cookies, lastupdated: new Date()});
+      Module.setAuth({username: auth.username, password: auth.password, cookies: config.cookies, lastupdated: new Date()});
     }
-    logger("getVOD_EP_List", `Getting Episodes List for ${year && month ? "year " + year + " and month " + month : season ? "season id" + season : 'latest'}`);
-    let response = await axios.get(`${url}${year && month ? '&year=' + year + '&month=' + month : season ? `?show=${season}` : ""}`, {
+    logger("getVOD_EP_List", `Getting Episodes List for ${config.year && config.month ? "year " + config.year + " and month " + config.month : config.season ? "season id" + config.season : 'latest'}`);
+    let response = await axios.get(`${url}${config.year && config.month ? '&year=' + config.year + '&month=' + config.month : config.season ? `?show=${config.season}` : ""}`, {
       headers: {
         "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
         "x-requested-with": "XMLHttpRequest",
-        cookie: cookies.join("; "),
+        cookie: config.cookies.join("; "),
       },
       withCredentials: true, 
       // referrer: "https://antenaplay.ro/"
@@ -315,7 +323,7 @@ Module.getVOD_EP_List = async function getVOD_EP_List(
   }
 }
 
-Module.getVOD_EP = async function getVOD_EP(show, epid, cookies) {
+Module.getVOD_EP = async function getVOD_EP(show: string, epid: string, cookies: string[]): Promise<string> {
   try {
     if(!show || !epid){
       throw `Params Missing`

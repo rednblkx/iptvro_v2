@@ -58,9 +58,9 @@ export async function sanityCheck(): Promise<string[]> {
     console.log("Modules sanity check:\n");
 
     try {
-        let modules : Module[] = await Promise.all(files_list.map(async (val) => (await import(`${process.cwd()}/modules/${val}`)).default));
+        let modules : Module[] = await Promise.all(files_list.map(async (val) => (await import(`${process.cwd()}/modules/${val}`)).default || val));
         for (let val of modules) {
-            if(val.MODULE_ID){
+            if(val && val.MODULE_ID){
                 //check if config file exists
                 if(!existsSync(`${process.cwd()}/modules/${val.MODULE_ID}.json`)){
                     val.initializeConfig()
@@ -70,10 +70,10 @@ export async function sanityCheck(): Promise<string[]> {
                 }
                 console.log(` - Module '${val.MODULE_ID}' is present`)
                 valid.push(val.MODULE_ID)
-            }else throw new Error(`sanityCheck | Something went wrong loading module ${val}`);
+            }else console.log(` - Module '${val}' failed sanity check`)
         }
     } catch (error) {
-        console.error(`${error.message || error}`);
+        // console.error(`${error.message || error}`);
         return Promise.reject(error.message || error)
         
     }
@@ -98,14 +98,14 @@ function cacheFind(id: string, module_id: string){
             if((((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
                 let found = cache[0].link;
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheFind | Cached link found for '${id}', module '${module_id}', lastudpated on '${cache[0].lastupdated}', hours elapsed '${(((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600))}'`);
+                    console.log(`cacheFind| Cached link found for '${id}', module '${module_id}', lastudpated on '${cache[0].lastupdated}', hours elapsed '${(((new Date()).getTime() - (new Date(cache[0].lastupdated)).getTime()) / (1000 * 3600))}'`);
                 }
                 instance.close();
                 return found
             }else return null
         } else return null
     } catch (error) {
-        console.error(`cacheFind | ${error.message || error.toString().substring(0, 200)}`);
+        console.error(`cacheFind| ${error.message || error.toString().substring(0, 200)}`);
     }
 }
 
@@ -130,7 +130,7 @@ function cacheFill(id: string, module_id: string, link: string){
         instance.close();
         return cache
     } catch (error) {
-        console.error(`cacheFill | ${error.message || error.toString().substring(0, 200)}`);
+        console.error(`cacheFill| ${error.message || error.toString().substring(0, 200)}`);
     }
 }
 
@@ -146,10 +146,10 @@ export function flushCache(module_id){
         })
         instance.close();
         //log to console
-        console.log(`Flushed cache for module '${module_id}'`)
-        return `Flushed cache for module '${module_id}'`
+        console.log(`flushCache| Flushed cache for module '${module_id}'`)
+        return `flushCache| Flushed cache for module '${module_id}'`
     } catch (error) {
-        console.error(`flushCache | ${error.message || error.toString().substring(0, 200)}`);
+        console.error(`flushCache| ${error.message || error.toString().substring(0, 200)}`);
     }
 }
 
@@ -189,7 +189,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                         cacheFill(id, module_id, link)
                         return await Promise.resolve(link);
                     }
-                }else return await Promise.reject(new Error(`Module ${module_id} doesn't have channel '${id}'`))
+                }else return await Promise.reject(new Error(`searchChannel| Module ${module_id} doesn't have channel '${id}'`))
             }
         } catch (error) {
             return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))

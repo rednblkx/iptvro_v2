@@ -12,7 +12,7 @@ type config = {
         cachetime: number;
         chList: string[];
     }
-}
+};
 class Module {
 
     MODULE_ID: string;
@@ -62,14 +62,14 @@ class Module {
             //write config to file
             writeFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(config, null, 2));
             //log config
-            console.log(`${MODULE_ID} config file created`);
+            console.log(`initializeConfig| Config file created for module '${MODULE_ID}'`);
         };
 
         this.getAuth = function getAuth(){
             let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
-            if(parsed === null){
-                throw "Config file is not valid"
+            if(!parsed){
+                throw "getAuth - Config file is not valid"
             }else {
                 return parsed.auth;
             }
@@ -78,8 +78,8 @@ class Module {
         this.setAuth = function setAuth(auth: {username: string, password: string, cookies: string[], lastupdated: Date}){
             let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
-            if(parsed === null){
-                throw "Config file is not valid"
+            if(!parsed){
+                throw "setAuth - Config file is not valid"
             }else {
                 parsed.auth = auth;
                 writeFile(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
@@ -91,8 +91,8 @@ class Module {
         this.getConfig = function getConfig(key: string){
             let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
-            if(parsed === null){
-                throw "Config file is not valid"
+            if(!parsed){
+                throw "getConfig - Config file is not valid"
             }else {
                 return parsed.config[key]
             }
@@ -101,8 +101,8 @@ class Module {
         this.setConfig = function setConfig(key: string, value: any){
             let file = existsSync(`${process.cwd()}/modules/${MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${MODULE_ID}.json`).toString() : null
             let parsed : config = file ? JSON.parse(file) : null;
-            if(parsed === null){
-                throw "Config file is not valid"
+            if(!parsed){
+                throw "setConfig - Config file is not valid"
             }else {
                 parsed.config[key] = value;
                 writeFile(`${process.cwd()}/modules/${MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {

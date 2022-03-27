@@ -9,7 +9,6 @@
       "sourceMap": true,
       "moduleResolution": "node",
       "allowSyntheticDefaultImports": true,
-      "types": ["node"],
       "esModuleInterop": true
     },
     "include": ["./**/*"],

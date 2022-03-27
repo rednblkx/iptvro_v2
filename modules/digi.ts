@@ -55,9 +55,7 @@ Module.liveChannels = async function getFromDigi(channel) {
     let config = Module.getConfig();
     return new Promise(async (resolve, reject) => {
       try {
-        Module.logger('liveChannels',"getting cookies");
         let auth = Module.getAuth();
-        auth && Module.logger('liveChannels',"got cookies");
         Module.logger('liveChannels',"getting the stream");
         let play = await axios.post(
           "https://www.digionline.ro/api/stream",

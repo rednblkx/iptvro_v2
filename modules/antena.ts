@@ -6,7 +6,7 @@ import {load as htmlload} from 'cheerio';
 var Module = new Class('antena', true, true,)
 
 type VOD_config = {
-  cookies: string[],
+  authTokens: string[],
   year? : string,
   season? : string,
   month? : string,
@@ -52,7 +52,7 @@ Module.login = async function login(username: string, password: string): Promise
 
     if(login.headers.location === login.config.url){
       return Promise.reject(Module.logger("login", "login failed, Username/Password invalid", true))
-    }else Module.logger("login", "login success, getting required cookies")
+    }else Module.logger("login", "login success, getting required authTokens")
 
     let live = await axios.get("https://antenaplay.ro/live/antena1", {
       headers: {
@@ -62,10 +62,10 @@ Module.login = async function login(username: string, password: string): Promise
       },
     });
 
-    var cookies = live.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0])
-    if (cookies.some((a) => a.match(/[^=]*/)[0].includes("device"))) {
-        Module.logger("login", "cookies found")
-        return await Promise.resolve(cookies);
+    var authTokens = live.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0])
+    if (authTokens.some((a) => a.match(/[^=]*/)[0].includes("device"))) {
+        Module.logger("login", "authTokens found")
+        return await Promise.resolve(authTokens);
       } else {
         return await Promise.reject(new Error('Something went wrong'));
       }
@@ -74,20 +74,20 @@ Module.login = async function login(username: string, password: string): Promise
     }
 }
 
-Module.liveChannels = async function liveChannels(channel: string, cookies: string[], lastupdated: string) : Promise<string> {
+Module.liveChannels = async function liveChannels(channel: string, authTokens: string[], lastupdated: string) : Promise<string> {
   try {
-    if(!cookies || typeof cookies !== 'object'){
+    if(!authTokens || typeof authTokens !== 'object'){
       //get config
       var config = Module.getAuth();
-      //get cookies
-      cookies = await Module.login(config.username, config.password);
-      //set cookies
-      Module.setAuth({username: config.username, password: config.password, cookies: cookies, lastupdated: new Date()});
+      //get authTokens
+      authTokens = await Module.login(config.username, config.password);
+      //set authTokens
+      Module.setAuth({username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date()});
     }
     Module.logger("liveChannels", "Acquiring HTML")
     let html = await axios.get(`https://antenaplay.ro/live/${channel}`, {
       headers: {
-        cookie: cookies.join("; "),
+        cookie: authTokens.join("; "),
       },
       withCredentials: true,
       // referrer: "https://antenaplay.ro/seriale",
@@ -97,10 +97,10 @@ Module.liveChannels = async function liveChannels(channel: string, cookies: stri
       let newCookies = html.headers['set-cookie']
       let config = Module.getAuth();
       // let parsed = JSON.parse(config);
-      config.cookies[config.cookies.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
-      config.cookies[config.cookies.findIndex(el => el.includes('laravel_session'))] = newCookies[newCookies.findIndex(el => el.includes('laravel_session'))];
+      config.authTokens[config.authTokens.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
+      config.authTokens[config.authTokens.findIndex(el => el.includes('laravel_session'))] = newCookies[newCookies.findIndex(el => el.includes('laravel_session'))];
       config.lastupdated = new Date();
-      //set cookies
+      //set authTokens
       Module.setAuth(config);
       Module.logger("liveChannels", "Cookies updated")
     }
@@ -146,21 +146,21 @@ Module.getChannels = async function getChannels(): Promise<string[]>{
   }
 }
 
-Module.getVOD_List = async function getVOD_List(cookies: string[]): Promise<object[]> {
+Module.getVOD_List = async function getVOD_List(authTokens: string[]): Promise<object[]> {
   try {
-    if(!cookies || typeof cookies !== 'object'){
+    if(!authTokens || typeof authTokens !== 'object'){
       // throw new Error(`Cookies Missing/Invalid`)
       //get config
       var config = Module.getAuth();
-      //get cookies
-      cookies = await Module.login(config.username, config.password);
-      //set cookies
-      Module.setAuth({username: config.username, password: config.password, cookies: cookies, lastupdated: new Date()});
+      //get authTokens
+      authTokens = await Module.login(config.username, config.password);
+      //set authTokens
+      Module.setAuth({username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date()});
     }
     Module.logger("getVOD_List", "Acquiring HTML")
     let html = await axios.get(`https://antenaplay.ro/seriale`, {
       headers: {
-        cookie: cookies.join("; "),
+        cookie: authTokens.join("; "),
       },
       // referrer: `https://antenaplay.ro/`,
     });
@@ -187,19 +187,19 @@ Module.getVOD_List = async function getVOD_List(cookies: string[]): Promise<obje
 
 Module.getVOD = async function getVOD(show: string, config: VOD_config): Promise<object[] | object> {
   try {
-    if(!config.cookies || typeof config.cookies !== 'object'){
+    if(!config.authTokens || typeof config.authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get auth
       var auth = Module.getAuth();
-      //get cookies
-      config.cookies = await Module.login(auth.username, auth.password);
-      //set cookies
-      Module.setAuth({username: auth.username, password: auth.password, cookies: config.cookies, lastupdated: new Date()});
+      //get authTokens
+      config.authTokens = await Module.login(auth.username, auth.password);
+      //set authTokens
+      Module.setAuth({username: auth.username, password: auth.password, authTokens: config.authTokens, lastupdated: new Date()});
     }
     Module.logger("getVOD", "Acquiring HTML");
     let html = await axios.get(`https://antenaplay.ro/${show}`, {
       headers: {
-        cookie: config.cookies.join("; "),
+        cookie: config.authTokens.join("; "),
       },
       // referrer: `https://antenaplay.ro/seriale`,
       maxRedirects: 0
@@ -241,17 +241,17 @@ Module.getVOD = async function getVOD(show: string, config: VOD_config): Promise
       if(config.season){
         return await Promise.resolve(Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: null, month: null, season: config.season}
+          $("button.js-selector").attr("data-url"), {authTokens: config.authTokens, year: null, month: null, season: config.season}
         ))
       }else if(config.year && config.month){
         return await Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: config.year, month: config.month, season: null}
+          $("button.js-selector").attr("data-url"), {authTokens: config.authTokens, year: config.year, month: config.month, season: null}
         )
       }else 
         return await Module.getVOD_EP_List(
           "https://antenaplay.ro" +
-          $("button.js-selector").attr("data-url"), {cookies: config.cookies, year: null, month: null, season: $(".buton-adauga").attr("data-id")}
+          $("button.js-selector").attr("data-url"), {authTokens: config.authTokens, year: null, month: null, season: $(".buton-adauga").attr("data-id")}
         )
     }
     else return await Promise.reject(new Error('Something went wrong'))
@@ -264,21 +264,21 @@ Module.getVOD_EP_List = async function getVOD_EP_List(
   url: string,config: VOD_config
 ): Promise<object[]> {
   try {
-    if(!config.cookies || typeof config.cookies !== 'object'){
+    if(!config.authTokens || typeof config.authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get config
       var auth = Module.getAuth();
-      //get cookies
-      config.cookies = await Module.login(auth.username, auth.password);
-      //set cookies
-      Module.setAuth({username: auth.username, password: auth.password, cookies: config.cookies, lastupdated: new Date()});
+      //get authTokens
+      config.authTokens = await Module.login(auth.username, auth.password);
+      //set authTokens
+      Module.setAuth({username: auth.username, password: auth.password, authTokens: config.authTokens, lastupdated: new Date()});
     }
     Module.logger("getVOD_EP_List", `Getting Episodes List for ${config.year && config.month ? "year " + config.year + " and month " + config.month : config.season ? "season id" + config.season : 'latest'}`);
     let response = await axios.get(`${url}${config.year && config.month ? '&year=' + config.year + '&month=' + config.month : config.season ? `?show=${config.season}` : ""}`, {
       headers: {
         "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
         "x-requested-with": "XMLHttpRequest",
-        cookie: config.cookies.join("; "),
+        cookie: config.authTokens.join("; "),
       },
       withCredentials: true, 
       // referrer: "https://antenaplay.ro/"
@@ -298,19 +298,19 @@ Module.getVOD_EP_List = async function getVOD_EP_List(
   }
 }
 
-Module.getVOD_EP = async function getVOD_EP(show: string, epid: string, cookies: string[]): Promise<string> {
+Module.getVOD_EP = async function getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string> {
   try {
     if(!show || !epid){
       throw `Params Missing`
     }
-    if(!cookies || typeof cookies !== 'object'){
+    if(!authTokens || typeof authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get config
       var config = Module.getAuth();
-      //get cookies
-      cookies = await Module.login(config.username, config.password);
-      //set cookies
-      Module.setAuth({username: config.username, password: config.password, cookies: cookies, lastupdated: new Date()});
+      //get authTokens
+      authTokens = await Module.login(config.username, config.password);
+      //set authTokens
+      Module.setAuth({username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date()});
     }
     Module.logger("getVOD_EP", "Acquiring HTML")
     let response = await axios.get(
@@ -319,7 +319,7 @@ Module.getVOD_EP = async function getVOD_EP(show: string, epid: string, cookies:
         headers: {
           "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
           "x-requested-with": "XMLHttpRequest",
-          cookie: cookies.join("; "),
+          cookie: authTokens.join("; "),
         },
         // referrer: "https://antenaplay.ro/",
       }

@@ -1,97 +1,95 @@
 import Class from '../src/moduleClass.js';
 
 import axios from 'axios';
-import cheerio from 'cheerio';
-import puppeteer, {SerializableOrJSHandle} from 'puppeteer';
-import http2 from 'http2';
+import md5 from 'blueimp-md5';
+import crypto from 'crypto';
 
 var Module = new Class('digi', true, false)
 
-Module.login = async function login(username, password) {
+function uuidGen(number, uuid = ""){
+  let gen = crypto.randomUUID().replace(/\-/g, "")
+  if(number == 0){
+      return uuid
+  } 
+  return uuidGen(number - 1, uuid + gen)
+}
+
+function generateId(username, password, uhash){
+let deviceStr = `Kodeative_iptvro_${BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()}`
+let deviceId = `${deviceStr}_${uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))}`
+let md5hash = md5(`${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`)
+return {id: deviceId, hash: md5hash}
+}
+
+Module.login = async function login() {
     let auth = Module.getAuth();
-    let reusecookie = {deviceId: ""};
-    auth.cookies && Module.logger('login',`reusing cookies ${auth.cookies}`);
+    let pwdHash = md5(auth.password)
     return new Promise(async (resolve, reject) => {
       try {
-        const browser = await puppeteer.launch({headless: !Module.debug, args: ['--no-sandbox', '--disable-setuid-sandbox']});
-        const page = await browser.newPage();
-        await page.goto('https://www.digionline.ro/auth/login');
-        await page.evaluate((auth) => {
-            (<HTMLInputElement>document.getElementById("form-login-email")).value = auth.username;
-            (<HTMLInputElement>document.getElementById("form-login-password")).value = auth.password;
-            for(var a=0; a==document.getElementsByTagName("button").length - 1;a++){
-                if(document.getElementsByTagName("button")[a].getAttribute("type") === "submit"){
-                    document.getElementsByTagName("button")[a].click()
-                }
-                }
-        }, <SerializableOrJSHandle>(<unknown>auth))
-        if(auth.cookies){
-          auth.cookies.forEach(b => {
-            let aux = b.split("=");
-            reusecookie[aux[0]] = aux[1]
-          })
-          await page.setCookie({name: "deviceId", value: reusecookie.deviceId, domain:".digionline.ro"})
-        }    
-        await page.waitForSelector("#form-login-mode-all");
-        var pupcookie = await page.cookies();
-  
-        if(pupcookie.find(a => a.name == "deviceId")){
-          auth.cookies = [];
-          pupcookie.forEach(cookie => {
-            auth.cookies.push(`${cookie.name}=${cookie.value}`)
-          })
-          browser.close();
-          Module.setAuth({username: auth.username, password: auth.password, cookies: auth.cookies, lastupdated: new Date()})
-        }
-        else throw "No cookies found"
-        resolve(auth.cookies);
+        if(!auth.password || !auth.username)
+          throw "Username/Password not provided"
+
+        let xhrResponse = await axios.get(`https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${encodeURIComponent(auth.username)}`,
+        {
+          headers: {
+            "User-Agent": "okhttp/4.8.1",
+            "authorization": "Basic YXBpLXdzLXdlYmFkbWluOmRldl90ZWFtX3Bhc3M="
+          }
+        })
+        let userHash = xhrResponse.data?.data.h
+    
+        if(!userHash)
+          throw "Hash not received, something went wrong!"
+    
+        let id = generateId(auth.username, pwdHash, userHash)
+    
+        let register = await axios.get(`https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${encodeURIComponent(auth.username)}&o=REL_12`, {
+          headers: {
+            "user-agent": "okhttp/4.8.1",
+            "authorization": "Basic YXBpLXdzLXdlYmFkbWluOmRldl90ZWFtX3Bhc3M="
+          }
+        })
+    
+        if(register.data.meta?.error == 0){
+          Module.setAuth({username: auth.username, password: auth.password, authTokens: [id.id], lastupdated: new Date()})
+        } else throw "Authentication failed"
+        
+        resolve(id.id);
       } catch (error) {
         reject("digi| login: " + error);
       }
     });
 }
 
-Module.liveChannels = async function getFromDigi(channel) {
+Module.liveChannels = async function getFromDigi(id, authTokens, authLastUpdate) {
     let config = Module.getConfig();
     return new Promise(async (resolve, reject) => {
+      if(!authTokens){
+        Module.logger('liveChannels', "No tokens, trying login")
+        authTokens = await Module.login();
+      }
       try {
-        let auth = Module.getAuth();
         Module.logger('liveChannels',"getting the stream");
-        let play = await axios.post(
-          "https://www.digionline.ro/api/stream",
-          `id_stream=${config.chList[channel]["id"]}&quality=hq`,
-          {
-            headers: {
-              authority: "www.digionline.ro",
-              pragma: "no-cache",
-              "cache-control": "no-cache",
-              accept: "application/json, text/javascript, */*; q=0.01",
-              dnt: "1",
-              "x-requested-with": "XMLHttpRequest",
-              "user-agent":
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36",
-              "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-              origin: "https:/www.digionline.ro",
-              "sec-fetch-site": "same-origin",
-              "sec-fetch-mode": "cors",
-              "sec-fetch-dest": "empty",
-              referer: `https:/www.digionline.ro/${config.chList[channel]["category"]}/${channel}`,
-              "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-              cookie: auth.cookies.join("; "),
-            },
-          }
-        );
-        play && Module.logger("liveChannels", "got the stream");
-        if(play.data.stream_errCode !== 0){
-            reject(Module.logger("liveChannels", `Got error from provider '${play.data.stream_err}'`, true))
+        let play = await axios.get(`https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${config.chList[id]['id']}&platform=Android&version_app=release&i=${authTokens}&sn=ro.rcsrds.digionline&s=app&quality=all`,
+        {
+          headers: {
+            "authorization": "Basic YXBpLXdzLXdlYmFkbWluOmRldl90ZWFtX3Bhc3M=",
+            "user-agent": "okhttp/4.8.1"
+          },
         }
-        resolve(play.data.stream_url);
+      );
+        play && Module.logger("liveChannels", "got the stream");
+        if(play.data.error !== ""){
+            reject(Module.logger("liveChannels", `Error from provider '${play.data.error}'`, true))
+        }
+        resolve(play.data.stream.abr);
       } catch (error) {
             
         //   let auth = Module.getAuth();
-        //   Module.login(auth.cookies).then(() => {
+        //   Module.login(auth.authTokens).then(() => {
         //       getFromDigi(channel).then(stream => resolve(stream)).catch(er => reject(er))
         //   }).catch(er => reject(er))
+        reject(Module.logger("liveChannels", `Error from provider: ${error}`, true))
       }
     })
   }

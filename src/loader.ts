@@ -15,7 +15,7 @@ type config = {
     auth: {
         username: string;
         password: string;
-        cookies: string[];
+        authTokens: string[];
         lastupdated: Date;
     }
     config: {
@@ -164,7 +164,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                 if(cache !== null && config.cache_enabled){
                     return await Promise.resolve(cache)
                 }else {
-                    let link = await module.liveChannels(id, auth.cookies, auth.lastupdated)
+                    let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
                     cacheFill(id, module_id, link)
                     return await Promise.resolve(link);
                 }
@@ -177,7 +177,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(cache !== null && module.getConfig().cache_enabled){
                         return await Promise.resolve(cache)
                     }else {
-                        let link = await module.liveChannels(id, auth.cookies, auth.lastupdated)
+                        let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
                         cacheFill(id, module_id, link)
                         return await Promise.resolve(link);
                     }
@@ -201,7 +201,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                         if(cache !== null && config.cache_enabled){
                             resolve(cache)
                         }else {
-                            let link = await module.liveChannels(id, auth.cookies, auth.lastupdated)
+                            let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
                             cacheFill(id, val, link)
                             resolve(link)
                         }
@@ -213,7 +213,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                             if(cache !== null && config.cache_enabled){
                                 resolve(cache)
                             }else {
-                                let link = await module.liveChannels(id, auth.cookies, auth.lastupdated)
+                                let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
                                 cacheFill(id, val, link)
                                 resolve(link)
                             }
@@ -234,7 +234,7 @@ export async function getVODlist(module_id: string){
         try {
             let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
             if(module.hasVOD){
-                return await Promise.resolve(await module.getVOD_List(module.getAuth().cookies));
+                return await Promise.resolve(await module.getVOD_List(module.getAuth().authTokens));
             }else return await Promise.reject(new Error(`getVODlist| Module ${module_id} doesn't have VOD available`))
         } catch (error) {
            return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))
@@ -246,7 +246,7 @@ export async function getVOD(module_id: string, show_id: string, year?: string, 
         try {
             let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
             if(module.hasVOD){
-                let res = await module.getVOD(show_id, {cookies: module.getAuth().cookies, year, month, season, showfilters});
+                let res = await module.getVOD(show_id, {authTokens: module.getAuth().authTokens, year, month, season, showfilters});
                 return await Promise.resolve(res);
             }else return await Promise.reject(new Error(`getVOD| Module ${module_id} doesn't have VOD available`))
         } catch (error) {
@@ -263,7 +263,7 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
                 if(cache !== null && module.getConfig().cache_enabled){
                     return await Promise.resolve(cache)
                 }else {
-                    let res = await module.getVOD_EP(show_id, epid, module.getAuth().cookies);
+                    let res = await module.getVOD_EP(show_id, epid, module.getAuth().authTokens);
                     cacheFill(epid, module_id, res)
                     return await Promise.resolve(res);
                 }

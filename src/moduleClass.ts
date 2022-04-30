@@ -4,7 +4,7 @@ type AuthConfig = {
     auth: {
         username: string;
         password: string;
-        cookies: string[];
+        authTokens: string[];
         lastupdated: Date;
     }
     config: {
@@ -35,7 +35,7 @@ class ModuleFunctions {
           "auth": {
               "username": "",
               "password": "",
-              "cookies": null
+              "authTokens": null
           },
           "config": {
               "cache_enabled": true,
@@ -59,7 +59,7 @@ class ModuleFunctions {
         }
     }
 
-    setAuth(auth: {username: string, password: string, cookies: string[], lastupdated: Date}){
+    setAuth(auth: {username: string, password: string, authTokens: string[], lastupdated: Date}){
         let file = existsSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`).toString() : null
         let parsed : AuthConfig = file ? JSON.parse(file) : null;
         if(!parsed){

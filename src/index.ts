@@ -31,13 +31,13 @@ class body_response {
     status: string;
     data: object | string;
     error: string;
-    cookies? : string[];
+    authTokens? : string[];
 
-    constructor(status: string, data: object | string, error?: string, cookies?: string[]){
+    constructor(status: string, data: object | string, error?: string, authTokens?: string[]){
         this.status = status;
         this.data = data;
         this.error = error;
-        this.cookies = cookies;
+        this.authTokens = authTokens;
     }
 }
 
@@ -45,7 +45,7 @@ type config = {
     auth: {
         username: string;
         password: string;
-        cookies: string[];
+        authTokens: string[];
         lastupdated: Date;
     }
     config: {
@@ -226,37 +226,37 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
 })
 
 app.post("/:module/login", async (req,res) => {
-    let cookies;
+    let authTokens;
     let body: body_response = new body_response("", "");
     try {
-        let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, cookies: null}, config: {}}
+        let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, authTokens: null}, config: {}}
         let config : config = typeof file === "object" ? file : JSON.parse(file)
         req.body.username ? logger("login", `'${req.params.module}' login attempt with username "${req.body.username}" from request`) : logger("login", `'${req.params.module}' login attempt with username ${config.auth.username} from file (request empty)`)
         if(valid_modules.find(x => x == req.params.module) != undefined){
-            cookies = await modules.login(req.params.module, req.body.username || config.auth.username, req.body.password || config.auth.password)
-            if(cookies){
-                logger("login", `'${req.params.module}' login success, got cookies`)
+            authTokens = await modules.login(req.params.module, req.body.username || config.auth.username, req.body.password || config.auth.password)
+            if(authTokens){
+                logger("login", `'${req.params.module}' login success, got authTokens`)
                 body.status = "OK";
-                body.cookies = cookies;
-                config.auth.cookies = cookies;
+                body.authTokens = authTokens;
+                config.auth.authTokens = authTokens;
                 config.auth.lastupdated = new Date();
                 fs.writeFileSync(`${process.cwd()}/modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {
                 body.status = "ERROR"
-                body.cookies = null;
+                body.authTokens = null;
                 body.error = `Authentication failed for module '${req.params.module}'`;
                 res.json(body);
             }
         }else {
             body.status = "ERROR"
-            body.cookies = null;
+            body.authTokens = null;
             body.error = `Module '${req.params.module}' not found`
             res.json(body);
         }
     } catch (error) {
         body.status = "ERROR"
-        body.cookies = null;
+        body.authTokens = null;
         body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
@@ -320,4 +320,4 @@ app.get("/**", (_,res) => {
     res.status(404).json(body)
 })
 
-app.listen(PORT, () => { console.log(`Now accepting requests to API on port ${PORT}`)})
+app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}`)})

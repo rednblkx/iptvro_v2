@@ -33,7 +33,7 @@ class body_response {
     error: string;
     authTokens? : string[];
 
-    constructor(status: string, data: object | string, error?: string, authTokens?: string[]){
+    constructor(status: string, data: object | string, error: string, authTokens?: string[]){
         this.status = status;
         this.data = data;
         this.error = error;
@@ -63,7 +63,7 @@ function logger(id, message, isError?) {
   };
 
 app.get("/:module", async (req,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
     try {
         if(valid_modules.find(x => x == req.params.module) != undefined){
             let mod: Module = (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default;
@@ -71,7 +71,7 @@ app.get("/:module", async (req,res) => {
             // let parsed = JSON.parse(file)
             // console.log(parsed);
             body.status = "OK"
-            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: mod.getConfig().chList}
+            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: (await mod.getConfig()).chList}
             res.json(body);
         } else throw "Invalid Module ID"
     } catch (error) {
@@ -84,7 +84,7 @@ app.get("/:module", async (req,res) => {
 
 app.get("/live/:channel", async (req,res) => {
 
-    var body: body_response = new body_response("", "");
+    var body: body_response = new body_response("", "", null);
 
     try {
         body.status = "OK"
@@ -101,7 +101,7 @@ app.get("/live/:channel", async (req,res) => {
 })
 app.get("/:module/live/:channel", async (req,res) => {
 
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -124,7 +124,7 @@ app.get("/:module/live/:channel", async (req,res) => {
 })
 
 app.get("/:module/live", async (req,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -149,7 +149,7 @@ app.get("/:module/live", async (req,res) => {
 
 app.get("/:module/vod", async (req,res) => {
     
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -183,7 +183,7 @@ interface ParamsVOD {
 }
 
 app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -204,7 +204,7 @@ app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,re
     }
 })
 app.get("/:module/vod/:show/:epid", async (req,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -227,7 +227,7 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
 
 app.post("/:module/login", async (req,res) => {
     let authTokens;
-    let body: body_response = new body_response("", "");
+    let body: body_response = new body_response("", "", null);
     try {
         let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, authTokens: null}, config: {}}
         let config : config = typeof file === "object" ? file : JSON.parse(file)
@@ -263,7 +263,7 @@ app.post("/:module/login", async (req,res) => {
 })
 
 app.get("/:module/flushcache", async (req,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -285,7 +285,7 @@ app.get("/:module/flushcache", async (req,res) => {
 })
 
 app.get("/:module/updatechannels", async (req,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
@@ -313,7 +313,7 @@ app.get("/:module/updatechannels", async (req,res) => {
 })
 
 app.get("/**", (_,res) => {
-    var body : body_response = new body_response("", "");
+    var body : body_response = new body_response("", "", null);
     body.status = "ERROR"
     body.data = valid_modules;
     body.error = "Endpoint did not match any route, listing all available modules";

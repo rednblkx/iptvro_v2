@@ -78,7 +78,7 @@ Module.liveChannels = async function liveChannels(channel: string, authTokens: s
   try {
     if(!authTokens || typeof authTokens !== 'object'){
       //get config
-      var config = Module.getAuth();
+      var config = await Module.getAuth();
       //get authTokens
       authTokens = await Module.login(config.username, config.password);
       //set authTokens
@@ -95,7 +95,7 @@ Module.liveChannels = async function liveChannels(channel: string, authTokens: s
 
     if((((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600)) >= 6){
       let newCookies = html.headers['set-cookie']
-      let config = Module.getAuth();
+      let config = await Module.getAuth();
       // let parsed = JSON.parse(config);
       config.authTokens[config.authTokens.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
       config.authTokens[config.authTokens.findIndex(el => el.includes('laravel_session'))] = newCookies[newCookies.findIndex(el => el.includes('laravel_session'))];
@@ -151,7 +151,7 @@ Module.getVOD_List = async function getVOD_List(authTokens: string[]): Promise<o
     if(!authTokens || typeof authTokens !== 'object'){
       // throw new Error(`Cookies Missing/Invalid`)
       //get config
-      var config = Module.getAuth();
+      var config = await Module.getAuth();
       //get authTokens
       authTokens = await Module.login(config.username, config.password);
       //set authTokens
@@ -190,7 +190,7 @@ Module.getVOD = async function getVOD(show: string, config: VOD_config): Promise
     if(!config.authTokens || typeof config.authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get auth
-      var auth = Module.getAuth();
+      var auth = await Module.getAuth();
       //get authTokens
       config.authTokens = await Module.login(auth.username, auth.password);
       //set authTokens
@@ -267,7 +267,7 @@ Module.getVOD_EP_List = async function getVOD_EP_List(
     if(!config.authTokens || typeof config.authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get config
-      var auth = Module.getAuth();
+      var auth = await Module.getAuth();
       //get authTokens
       config.authTokens = await Module.login(auth.username, auth.password);
       //set authTokens
@@ -306,7 +306,7 @@ Module.getVOD_EP = async function getVOD_EP(show: string, epid: string, authToke
     if(!authTokens || typeof authTokens !== 'object'){
       // throw `Cookies Missing/Invalid`
       //get config
-      var config = Module.getAuth();
+      var config = await Module.getAuth();
       //get authTokens
       authTokens = await Module.login(config.username, config.password);
       //set authTokens

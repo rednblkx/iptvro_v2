@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFile, writeFileSync } from "fs";
+import { Low, JSONFile } from 'lowdb'
 
 type AuthConfig = {
     auth: {
@@ -46,52 +47,58 @@ class ModuleFunctions {
         //write config to file
         writeFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`, JSON.stringify(config, null, 2));
         //log config
-        console.log(`initializeConfig| Config file created for module '${this.MODULE_ID}'`);
+        this.logger("initializeConfig",'Config file created');
     };
 
-    getAuth(): AuthConfig['auth'] {
-        let file = existsSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`).toString() : null
-        let parsed : AuthConfig = file ? JSON.parse(file) : null;
-        if(!parsed){
+    async getAuth(): Promise<AuthConfig['auth']> {
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const db = new Low(adapter)
+
+        // Read data from JSON file, this will set db.data content
+        await db.read()
+
+        if(!db.data){
             throw "getAuth - Config file is not valid"
         }else {
-            return parsed.auth;
+            return db.data.auth;
         }
     }
 
-    setAuth(auth: {username: string, password: string, authTokens: string[], lastupdated: Date}){
-        let file = existsSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`).toString() : null
-        let parsed : AuthConfig = file ? JSON.parse(file) : null;
-        if(!parsed){
+    async setAuth(auth: {username: string, password: string, authTokens: string[], lastupdated: Date}): Promise<void>{
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const db = new Low(adapter)
+        await db.read();
+        
+        if(!db.data){
             throw "setAuth - Config file is not valid"
         }else {
-            parsed.auth = auth;
-            writeFile(`${process.cwd()}/modules/${this.MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
-                console.log(`${this.MODULE_ID} | config file updated - credentials changed`);
-            });
+            db.data.auth = auth;
+            db.write().then(() => this.logger('setAuth', 'config file updated - credentials changed'))
         }
     }
 
-    getConfig(): AuthConfig['config'] {
-        let file = existsSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`).toString() : null
-        let parsed : AuthConfig = file ? JSON.parse(file) : null;
-        if(!parsed){
+    async getConfig(): Promise<AuthConfig['config']> {
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const db = new Low(adapter)
+        await db.read();
+
+        if(!db.data){
             throw "getConfig - Config file is not valid"
         }else {
-            return parsed.config
+            return db.data.config
         }
     };
 
-    setConfig(key: string, value: any){
-        let file = existsSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`) ? readFileSync(`${process.cwd()}/modules/${this.MODULE_ID}.json`).toString() : null
-        let parsed : AuthConfig = file ? JSON.parse(file) : null;
-        if(!parsed){
+    async setConfig(key: string, value: any){
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const db = new Low(adapter)
+        await db.read();
+        if(!db.data){
             throw "setConfig - Config file is not valid"
         }else {
-            parsed.config[key] = value;
-            writeFile(`${process.cwd()}/modules/${this.MODULE_ID}.json`, JSON.stringify(parsed, null, 2), () => {
-                console.log(`${this.MODULE_ID} | config file updated - ${key} changed`);
-            });
+            db.data.config[key] = value;
+            db.write().then(() => this.logger('setConfig', `config file updated - ${key} changed`))
+
         }
     };
 

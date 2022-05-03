@@ -22,7 +22,7 @@ return {id: deviceId, hash: md5hash}
 }
 
 Module.login = async function login() {
-    let auth = Module.getAuth();
+    let auth = await Module.getAuth();
     let pwdHash = md5(auth.password)
     return new Promise(async (resolve, reject) => {
       try {
@@ -62,7 +62,7 @@ Module.login = async function login() {
 }
 
 Module.liveChannels = async function getFromDigi(id, authTokens, authLastUpdate) {
-    let config = Module.getConfig();
+    let config = await Module.getConfig();
     return new Promise(async (resolve, reject) => {
       if(!authTokens){
         Module.logger('liveChannels', "No tokens, trying login")

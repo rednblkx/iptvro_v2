@@ -1,7 +1,7 @@
 node_modules
 .vscode
 yarn*
-modules/*.json
+**/*.json
 cache*
 test*
 *.realm*

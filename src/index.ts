@@ -3,7 +3,7 @@ import express, {Request} from 'express';
 import * as modules from './loader.js';
 
 import fs from 'fs';
-import Module from './moduleClass.js';
+import Module, { ModuleType } from './moduleClass.js';
 
 const app = express();
 
@@ -11,11 +11,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-try {
+// try {
     var valid_modules = await modules.sanityCheck()
-} catch (error) {
-    console.log(`${error.message || error}`);
-}
+// } catch (error) {
+//     console.log(`${error.message || error}`);
+// }
 
 
 console.log(`\nValid modules: ${valid_modules}\n`);
@@ -61,26 +61,6 @@ function logger(id, message, isError?) {
     }
     return isError ? new Error(`index - ${id}: ${message}`) : `index - ${id}: ${message}`
   };
-
-app.get("/:module", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
-    try {
-        if(valid_modules.find(x => x == req.params.module) != undefined){
-            let mod: Module = (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default;
-            // let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString();
-            // let parsed = JSON.parse(file)
-            // console.log(parsed);
-            body.status = "OK"
-            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: (await mod.getConfig()).chList}
-            res.json(body);
-        } else throw "Invalid Module ID"
-    } catch (error) {
-        body.status = "ERROR"
-        body.data = null;
-        body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
-    }
-})
 
 app.get("/live/:channel", async (req,res) => {
 
@@ -284,12 +264,12 @@ app.get("/:module/flushcache", async (req,res) => {
     }
 })
 
-app.get("/:module/updatechannels", async (req,res) => {
+app.get("/:module?/updatechannels", async (req,res) => {
     var body : body_response = new body_response("", "", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            let mod: Module = (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default;
+            let mod: ModuleType = new (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default();
             body.status = "OK"
             body.data = await mod.getChannels()
             //save config
@@ -308,6 +288,26 @@ app.get("/:module/updatechannels", async (req,res) => {
         body.status = "ERROR"
         body.data = null;
         body.error = error.message || error
+        res.json(body)
+    }
+})
+
+app.get("/:module", async (req,res) => {
+    var body : body_response = new body_response("", "", null);
+    try {
+        if(valid_modules.find(x => x == req.params.module) != undefined){
+            let mod: ModuleType = new (await import(`${process.cwd()}/modules/${req.params.module}.js`)).default();
+            // let file = fs.existsSync(`${process.cwd()}/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/modules/${req.params.module}.json`).toString();
+            // let parsed = JSON.parse(file)
+            // console.log(parsed);
+            body.status = "OK"
+            body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: (await mod.getConfig()).chList}
+            res.json(body);
+        } else throw "Invalid Module ID"
+    } catch (error) {
+        body.status = "ERROR"
+        body.data = null;
+        body.error = error.message || error.toString().substring(0, 200);
         res.json(body)
     }
 })

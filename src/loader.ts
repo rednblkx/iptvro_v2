@@ -1,5 +1,5 @@
-import Module from "./moduleClass";
-import { readdirSync, existsSync} from "fs";
+import Module, {ModuleType} from "./moduleClass";
+import { readdirSync, existsSync } from "fs";
 import { extname } from 'path';
 import { JSONFile, Low } from "lowdb";
 import { readFile } from "fs/promises";
@@ -30,11 +30,16 @@ export async function sanityCheck(): Promise<string[]> {
     let files_list = readdirSync(process.cwd() + "/modules").filter(a => extname(a) === ".js" );
     var valid_list = [];
     console.log("Modules sanity check:\n");
-
-    let modules : Module[] = await Promise.all(files_list.map(async (val) => (await import(`${process.cwd()}/modules/${val}`)).default || val));
+    let modules : ModuleType[] = await Promise.all(files_list.map(async (val) => {
+        try {
+            return new (await import(`${process.cwd()}/modules/${val}`)).default()
+        } catch (error) {
+            return {module: val.match(/^(.*)\.js$/)[1], error: error.message || error.toString().substring(0, 200)};
+        }
+    }));
     for (let val of modules) {
         try {
-            if(val && val.MODULE_ID){
+            if(val?.MODULE_ID){
                 let valid = true;
                 //check if config file exists
                 if(!existsSync(`${process.cwd()}/modules/${val.MODULE_ID}.json`)){
@@ -73,7 +78,7 @@ export async function sanityCheck(): Promise<string[]> {
                 valid && console.log(`\t${val.MODULE_ID} - No issues found`);
                 
                 valid && valid_list.push(val.MODULE_ID)
-            }else console.log(` - Module '${val}' failed sanity check`)
+            }else console.log(` - Module '${val['module'] || val}' failed sanity check\n\t${val['error'] || `\0`}`);
         } catch (error) {
             console.error(`${error?.message || error}`);
             // return Promise.reject(error.message || error)
@@ -151,34 +156,34 @@ export function flushCache(module_id: string){
     }
 }
 
-export async function searchChannel(id: string, module_id: string, valid_modules: string[]){
+export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<string>{
     if(module_id){
         try {
-            let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
+            let module: ModuleType = new (await import(`${process.cwd()}/modules/${module_id}.js`)).default();
             // let file = existsSync(`${process.cwd()}/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/modules/${module_id}.json`).toString() : null;
             let config = await module.getConfig()
             let auth = await module.getAuth();
-            if(config.chList[id] || config?.chList?.includes(id)){
+            if(config.chList[id]){
                 // let file = existsSync(`${process.cwd()}/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/modules/${module_id}.json`).toString() : null
                 // let parsed: config = file ? JSON.parse(file) : null;
                 let cache = await cacheFind(id, module_id)
                 if(cache !== null && config.cache_enabled){
                     return await Promise.resolve(cache)
                 }else {
-                    let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
+                    let link = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                     cacheFill(id, module_id, link)
                     return await Promise.resolve(link);
                 }
                 
             }else {
                 let get_ch = await module.getChannels()
-                if(get_ch.includes(id)){
+                if(get_ch[id]){
                     module.setConfig("chList", get_ch)
                     let cache = cacheFind(id, module_id)
                     if(cache !== null && (await module.getConfig()).cache_enabled){
                         return await Promise.resolve(cache)
                     }else {
-                        let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
+                        let link = await module.liveChannels(get_ch[id], auth.authTokens, auth.lastupdated)
                         cacheFill(id, module_id, link)
                         return await Promise.resolve(link);
                     }
@@ -192,29 +197,29 @@ export async function searchChannel(id: string, module_id: string, valid_modules
             var tries = 0;
             valid_modules.forEach(async val => {
                 try {
-                    let module: Module = (await import(`${process.cwd()}/modules/${val}.js`)).default;
+                    let module: ModuleType = new (await import(`${process.cwd()}/modules/${val}.js`)).default();
                     // let file = existsSync(`${process.cwd()}/modules/${val}.json`) ? readFileSync(`${process.cwd()}/modules/${val}.json`).toString() : null;
                     // let config = JSON.parse(file)
                     let config = await module.getConfig()
                     let auth = await module.getAuth();
-                    if(config?.chList?.includes(id)){
+                    if(config?.chList[id]){
                         let cache = await cacheFind(id, val)
                         if(cache !== null && config.cache_enabled){
                             resolve(cache)
                         }else {
-                            let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
+                            let link = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                             cacheFill(id, val, link)
                             resolve(link)
                         }
                     }else {
                         let get_ch = await module.getChannels()
-                        if(get_ch.includes(id)){
+                        if(get_ch[id]){
                             module.setConfig("chList", get_ch)
                             let cache = await cacheFind(id, val)
                             if(cache !== null && config.cache_enabled){
                                 resolve(cache)
                             }else {
-                                let link = await module.liveChannels(id, auth.authTokens, auth.lastupdated)
+                                let link = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                                 cacheFill(id, val, link)
                                 resolve(link)
                             }
@@ -233,7 +238,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
 export async function getVODlist(module_id: string){
     if(module_id){
         try {
-            let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
+            let module: ModuleType = new (await import(`${process.cwd()}/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 return await Promise.resolve(await module.getVOD_List((await module.getAuth()).authTokens));
             }else return await Promise.reject(new Error(`getVODlist| Module ${module_id} doesn't have VOD available`))
@@ -245,7 +250,7 @@ export async function getVODlist(module_id: string){
 export async function getVOD(module_id: string, show_id: string, year?: string, month?: string, season?: string, showfilters?: boolean){
     if(module_id){
         try {
-            let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
+            let module: ModuleType = new (await import(`${process.cwd()}/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 let res = await module.getVOD(show_id, {authTokens: (await module.getAuth()).authTokens, year, month, season, showfilters});
                 return await Promise.resolve(res);
@@ -258,7 +263,7 @@ export async function getVOD(module_id: string, show_id: string, year?: string, 
 export async function getVOD_EP(module_id: string, show_id: string, epid: string){
     if(module_id){
         try {
-            let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
+            let module: ModuleType = new (await import(`${process.cwd()}/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 let cache = await cacheFind(epid, module_id)
                 if(cache !== null && (await module.getConfig()).cache_enabled){
@@ -278,7 +283,7 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
 export async function login(module_id: string, username: string, password: string){
     try {
         if(username && password){
-            let module: Module = (await import(`${process.cwd()}/modules/${module_id}.js`)).default;
+            let module: ModuleType = new (await import(`${process.cwd()}/modules/${module_id}.js`)).default();
             return await Promise.resolve(await module.login(username, password))
         }else throw new Error("No Username/Password provided")
     } catch (error) {

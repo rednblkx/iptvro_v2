@@ -1,4 +1,4 @@
-import Class, {ModuleType} from '../src/moduleClass.js';
+import Class, {ModuleType} from '../moduleClass.js';
 
 import axios from 'axios';
 import {load as htmlload} from 'cheerio';

@@ -10,7 +10,7 @@ export type AuthConfig = {
     config: {
         cache_enabled: boolean;
         cachetime: number;
-        chList: string[];
+        chList: {};
     }
 };
 
@@ -67,11 +67,11 @@ class ModuleFunctions {
             "config": {
                 "cache_enabled": true,
                 "cachetime": 6,
-                "chList": chList || []
+                "chList": chList || {}
             }
         }
         //write config to file
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -80,11 +80,14 @@ class ModuleFunctions {
         db.data = config;
         
         //write to file and log
-        db.write().then(() => this.logger('initializeConfig', 'Config file created'))
+        await db.write()
+        // .then(() => this.logger('initializeConfig', 'Config file created'))
+
+        return Promise.resolve()
     };
 
     async getAuth(): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -98,7 +101,7 @@ class ModuleFunctions {
     }
 
     async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<void> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -106,12 +109,14 @@ class ModuleFunctions {
             throw "setAuth - Config file is not valid"
         } else {
             db.data.auth = auth;
-            db.write().then(() => this.logger('setAuth', 'config file updated - credentials changed'))
+            await db.write();
+            this.logger('setAuth', 'config file updated - credentials changed')
         }
+        return Promise.resolve()
     }
 
     async getConfig(): Promise<AuthConfig['config']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -123,16 +128,18 @@ class ModuleFunctions {
     };
 
     async setConfig(key: string, value: any) {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
         if (!db.data) {
             throw "setConfig - Config file is not valid"
         } else {
             db.data.config[key] = value;
-            db.write().then(() => this.logger('setConfig', `config file updated - ${key} changed`))
+            await db.write()
+            this.logger('setConfig', `config file updated - ${key} changed`)
 
         }
+        return Promise.resolve()
     };
 
     logger(id: string, message: string, isError?: boolean): string | Error {

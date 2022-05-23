@@ -16,7 +16,7 @@ export type AuthConfig = {
 
 export interface ModuleType extends ModuleFunctions {
     login(username: string, password: string): Promise<string[]>;
-    liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<string>;
+    liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}>;
     getChannels(): Promise<string[]>;
     getVOD_List(authTokens: string[]): Promise<object[]>;
     getVOD(show: string, config: object): Promise<object | object[]>;

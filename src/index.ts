@@ -34,7 +34,7 @@ class body_response {
     error: string;
     authTokens? : string[];
 
-    constructor(status: string, data: object | string, error: string, authTokens?: string[]){
+    constructor(status: string, data: object | string, error?: string, authTokens?: string[]){
         this.status = status;
         this.data = data;
         this.error = error;
@@ -71,15 +71,14 @@ app.get("/cache/:module?",async (req:Request<{module: string}, {}, {}, {id: stri
 
 app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, channel: string, ts?: string}, {}, {}, {}>,res) => {
 
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module){
             if(valid_modules.find(x => x == req.params.module) != undefined){
                 if(req.params.ts){
-                    res.send(await modules.rewritePlaylist(await modules.searchChannel(req.params.channel, req.params.module, valid_modules)))
+                    res.send(await modules.rewritePlaylist((await modules.searchChannel(req.params.channel, req.params.module, valid_modules)).stream))
                 } else {
-                    body.status = "OK"
                     body.data = await modules.searchChannel(req.params.channel, req.params.module, valid_modules)
                     if(!body.data)
                         throw "No data received from method!"
@@ -94,9 +93,8 @@ app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, cha
         } else {
             try {
                 if(req.params.ts){
-                    res.send(await modules.rewritePlaylist(await modules.searchChannel(req.params.channel, null, valid_modules)))
+                    res.send(await modules.rewritePlaylist((await modules.searchChannel(req.params.channel, null, valid_modules)).stream))
                 } else {
-                    body.status = "OK"
                     body.data = await modules.searchChannel(req.params.channel, null, valid_modules)
                     if(!body.data)
                         throw "No data received from method!"
@@ -119,13 +117,12 @@ app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, cha
 })
 
 app.get("/:module/live", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             let file = fs.existsSync(`${process.cwd()}/src/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/src/modules/${req.params.module}.json`).toString()
             let parsed = JSON.parse(file)
-            body.status = "OK"
             body.data = parsed.hasOwnProperty('config') && parsed.config.chList;
             if(!body.data)
                 throw "No data received from method!"
@@ -146,11 +143,10 @@ app.get("/:module/live", async (req,res) => {
 
 app.get("/:module/vod", async (req,res) => {
     
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            body.status = "OK"
             body.data = await modules.getVODlist(req.params.module)
             if(!body.data)
                 throw "No data received from method!"
@@ -182,11 +178,10 @@ interface ParamsVOD {
 }
 
 app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            body.status = "OK"
             body.data = await modules.getVOD(req.params.module, req.params.show, req.query.year, req.query.month, req.query.season, req.query.showfilters)
             if(!body.data)
                 throw "No data received from method!"
@@ -205,11 +200,10 @@ app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,re
     }
 })
 app.get("/:module/vod/:show/:epid", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            body.status = "OK"
             body.data = await modules.getVOD_EP(req.params.module, req.params.show , req.params.epid)
             if(!body.data)
                 throw "No data received from method!"
@@ -229,8 +223,8 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
 })
 
 app.post("/:module/login", async (req,res) => {
-    let authTokens;
-    let body: body_response = new body_response("", "", null);
+    let authTokens = [];
+    let body: body_response = new body_response("OK", null);
     try {
         let file = fs.existsSync(`${process.cwd()}/src/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/src/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, authTokens: null}, config: {}}
         let config : AuthConfig = typeof file === "object" ? file : JSON.parse(file)
@@ -239,7 +233,6 @@ app.post("/:module/login", async (req,res) => {
             authTokens = await modules.login(req.params.module, req.body.username || config.auth.username, req.body.password || config.auth.password)
             if(authTokens){
                 logger("login", `'${req.params.module}' login success, got authTokens`)
-                body.status = "OK";
                 body.authTokens = authTokens;
                 config.auth.authTokens = authTokens;
                 config.auth.lastupdated = new Date();
@@ -266,11 +259,10 @@ app.post("/:module/login", async (req,res) => {
 })
 
 app.get("/:module/flushcache", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
-            body.status = "OK"
             body.data = modules.flushCache(req.params.module)
             res.json(body)
         }else {
@@ -288,13 +280,12 @@ app.get("/:module/flushcache", async (req,res) => {
 })
 
 app.get("/:module?/updatechannels", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module){
             if(valid_modules.find(x => x == req.params.module) != undefined){
                 let mod: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.params.module}.js`)).default();
-                body.status = "OK"
                 body.data = await mod.getChannels()
                 if(!body.data)
                     throw "No data received from method!"
@@ -320,7 +311,6 @@ app.get("/:module?/updatechannels", async (req,res) => {
                     ch && await module.setConfig('chList', ch)
                 }
                 if(updated.length > 0){
-                    body.status = "OK"
                     body.data = `Channel list updated for modules '${updated.join(',')}'`
                     //log to console
                     // console.log(`Channels updated for module '${req.params.module}'`)
@@ -343,14 +333,13 @@ app.get("/:module?/updatechannels", async (req,res) => {
 })
 
 app.get("/:module", async (req,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
     try {
         if(valid_modules.find(x => x == req.params.module) != undefined){
             let mod: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.params.module}.js`)).default();
             // let file = fs.existsSync(`${process.cwd()}/src/modules/${req.params.module}.json`) && fs.readFileSync(`${process.cwd()}/src/modules/${req.params.module}.json`).toString();
             // let parsed = JSON.parse(file)
             // console.log(parsed);
-            body.status = "OK"
             body.data = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: (await mod.getConfig()).chList}
             res.json(body);
         } else throw "Invalid Module ID"
@@ -363,7 +352,7 @@ app.get("/:module", async (req,res) => {
 })
 
 app.get("/**", (_,res) => {
-    var body : body_response = new body_response("", "", null);
+    var body : body_response = new body_response("OK", null);
     body.status = "ERROR"
     body.data = valid_modules;
     body.error = "Endpoint did not match any route, listing all available modules";

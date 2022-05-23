@@ -67,7 +67,7 @@ class ModuleInstance extends Class {
       });
   }
   
-  async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<string> {
+  async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     let config = await this.getConfig();
     return new Promise(async (resolve, reject) => {
       if(!authTokens){
@@ -85,11 +85,11 @@ class ModuleInstance extends Class {
           },
         }
       );
-        play && this.logger("liveChannels", "got the stream");
+        play.data.stream?.abr && this.logger("liveChannels", "got the stream");
         if(play.data.error !== ""){
             reject(this.logger("liveChannels", `Error from provider '${play.data.error}'`, true))
         }
-        resolve(play.data.stream.abr);
+        resolve({stream: play.data.stream.abr, proxy: play.data.stream.proxy || undefined});
       } catch (error) {
             
         //   let auth = this.getAuth();

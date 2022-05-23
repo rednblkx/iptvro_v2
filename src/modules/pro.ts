@@ -36,7 +36,7 @@ class ModuleInstance extends Class {
     }
   }
   
-  async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<string> {
+  async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     try {
         if(!authTokens){
             let auth = await this.getAuth(); 
@@ -54,7 +54,7 @@ class ModuleInstance extends Class {
             }
         })
         this.logger("liveChannels", `got response ${JSON.stringify(stream.data)}`)
-        return Promise.resolve(stream.data.url);
+        return Promise.resolve({stream: stream.data.url});
     } catch (error) {
         return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
     }

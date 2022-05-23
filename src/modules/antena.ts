@@ -76,7 +76,7 @@ class ModuleInstance extends Class {
         return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
       }
   }
-  async liveChannels(channel: string, authTokens: string[], lastupdated: string) : Promise<string> {
+  async liveChannels(channel: string, authTokens: string[], lastupdated: string) : Promise<{stream: string, proxy?: string}> {
     try {
     if(!authTokens || typeof authTokens !== 'object'){
       //get config
@@ -114,7 +114,7 @@ class ModuleInstance extends Class {
       .replace('",', '"')
       .match('"(.*)"')[1]
       this.logger("liveChannels", `got stream URL - ${link}`)
-      return await Promise.resolve(link)
+      return await Promise.resolve({stream: link})
     }else return await Promise.reject(new Error('Something went wrong'));
     } catch (error) {
       return await Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, 200), true));

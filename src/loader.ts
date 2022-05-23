@@ -8,7 +8,7 @@ import axios from "axios";
 
 type cache = {
     name: string,
-    link: string,
+    data: {stream: string, proxy?: string},
     module: string,
     lastupdated: Date
 }
@@ -192,7 +192,7 @@ export async function cacheFind(module: ModuleType, id?: string){
     }
 }
 
-async function cacheFill(id: string, module_id: string, link: string){
+async function cacheFill(id: string, module_id: string, data: {stream: string, proxy?: string}){
     try {
         const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
         const db = new Low(adapter)
@@ -200,13 +200,13 @@ async function cacheFill(id: string, module_id: string, link: string){
         db.data ||= [];
         const cache = db.data && db.data.findIndex(a => a.name === id && a.module === module_id);
         if(cache && cache !== -1){
-            db.data[cache].link = link;
+            db.data[cache].data = data;
             db.data[cache].lastupdated = new Date();
             await db.write();
         }else{
             db.data.push({
                 name: id,
-                link: link,
+                data: data,
                 module: module_id,
                 lastupdated: new Date()
             })
@@ -233,7 +233,7 @@ export function flushCache(module_id: string){
     }
 }
 
-export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<string>{
+export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<cache['data']>{
     if(module_id){
         try {
             let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
@@ -245,11 +245,11 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                 // let parsed: config = file ? JSON.parse(file) : null;
                 let cache = await cacheFind(module, id)
                 if(cache !== null && config.cache_enabled){
-                    return await Promise.resolve(cache.link)
+                    return await Promise.resolve(cache.data)
                 }else {
-                    let link = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
-                    cacheFill(id, module_id, link)
-                    return await Promise.resolve(link);
+                    let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
+                    cacheFill(id, module_id, data)
+                    return await Promise.resolve(data);
                 }
                 
             }else {
@@ -258,11 +258,11 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     module.setConfig("chList", get_ch)
                     let cache = await cacheFind(module, id)
                     if(cache !== null && (await module.getConfig()).cache_enabled){
-                        return await Promise.resolve(await cache.link)
+                        return await Promise.resolve(cache.data)
                     }else {
-                        let link = await module.liveChannels(get_ch[id], auth.authTokens, auth.lastupdated)
-                        cacheFill(id, module_id, link)
-                        return await Promise.resolve(link);
+                        let data  = await module.liveChannels(get_ch[id], auth.authTokens, auth.lastupdated)
+                        cacheFill(id, module_id, data)
+                        return await Promise.resolve(data);
                     }
                 }else return await Promise.reject(new Error(`searchChannel| Module ${module_id} doesn't have channel '${id}'`))
             }
@@ -280,20 +280,20 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(config?.chList[id]){
                         let cache = await cacheFind(module, id)
                         if(cache !== null && config.cache_enabled){
-                            return Promise.resolve(cache.link)
+                            return Promise.resolve(cache.data)
                         }else {
-                            let link = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
-                            if(link){
-                                cacheFill(id, module.MODULE_ID, link)
-                                return Promise.resolve(link)
+                            let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
+                            if(data){
+                                cacheFill(id, module.MODULE_ID, data)
+                                return Promise.resolve(data)
                             }
                         }
                     }
                 } catch (error) {
-                    return Promise.reject(new Error(`searchChannel| Something went wrong with the module ${module.MODULE_ID} - ${error.message || error.toString().substring(0, 200)}`))
+                    return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
                 }
                 if(tries === valid_modules.length){
-                    return Promise.reject(new Error(`searchChannel| No module has channel '${id}'`))
+                    return Promise.reject(new Error(`searchChannel - No module has channel '${id}'`))
                 }
             }
         // })
@@ -331,10 +331,10 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
             if(module.hasVOD){
                 let cache = await cacheFind(module, epid)
                 if(cache !== null && (await module.getConfig()).cache_enabled){
-                    return await Promise.resolve(cache)
+                    return await Promise.resolve(cache.data.stream)
                 }else {
                     let res = await module.getVOD_EP(show_id, epid, (await module.getAuth()).authTokens);
-                    cacheFill(epid, module_id, res)
+                    cacheFill(epid, module_id, {stream: res})
                     return await Promise.resolve(res);
                 }
             }else return await Promise.reject(`getVOD_EP| Module ${module_id} doesn't have VOD available`)

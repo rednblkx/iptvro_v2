@@ -1,10 +1,21 @@
-import Class, {ModuleType} from '../moduleClass.js';
+import ModuleClass, {ModuleType} from '../moduleClass.js';
 
 import axios from 'axios';
 import {load as htmlload} from 'cheerio';
 
 // var Module = new Class('antena', true, true,)
 
+/**
+ * `VOD_config` is an object with a required property `authTokens` which is an array of strings, and
+ * optional properties `year`, `season`, `month`, and `showfilters` which are all strings.
+ * @property {string[]} authTokens - An array of strings that are the auth tokens for the VODs you want
+ * to download.
+ * @property {string} year - The year you want to get the VODs from.
+ * @property {string} season - The season number you want to get the episodes for.
+ * @property {string} month - The month of the year you want to get the VODs for.
+ * @property {string} showfilters - This is a string that is used to filter the shows that are
+ * returned.
+ */
 type VOD_config = {
   authTokens: string[],
   year? : string,
@@ -13,10 +24,18 @@ type VOD_config = {
   showfilters? : string,
 }
 
-class ModuleInstance extends Class {
+class ModuleInstance extends ModuleClass {
   constructor(){
+    /* Creating a new instance of the class Antena. */
     super('antena', true, true);
   }
+  /**
+   * It logs in to the antenaplay.ro website and returns the authTokens required to access the live
+   * stream.
+   * @param {string} username - string - Your AntenaPlay account username
+   * @param {string} password - string - Your AntenaPlay account password
+   * @returns The authTokens
+   */
   async login(username: string, password: string): Promise<string[]> {
     try {
       this.logger("login", "first step, getting login token")
@@ -76,6 +95,14 @@ class ModuleInstance extends Class {
         return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
       }
   }
+  /**
+   * It gets the HTML of the live channel, checks if the cookies are older than 6 hours, if they are,
+   * it updates them, then it gets the stream URL from the HTML and returns it
+   * @param {string} channel - the channel name, for example: antena1
+   * @param {string[]} authTokens - the authTokens you get from the login function
+   * @param {string} lastupdated - the last time the cookies were updated
+   * @returns The stream URL
+   */
   async liveChannels(channel: string, authTokens: string[], lastupdated: string) : Promise<{stream: string, proxy?: string}> {
     try {
     if(!authTokens || typeof authTokens !== 'object'){
@@ -120,6 +147,10 @@ class ModuleInstance extends Class {
       return await Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, 200), true));
     }
   }
+  /**
+   * It gets the channels from antenaplay.ro/live
+   * @returns An object with all the channels
+   */
   async getChannels(): Promise<object>{
     try {
       //axios get request to url https://antenaplay.ro/live
@@ -146,6 +177,11 @@ class ModuleInstance extends Class {
       return Promise.reject(this.logger("getChannels", error.message || error.toString().substring(0, 200), true));
     }
   }
+  /**
+   * It gets the list of shows from the website.
+   * @param {string[]} authTokens - string[] - The authTokens that are used to authenticate the user.
+   * @returns An array of objects containing the name, link and img of the shows
+   */
   async getVOD_List(authTokens: string[]): Promise<object[]> {
     try {
       if(!authTokens || typeof authTokens !== 'object'){
@@ -184,6 +220,12 @@ class ModuleInstance extends Class {
       return await Promise.reject(this.logger("getVOD_List", error.message || error.toString().substring(0, 200), true));
     }
   }
+  /**
+   * It gets the VOD list of a show.
+   * @param {string} show - The show you want to get the VOD from.
+   * @param {VOD_config} config - {
+   * @returns An array of objects containing the name, link and image of the episodes.
+   */
   async getVOD(show: string, config: VOD_config): Promise<object[] | object> {
     try {
       if(!config.authTokens || typeof config.authTokens !== 'object'){
@@ -258,9 +300,13 @@ class ModuleInstance extends Class {
       return await Promise.reject(this.logger("getVOD", error.message || error.toString().substring(0, 200), true));
     }
   }
-  async getVOD_EP_List(
-    url: string,config: VOD_config
-  ): Promise<object[]> {
+  /**
+   * It gets the list of episodes for a given show.
+   * @param {string} url - the url to the page you want to scrape
+   * @param {VOD_config} config - {
+   * @returns An array of objects containing the name, link and image of the episodes.
+   */
+  async getVOD_EP_List(url: string,config: VOD_config): Promise<object[]> {
     try {
       if(!config.authTokens || typeof config.authTokens !== 'object'){
         // throw `Cookies Missing/Invalid`
@@ -295,6 +341,13 @@ class ModuleInstance extends Class {
       return Promise.reject(this.logger("getVOD_EP_List", error.message || error.toString().substring(0, 200), true));
     }
   }
+  /**
+   * It gets the video URL for a specific episode of a show.
+   * @param {string} show - The show's name, as it appears in the URL.
+   * @param {string} epid - The episode's ID.
+   * @param {string[]} authTokens - The authTokens are the cookies that you get after logging in.
+   * @returns The URL of the video
+   */
   async getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string> {
     try {
       if(!show || !epid){
@@ -343,4 +396,5 @@ class ModuleInstance extends Class {
   }
 }
 
+/* Exporting the ModuleInstance class. */
 export default ModuleInstance;

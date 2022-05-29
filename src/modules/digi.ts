@@ -1,4 +1,4 @@
-import Class from '../moduleClass.js';
+import ModuleClass from '../moduleClass.js';
 
 import axios from 'axios';
 import md5 from 'blueimp-md5';
@@ -6,11 +6,21 @@ import crypto from 'crypto';
 
 // var Module = new Class('digi', true, false)
 
-class ModuleInstance extends Class {
+class ModuleInstance extends ModuleClass {
+/**
+ * A constructor function for the Digi class.
+ */
   constructor(){
+    /* Calling the constructor of the parent class, which is ModuleClass. */
     super('digi', true, false);
   }
 
+  /**
+   * It generates a random UUID.
+   * @param number - The number of uuids you want to generate.
+   * @param [uuid] - The uuid to be returned
+   * @returns A string of random uuids
+   */
   private uuidGen(number, uuid = ""){
     let gen = crypto.randomUUID().replace(/\-/g, "")
     if(number == 0){
@@ -19,6 +29,13 @@ class ModuleInstance extends Class {
     return this.uuidGen(number - 1, uuid + gen)
   }
   
+  /**
+   * It takes a username, password, and a hash, and returns a device ID and a hash
+   * @param username - Your username
+   * @param password - The password you use to login to the website
+   * @param uhash - This is the hash that is returned from the login request.
+   * @returns An object with two properties, id and hash.
+   */
   private generateId(username, password, uhash){
     let deviceStr = `Kodeative_iptvro_${BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()}`
     let deviceId = `${deviceStr}_${this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))}`
@@ -26,6 +43,12 @@ class ModuleInstance extends Class {
     return {id: deviceId, hash: md5hash}
   }
 
+/**
+ * It generates a unique ID for the user and returns it.
+ * @param {string} username - your digionline username
+ * @param {string} password - The password you use to login to the Digi Online website
+ * @returns a promise that resolves to an array of strings.
+ */
   async login(username: string, password: string): Promise<string[]> {
       // let auth = this.getAuth();
       let pwdHash = md5(password)
@@ -67,6 +90,13 @@ class ModuleInstance extends Class {
       });
   }
   
+  /**
+   * It gets the stream from the provider, if it fails it tries to login and then get the stream again
+   * @param {string} id - the channel id
+   * @param {string[]} authTokens - the tokens you get from the login function
+   * @param {Date} authLastUpdate - Date - the date when the auth tokens were last updated
+   * @returns The stream url and the proxy url
+   */
   async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     let config = await this.getConfig();
     return new Promise(async (resolve, reject) => {
@@ -101,6 +131,10 @@ class ModuleInstance extends Class {
     })
   }
 
+/**
+ * It gets a list of channels from the API and returns a promise with a list of channels
+ * @returns A promise that resolves to an object containing the channel name and id.
+ */
   async getChannels(): Promise<object> {
 
     let channels = await axios.get('https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php');
@@ -114,4 +148,5 @@ class ModuleInstance extends Class {
   }
 }
 
+/* It exports the class so it can be used in other files. */
 export default ModuleInstance;

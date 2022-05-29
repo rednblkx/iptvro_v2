@@ -1,13 +1,21 @@
 import axios from 'axios';
-import Class, { AuthConfig } from '../moduleClass.js';
+import ModuleClass, { AuthConfig } from '../moduleClass.js';
 import { load } from 'cheerio';
 
-class ModuleInstance extends Class {
-  constructor(){
-    super('pro', true, false);
-  }
+/* A class that extends the Class class. */
+class ModuleInstance extends ModuleClass {
+    constructor(){
+        /* It calls the constructor of the parent class, which is `ModuleClass`. */
+        super('pro', true, false);
+    }
 
-  async login(username: string, password: string): Promise<string[]> {
+    /**
+     * It logs in to the service and returns the access token.
+     * @param {string} username - your username
+     * @param {string} password - string - the password you use to login to the app
+     * @returns The access token
+    */
+    async login(username: string, password: string): Promise<string[]> {
     try {
         let step1 = await axios.post(
             "https://apiprotvplus.cms.protvplus.ro/api/v2/auth-sessions",
@@ -34,15 +42,22 @@ class ModuleInstance extends Class {
     } catch (error) {
         return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
     }
-  }
+    }
   
-  async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
+    /**
+     * It gets the live stream of a channel.
+     * @param {string} id - the channel id, you can get it from the channel list
+     * @param {string[]} authTokens - The tokens you get from the login function.
+     * @param {Date} authLastUpdate - Date - The date when the auth tokens were last updated.
+     * @returns The stream url
+    */
+    async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     try {
         if(!authTokens){
             let auth = await this.getAuth(); 
             this.logger('liveChannels', "No tokens, trying login")
             authTokens = await this.login(auth.username, auth.password)
-          }
+            }
         let ch = (await this.getConfig()).chList
         let stream = await axios.get(`https://apiprotvplus.cms.protvplus.ro/api/v2/content/channel-${id}/plays?acceptVideo=hls`,{
             headers: {
@@ -58,8 +73,13 @@ class ModuleInstance extends Class {
     } catch (error) {
         return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
     }
-}
+    }
 
+    /**
+     * It gets the HTML of the website, loads it into a cheerio object, then loops through all the channels
+     * and adds them to an object
+     * @returns A list of channels and their respective IDs
+    */
     async getChannels(): Promise<object> {
         let getHTML = (await axios.get("https://protvplus.ro/")).data
         let $ = load(getHTML);
@@ -72,4 +92,5 @@ class ModuleInstance extends Class {
     }
 }
 
+/* It exports the class so it can be used in other files. */
 export default ModuleInstance;

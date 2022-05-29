@@ -1,5 +1,13 @@
 import { Low, JSONFile } from 'lowdb'
 
+/**
+ * The AuthConfig type is an object with two properties: auth and config. The auth property is an
+ * object with four properties: username, password, authTokens, and lastupdated. The config property is
+ * an object with three properties: cache_enabled, cachetime, and chList.
+ * @property auth - This is the object that contains the username, password, authTokens, and
+ * lastupdated properties.
+ * @property config - This is the configuration object for the plugin.
+ */
 export type AuthConfig = {
     auth: {
         username: string;
@@ -14,6 +22,7 @@ export type AuthConfig = {
     }
 };
 
+/* Extending the ModuleFunctions class with the ModuleType interface. */
 export interface ModuleType extends ModuleFunctions {
     login(username: string, password: string): Promise<string[]>;
     liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}>;
@@ -24,6 +33,8 @@ export interface ModuleType extends ModuleFunctions {
     getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string>;
 }
 
+/* This class is used to create a new module, it contains all the functions that are required for a
+module to work */
 class ModuleFunctions {
 
     MODULE_ID: string;
@@ -40,6 +51,17 @@ class ModuleFunctions {
     // getChannels: Function;
     debug: boolean;
 
+    /**
+     * The constructor of the class.
+     * @param {string} MODULE_ID - The name of the module. This is used to identify the module in the
+     * config file.
+     * @param {boolean} hasLive - boolean - Whether the module supports live channels
+     * @param {boolean} hasVOD - boolean - Whether the module supports VOD or not.
+     * @param {string[]} [chList] - An array of channel names. This is used to get the channel list
+     * from the API.
+     * @param {string[]} [qualitiesList] - An array of strings that represent the qualities that the
+     * module supports.
+     */
     constructor(MODULE_ID: string, hasLive: boolean, hasVOD: boolean, chList?: string[], qualitiesList?: string[]) {
         this.MODULE_ID = MODULE_ID;
         this.hasLive = hasLive;
@@ -56,6 +78,11 @@ class ModuleFunctions {
         this.debug = (process.env.DEBUG?.toLowerCase() === 'true');
     }
 
+    /**
+     * It creates a config file for the module.
+     * @param {string[]} [chList] - An array of channel names to be used for the channel list.
+     * @returns A promise that resolves when the config file is written to disk.
+     */
     async initializeConfig(chList?: string[]) {
         var config = {
             "auth": {
@@ -86,6 +113,10 @@ class ModuleFunctions {
         return Promise.resolve()
     };
 
+    /**
+     * > Reads the JSON file and returns the auth object
+     * @returns The auth object from the JSON file
+     */
     async getAuth(): Promise<AuthConfig['auth']> {
         const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
@@ -100,6 +131,11 @@ class ModuleFunctions {
         }
     }
 
+    /**
+     * It sets the auth object in the config file.
+     * @param auth - { username: string, password: string, authTokens: string[], lastupdated: Date }
+     * @returns a promise that resolves to nothing.
+     */
     async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<void> {
         const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
@@ -115,6 +151,10 @@ class ModuleFunctions {
         return Promise.resolve()
     }
 
+    /**
+     * It reads the JSON file, checks if it's valid, and returns the config object
+     * @returns The config object from the JSON file
+     */
     async getConfig(): Promise<AuthConfig['config']> {
         const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
@@ -127,6 +167,12 @@ class ModuleFunctions {
         }
     };
 
+    /**
+     * It updates the config file for the module.
+     * @param {string} key - string - the key of the config value you want to change
+     * @param {any} value - any - this is the value you want to set the key to.
+     * @returns A promise that resolves when the config file has been updated.
+     */
     async setConfig(key: string, value: any) {
         const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
@@ -142,6 +188,14 @@ class ModuleFunctions {
         return Promise.resolve()
     };
 
+    /**
+     * The function takes in three parameters, the first two are required and the third is optional.
+     * The function returns a string or an error
+     * @param {string} id - This is the id of the module that is calling the logger.
+     * @param {string} message - The message to be logged.
+     * @param {boolean} [isError] - boolean - If true, the message will be returned as an Error object.
+     * @returns A string or an error.
+     */
     logger(id: string, message: string, isError?: boolean): string | Error {
         if (this.debug) {
             console.log(`${this.MODULE_ID} - ${id}: ${message}`);
@@ -150,4 +204,5 @@ class ModuleFunctions {
     };
 }
 
+/* Exporting the ModuleFunctions class as the default export. */
 export default ModuleFunctions;

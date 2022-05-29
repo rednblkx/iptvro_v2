@@ -6,13 +6,17 @@ import fs from 'fs';
 import { AuthConfig, ModuleType } from './moduleClass.js';
 import { JSONFile, Low } from 'lowdb';
 
+/* The below code is creating an instance of express. */
 const app = express();
 
+/* The below code is setting the port to 3000 if the environment variable PORT is not set. */
 const PORT = process.env.PORT || 3000;
 
+/* Telling the server to use the express.json() middleware. */
 app.use(express.json());
 
 // try {
+    /* Checking if the modules are valid. */
     var valid_modules = await modules.sanityCheck()
 // } catch (error) {
 //     console.log(`${error.message || error}`);
@@ -25,8 +29,11 @@ if(process.env.DEBUG){
     console.log(`DEBUG env true, verbose enabled!\n`);
 }
 
+/* Checking if the environment variable DEBUG is set to true. */
 const debug = process.env.DEBUG;
 
+/* The body_response class is a class that is used to create a response object that is sent back to the
+client */
 class body_response {
 
     status: string;
@@ -42,6 +49,14 @@ class body_response {
     }
 }
 
+/**
+ * The function takes in three parameters, the first two are required and the third is optional
+ * @param {string} id - This is the id of the function that is calling the logger.
+ * @param {string} message - The message you want to log.
+ * @param {boolean} [isError] - boolean - if true, the logger will return an Error object instead of a
+ * string.
+ * @returns a string or an error.
+ */
 function logger(id: string, message: string, isError?: boolean) {
     if(debug){
       console.log(`index - ${id}: ${message}`);
@@ -49,6 +64,7 @@ function logger(id: string, message: string, isError?: boolean) {
     return isError ? new Error(`index - ${id}: ${message}`) : `index - ${id}: ${message}`
   };
 
+/* A simple API that returns the cache of a module. */
 app.get("/cache/:module?",async (req:Request<{module: string}, {}, {}, {id: string}>, res) => {
     type cache = {
         name: string,
@@ -69,6 +85,7 @@ app.get("/cache/:module?",async (req:Request<{module: string}, {}, {}, {id: stri
     }
 })
 
+/* A simple API that returns a stream URL for a given channel. */
 app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, channel: string, ts?: string}, {}, {}, {}>,res) => {
 
     var body : body_response = new body_response("OK", null);
@@ -116,6 +133,7 @@ app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, cha
 
 })
 
+/* A simple GET request that returns the live channels of a module. */
 app.get("/:module/live", async (req,res) => {
     var body : body_response = new body_response("OK", null);
 
@@ -141,6 +159,7 @@ app.get("/:module/live", async (req,res) => {
     }
 })
 
+/* A simple API endpoint that returns a list of VODs for a given module. */
 app.get("/:module/vod", async (req,res) => {
     
     var body : body_response = new body_response("OK", null);
@@ -165,6 +184,7 @@ app.get("/:module/vod", async (req,res) => {
     }
 })
 
+/* Defining an interface called QueryVOD. */
 interface QueryVOD {
     year: string,
     month: string,
@@ -172,11 +192,13 @@ interface QueryVOD {
     showfilters: boolean
 }
 
+/* Defining an interface called ParamsVOD. */
 interface ParamsVOD {
     module: string,
     show: string
 }
 
+/* A simple API endpoint that returns a JSON object. */
 app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,res) => {
     var body : body_response = new body_response("OK", null);
 
@@ -199,6 +221,8 @@ app.get("/:module/vod/:show", async (req:Request<ParamsVOD, {}, {}, QueryVOD>,re
         res.json(body)
     }
 })
+/* A route for the API. */
+/* A route handler for the route /api/v1/vod/:module/:show/:epid */
 app.get("/:module/vod/:show/:epid", async (req,res) => {
     var body : body_response = new body_response("OK", null);
 
@@ -222,6 +246,7 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
     }
 })
 
+/* A login endpoint for the API. It is using the module login function to get the authTokens. */
 app.post("/:module/login", async (req,res) => {
     let authTokens = [];
     let body: body_response = new body_response("OK", null);
@@ -258,6 +283,7 @@ app.post("/:module/login", async (req,res) => {
     }
 })
 
+/* A route that will flush the cache of a module. */
 app.get("/:module/flushcache", async (req,res) => {
     var body : body_response = new body_response("OK", null);
 
@@ -279,6 +305,7 @@ app.get("/:module/flushcache", async (req,res) => {
     }
 })
 
+/* A route that updates the channel list for a module. */
 app.get("/:module?/updatechannels", async (req,res) => {
     var body : body_response = new body_response("OK", null);
 
@@ -332,6 +359,7 @@ app.get("/:module?/updatechannels", async (req,res) => {
     }
 })
 
+/* A simple API endpoint that returns the module's configuration. */
 app.get("/:module", async (req,res) => {
     var body : body_response = new body_response("OK", null);
     try {
@@ -351,6 +379,7 @@ app.get("/:module", async (req,res) => {
     }
 })
 
+/* A catch all route that will return a 404 error with a list of all available modules */
 app.get("/**", (_,res) => {
     var body : body_response = new body_response("OK", null);
     body.status = "ERROR"
@@ -359,4 +388,5 @@ app.get("/**", (_,res) => {
     res.status(404).json(body)
 })
 
+/* The below code is creating a server that listens for requests on port 3000. */
 app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}`)})

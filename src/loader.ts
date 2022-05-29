@@ -6,6 +6,15 @@ import moment from "moment";
 import {Parser} from 'm3u8-parser';
 import axios from "axios";
 
+/**
+ * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
+ * string, proxy?: string}`, a `module` property of type `string`, and a `lastupdated` property of type
+ * `Date`.
+ * @property {string} name - The name of the stream.
+ * @property data - This is the data that is returned from the module.
+ * @property {string} module - The module that the stream is from.
+ * @property {Date} lastupdated - The date the cache was last updated.
+ */
 type cache = {
     name: string,
     data: {stream: string, proxy?: string},
@@ -13,12 +22,19 @@ type cache = {
     lastupdated: Date
 }
 
+/**
+ * It reads all the files in the modules folder, imports them, checks if they are valid modules, and if
+ * they are, it checks if they have a config file, if they don't, it creates one, and if they do, it
+ * checks if the module has a login method, and if it does, it checks if the module has a username and
+ * password set
+ * @returns A list of valid modules
+ */
 export async function sanityCheck(): Promise<string[]> {
     
     let files_list = readdirSync(process.cwd() + "/src/modules").filter(a => extname(a) === ".js" );
     var valid_list = [];
     console.log("Modules sanity check:\n");
-    let modules : ModuleType[] = await Promise.all(files_list.map(async (val) => {
+    let modules = await Promise.all<ModuleType & {module: string, error: string}>(files_list.map(async (val) => {
         try {
             return new (await import(`${process.cwd()}/src/modules/${val}`)).default()
         } catch (error) {
@@ -27,7 +43,7 @@ export async function sanityCheck(): Promise<string[]> {
     }));
     for (let val of modules) {
         try {
-            if(val?.MODULE_ID){
+            if(val instanceof ModuleFunctions && val.MODULE_ID){
                 let valid = true;
                 //check if config file exists
                 if(!existsSync(`${process.cwd()}/src/modules/${val.MODULE_ID}.json`)){
@@ -68,7 +84,7 @@ export async function sanityCheck(): Promise<string[]> {
                 valid && console.log(`\t${val.MODULE_ID} - No issues found\n`);
                 
                 valid && valid_list.push(val.MODULE_ID)
-            }else console.log(` - Module '${val['module'] || val}' failed sanity check\n\t${val['error'] || `\0`}`);
+            }else console.log(` - Module '${val.module || val}' failed sanity check\n\t${val.error || `\0`}`);
         } catch (error) {
             console.error(`${error?.message || error}`);
             // return Promise.reject(error.message || error)
@@ -78,6 +94,12 @@ export async function sanityCheck(): Promise<string[]> {
     return Promise.resolve(valid_list);
 }
 
+/**
+ * It takes a m3u8 manifest and returns the highest bandwidth stream
+ * @param data - The data from the m3u8 file
+ * @param baseUrl - The base url of the m3u8 file.
+ * @returns The highest bandwidth m3u8 file
+ */
 function m3u8Select(data, baseUrl){
     var parser = new Parser();
     
@@ -102,6 +124,12 @@ function m3u8Select(data, baseUrl){
     
 }
 
+/**
+ * It takes a m3u8 file and a url, and returns a m3u8 file with the urls fixed
+ * @param m3u - The m3u8 file contents
+ * @param url - The URL of the m3u8 file.
+ * @returns the m3u file with the correct URLs.
+ */
 function m3uFixURL(m3u, url) {
     m3u = m3u.split("\n");
     m3u.forEach((el, index, array) => {
@@ -116,8 +144,13 @@ function m3uFixURL(m3u, url) {
       }
     });
     return m3u.join("\n");
-  }
+}
 
+/**
+ * It takes a link to a playlist, and returns a playlist with all the links fixed
+ * @param link - The link to the playlist
+ * @returns A string of the playlist
+ */
 export async function rewritePlaylist(link){
     let initData = (await axios.get(link)).data
     let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
@@ -129,6 +162,10 @@ export async function rewritePlaylist(link){
 }
 
 
+/**
+ * It removes all cached links that are older than the cachetime specified in the module's config
+ * @param {ModuleType[]} modules - ModuleType[] - This is an array of all the modules that are loaded.
+ */
 async function cacheCleanup(modules: ModuleType[]){
     const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
     const db = new Low(adapter)
@@ -164,6 +201,13 @@ async function cacheCleanup(modules: ModuleType[]){
 }
 
 
+/**
+ * It checks if a cached link exists for a module, and if it does, it checks if it's older than the
+ * cachetime, and if it is, it returns null, otherwise it returns the cached link
+ * @param {ModuleType} module - The module you're using
+ * @param {string} [id] - The id of the link you want to find.
+ * @returns The cache object
+ */
 export async function cacheFind(module: ModuleType, id?: string){
     try {
         const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
@@ -192,6 +236,13 @@ export async function cacheFind(module: ModuleType, id?: string){
     }
 }
 
+/**
+ * It takes in a string, a string, and an object, and then it tries to find the cache in the database,
+ * and if it does, it updates it, and if it doesn't, it creates it
+ * @param {string} id - The id of the cache.
+ * @param {string} module_id - The name of the module you're using.
+ * @param data - {stream: string, proxy?: string}
+ */
 async function cacheFill(id: string, module_id: string, data: {stream: string, proxy?: string}){
     try {
         const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
@@ -217,6 +268,11 @@ async function cacheFill(id: string, module_id: string, data: {stream: string, p
     }
 }
 
+/**
+ * It deletes all the cache entries for a given module
+ * @param {string} module_id - The module id of the module you want to flush the cache for.
+ * @returns A string
+ */
 export function flushCache(module_id: string){
     try {
         const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
@@ -233,6 +289,14 @@ export function flushCache(module_id: string){
     }
 }
 
+/**
+ * It searches for a channel in a module, if it doesn't find it, it searches for it in all modules
+ * @param {string} id - The channel id
+ * @param {string} module_id - The module ID of the module you want to search.
+ * @param {string[]} valid_modules - An array of strings that are the names of the modules you want to
+ * search through.
+ * @returns A promise that resolves to a cache object
+ */
 export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<cache['data']>{
     if(module_id){
         try {
@@ -299,6 +363,12 @@ export async function searchChannel(id: string, module_id: string, valid_modules
         // })
     }
 }
+/**
+ * It takes a module id, imports the module, checks if it has VOD, and if it does, it returns the VOD
+ * list
+ * @param {string} module_id - The module id of the module you want to get the VOD list from.
+ * @returns A promise that resolves to an array of VOD objects
+ */
 export async function getVODlist(module_id: string){
     if(module_id){
         try {
@@ -311,6 +381,17 @@ export async function getVODlist(module_id: string){
         }
     }else return await Promise.reject(new Error("No module id provided"))
 }
+/**
+ * It gets the VOD of a show from a module
+ * @param {string} module_id - The module id of the module you want to use.
+ * @param {string} show_id - The show id of the show you want to get the VOD for
+ * @param {string} [year] - The year of the VOD you want to get.
+ * @param {string} [month] - The month of the year you want to get the VOD for.
+ * @param {string} [season] - The season number of the show
+ * @param {boolean} [showfilters] - boolean - If true, the module will return a list of filters that
+ * can be used to filter the VOD.
+ * @returns A promise that resolves to an VOD link
+ */
 export async function getVOD(module_id: string, show_id: string, year?: string, month?: string, season?: string, showfilters?: boolean){
     if(module_id){
         try {
@@ -324,6 +405,13 @@ export async function getVOD(module_id: string, show_id: string, year?: string, 
         }
     }else return await Promise.reject(new Error("No module id provided"))
 }
+/**
+ * It gets the VOD episode from the module with the given module_id, show_id and epid
+ * @param {string} module_id - The module id of the module you want to use.
+ * @param {string} show_id - The show id of the show you want to get the episode from
+ * @param {string} epid - The episode id
+ * @returns A promise that resolves to a stream object
+ */
 export async function getVOD_EP(module_id: string, show_id: string, epid: string){
     if(module_id){
         try {
@@ -344,6 +432,14 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
     }else return await Promise.reject(new Error("No module id provided"))
 }
 
+/**
+ * It takes in a module_id, username, and password, and returns a promise that resolves to the result
+ * of the login function of the module with the given module_id
+ * @param {string} module_id - The name of the module you want to use.
+ * @param {string} username - The username of the account you want to login to
+ * @param {string} password - The password of the user
+ * @returns A promise that resolves to a boolean value.
+ */
 export async function login(module_id: string, username: string, password: string){
     try {
         if(username && password){

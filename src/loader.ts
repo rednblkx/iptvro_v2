@@ -71,12 +71,12 @@ export async function sanityCheck(): Promise<string[]> {
                     let auth = await val.getAuth();
                     console.log(` - Module '${val.MODULE_ID}' found`);
                     ((auth.username && auth.password) === (null || undefined || "")) && console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`)
-                    !val.login.name && val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING login method not implemented`)
-                    if(val.hasLive && !val.liveChannels?.name){
+                    !val.login && val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING login method not implemented`)
+                    if(val.hasLive && !val.liveChannels){
                         val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING hasLive true but liveChannels method not implemented`)
                         valid = false;
                     }
-                    if(val.hasVOD && !val.getVOD?.name){
+                    if(val.hasVOD && !val.getVOD){
                         val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING hasVOD true but getVOD method not implemented`)
                         valid = false;
                     }
@@ -334,33 +334,29 @@ export async function searchChannel(id: string, module_id: string, valid_modules
             return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))
         }
     }else {
-        // return new Promise((resolve, reject) => {
-            var tries = 0;
-            let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/src/modules/${mod}.js`)).default()))
-            for(let module of modules){
-                try {
-                    let config = await module.getConfig()
-                    let auth = await module.getAuth();
-                    if(config?.chList[id]){
-                        let cache = await cacheFind(module, id)
-                        if(cache !== null && config.cache_enabled){
-                            return Promise.resolve(cache.data)
-                        }else {
-                            let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
-                            if(data){
-                                cacheFill(id, module.MODULE_ID, data)
-                                return Promise.resolve(data)
-                            }
+        let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/src/modules/${mod}.js`)).default()))
+        for(let module of modules){
+            try {
+                let config = await module.getConfig()
+                let auth = await module.getAuth();
+                if(config?.chList[id]){
+                    let cache = await cacheFind(module, id)
+                    if(cache !== null && config.cache_enabled){
+                        return Promise.resolve(cache.data)
+                    }else {
+                        let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
+                        if(data){
+                            cacheFill(id, module.MODULE_ID, data)
+                            return Promise.resolve(data)
                         }
                     }
-                } catch (error) {
-                    return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
                 }
-                if(tries === valid_modules.length){
-                    return Promise.reject(new Error(`searchChannel - No module has channel '${id}'`))
-                }
+            } catch (error) {
+                process.env.DEBUG && console.log(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
+                // return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
             }
-        // })
+        }
+        return Promise.reject(new Error(`searchChannel - No module has channel '${id}'`))
     }
 }
 /**

@@ -383,8 +383,7 @@ app.get("/:module", async (req,res) => {
 app.get("/**", (_,res) => {
     var body : body_response = new body_response("OK", null);
     body.status = "ERROR"
-    body.data = valid_modules;
-    body.error = "Endpoint did not match any route, listing all available modules";
+    body.error = "Endpoint did not match any route, listing all available modules: " + valid_modules.join(", ");
     res.status(404).json(body)
 })
 

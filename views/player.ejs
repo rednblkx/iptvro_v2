@@ -1,0 +1,30 @@
+<html>
+  <head>
+    <link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet">
+  </head>
+  <body>
+    <div>
+      <!-- <video id="videoPlayer" controls></video> -->
+      <video-js id="video_1" class="vjs-default-skin" controls preload="auto" width="1024" height="540" autoplay muted>
+        <source src="<%- stream %>" autoplay>
+      </video-js>
+      
+      <script src="https://unpkg.com/video.js/dist/video.js"></script>
+      <script src="https://unpkg.com/@videojs/http-streaming/dist/videojs-http-streaming.js"></script>
+      <script src="/videojs-contrib-eme.js"></script>
+      
+      <script>
+        var player = videojs('video_1', {
+          liveui: true,
+        plugins: {
+          eme: {
+            keySystems: {
+              'com.widevine.alpha': 'http://localhost:8080/<%- proxy %>'
+              }
+          }
+        }
+      });
+      </script>
+    </div>
+  </body>
+</html>

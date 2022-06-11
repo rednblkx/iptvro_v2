@@ -151,14 +151,21 @@ function m3uFixURL(m3u, url) {
  * @param link - The link to the playlist
  * @returns A string of the playlist
  */
-export async function rewritePlaylist(link){
-    let initData = (await axios.get(link)).data
-    let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
-    if(initm3u8.includes(".m3u8")){
-        let q_m3u8 = await axios.get(m3u8Select(initm3u8, link.match(/(.*)\/.*/)[1]))
-        let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url.match(/(.*)\/.*/)[1])
-        return finalP
-    }else return m3uFixURL(initm3u8, link.match(/(.*)\/.*/)[1])
+export async function rewritePlaylist(stream){
+    let initData = (await axios.get(stream.stream)).data
+    if(initData.includes('#EXTM3U')){
+        let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
+        if(initm3u8.includes(".m3u8")){
+            let q_m3u8 = await axios.get(m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
+            let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url.match(/(.*)\/.*/)[1])
+            return finalP
+        }else return m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)[1])
+    }else {
+        if(process.env.DEBUG === ('true' || true)){
+            console.log(`rewritePlaylist| Playlist not HLS!`);
+        }
+        return stream
+    }
 }
 
 
@@ -186,7 +193,7 @@ async function cacheCleanup(modules: ModuleType[]){
         for (let index = 0; index < db.data.length; index++) {
             if((((new Date()).getTime() - (new Date(db.data[index].lastupdated)).getTime()) / (1000 * 3600)) >= (cache_config[db.data[index].module] || 6)){
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheCleanup| Found cached link for '${db.data[index].name}' module '${db.data[index].module}' older than ${(cache_config[db.data[index].module] || 6)} hours, removing!`);
+                    console.log(`cacheCleanup| Found cached link for '${db.data[index].name}' module '${db.data[index].module}' older than ${(cache_config[db.data[index].module] || 6)} hours, removing!\n`);
                 }
                 removed = db.data.splice(index, 1)
                 index--;
@@ -216,17 +223,12 @@ export async function cacheFind(module: ModuleType, id?: string){
 
         const cache = db.data && db.data.find(a => id ? a.name === id && a.module === module.MODULE_ID : a.module === module.MODULE_ID);
         let cachetime = (await module.getConfig()).cachetime
-        // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? (await readFile(`${process.cwd()}/src/modules/${module_id}.json`)).toString() : null
-        // let parsed: AuthConfig = file ? JSON.parse(file) : null;
 
-        // let cachetime = parsed.config.cachetime
-        
-        
         if(cache){
             if((((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
                 // let found = cache.link;
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheFind| Cached link found for '${id}', module '${module.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()}`);
+                    console.log(`cacheFind| Cached link found for '${id}', module '${module.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()}\n`);
                 }
                 return cache
             }else return null

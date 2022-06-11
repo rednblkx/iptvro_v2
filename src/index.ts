@@ -5,6 +5,9 @@ import * as modules from './loader.js';
 import fs from 'fs';
 import { AuthConfig, ModuleType } from './moduleClass.js';
 import { JSONFile, Low } from 'lowdb';
+import axios from 'axios';
+import cors_proxy from 'cors-anywhere';
+import {URL} from 'url'
 
 /* The below code is creating an instance of express. */
 const app = express();
@@ -14,7 +17,8 @@ const PORT = process.env.PORT || 3000;
 
 /* Telling the server to use the express.json() middleware. */
 app.use(express.json());
-
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
 // try {
     /* Checking if the modules are valid. */
     var valid_modules = await modules.sanityCheck()
@@ -86,14 +90,14 @@ app.get("/cache/:module?",async (req:Request<{module: string}, {}, {}, {id: stri
 })
 
 /* A simple API that returns a stream URL for a given channel. */
-app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, channel: string, ts?: string}, {}, {}, {}>,res) => {
+app.get("/:module?/live/:channel/:player(player)?", async (req:Request<{module?: string, channel: string, player?: string}, {}, {}, {ts?: string}>,res) => {
 
     var body : body_response = new body_response("OK", null);
 
     try {
         if(req.params.module){
             if(valid_modules.find(x => x == req.params.module) != undefined){
-                if(req.params.ts){
+                if(req.query.ts){
                     res.send(await modules.rewritePlaylist((await modules.searchChannel(req.params.channel, req.params.module, valid_modules)).stream))
                 } else {
                     body.data = await modules.searchChannel(req.params.channel, req.params.module, valid_modules)
@@ -109,13 +113,25 @@ app.get("/:module?/live/:channel/:ts?", async (req:Request<{module?: string, cha
             }
         } else {
             try {
-                if(req.params.ts){
-                    res.send(await modules.rewritePlaylist((await modules.searchChannel(req.params.channel, null, valid_modules)).stream))
+                if(req.query.ts){
+                    let data = await modules.rewritePlaylist(await modules.searchChannel(req.params.channel, null, valid_modules));
+                    let redir = await axios.get(data.stream);
+                    if(req.params.player == "player"){
+                        res.render('player', { stream: `http://localhost:8080/${redir.request.res.responseUrl}`, proxy: data.proxy, origin: (new URL(redir.request.res.responseUrl)).hostname })
+                    }else {
+                        res.send(data.stream)
+                    }
                 } else {
-                    body.data = await modules.searchChannel(req.params.channel, null, valid_modules)
+                    let data = await modules.searchChannel(req.params.channel, null, valid_modules)
+                    let redir = await axios.get(data.stream)
+                    body.data = data
                     if(!body.data)
-                        throw "No data received from method!"
-                    res.json(body);
+                    throw "No data received from method!"
+                    if(req.params.player == "player"){
+                        res.render('player', { stream: `http://localhost:8080/${redir.request.res.responseUrl}`, proxy: data.proxy, origin: (new URL(redir.request.res.responseUrl)).hostname })
+                    }else {
+                        res.json(body);
+                    }
                 }
             } catch (error) {
                 body.status = "ERROR"
@@ -389,3 +405,17 @@ app.get("/**", (_,res) => {
 
 /* The below code is creating a server that listens for requests on port 3000. */
 app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}`)})
+
+
+// Listen on a specific host via the HOST environment variable
+var host = '0.0.0.0';
+// Listen on a specific port via the PORT environment variable
+var port = 8080;
+
+cors_proxy.createServer({
+    originWhitelist: [], // Allow all origins
+    // requireHeader: ['origin', 'x-requested-with'],
+    removeHeaders: ['cookie', 'cookie2']
+}).listen(port, host, function() {
+    console.log('Running CORS Anywhere on ' + host + ':' + port + "\n");
+});

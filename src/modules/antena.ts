@@ -135,13 +135,19 @@ class ModuleInstance extends ModuleClass {
     }
     let $ = htmlload(html.data);
     if($){
-      var link = $(".video-container script")
+      var stream = $(".video-container script")
       .html()
       .match("streamURL: (.*)")[1]
       .replace('",', '"')
       .match('"(.*)"')[1]
-      this.logger("liveChannels", `got stream URL - ${link}`)
-      return await Promise.resolve({stream: link})
+      this.logger("liveChannels", `got stream URL - ${stream}`)      
+      var proxy = $(".video-container script")
+      .html()
+      .match("proxyURL: (.*)")[1]
+      .replace('",', '"')
+      .match('"(.*)"')[1]
+      this.logger("liveChannels", `got proxy URL - ${proxy}`)
+      return await Promise.resolve({stream, proxy})
     }else return await Promise.reject(new Error('Something went wrong'));
     } catch (error) {
       return await Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, 200), true));

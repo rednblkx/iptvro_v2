@@ -23,6 +23,21 @@ type cache = {
 }
 
 /**
+ * The function takes in three parameters, the first two are required and the third is optional
+ * @param {string} id - This is the id of the function that is calling the logger.
+ * @param {string} message - The message you want to log.
+ * @param {boolean} [isError] - boolean - if true, the logger will return an Error object instead of a
+ * string.
+ * @returns a string or an error.
+ */
+ function logger(id: string, message: string, isError?: boolean): string | Error {
+    if (process.env.DEBUG?.toLowerCase() === 'true') {
+        console.log(`\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
+    }
+    return isError ? new Error(`\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`) : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
+};
+
+/**
  * It reads all the files in the modules folder, imports them, checks if they are valid modules, and if
  * they are, it checks if they have a config file, if they don't, it creates one, and if they do, it
  * checks if the module has a login method, and if it does, it checks if the module has a username and
@@ -151,7 +166,7 @@ function m3uFixURL(m3u, url) {
  * @param link - The link to the playlist
  * @returns A string of the playlist
  */
-export async function rewritePlaylist(stream){
+export async function rewritePlaylist(stream: {stream: string, proxy?: string}): Promise<any> {
     let initData = (await axios.get(stream.stream)).data
     if(initData.includes('#EXTM3U')){
         let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
@@ -161,16 +176,14 @@ export async function rewritePlaylist(stream){
             return finalP
         }else return m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)[1])
     }else {
-        if(process.env.DEBUG === ('true' || true)){
-            console.log(`rewritePlaylist| Playlist not HLS!`);
-        }
+        logger('rewritePlaylist',`"${stream.stream}" is not a HLS playlist`)
         return stream
     }
 }
 
 
 /**
- * It removes all cached links that are older than the cachetime specified in the module's config
+ * It removes all cached links that are older than the url_update_interval specified in the module's config
  * @param {ModuleType[]} modules - ModuleType[] - This is an array of all the modules that are loaded.
  */
 async function cacheCleanup(modules: ModuleType[]){
@@ -187,13 +200,13 @@ async function cacheCleanup(modules: ModuleType[]){
     try {
         for(let mod of modules){
             if(mod instanceof ModuleFunctions){
-                cache_config[mod.MODULE_ID] = (await mod.getConfig()).cachetime
+                cache_config[mod.MODULE_ID] = (await mod.getConfig()).url_update_interval
             }
         }
         for (let index = 0; index < db.data.length; index++) {
             if((((new Date()).getTime() - (new Date(db.data[index].lastupdated)).getTime()) / (1000 * 3600)) >= (cache_config[db.data[index].module] || 6)){
                 if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheCleanup| Found cached link for '${db.data[index].name}' module '${db.data[index].module}' older than ${(cache_config[db.data[index].module] || 6)} hours, removing!\n`);
+                    logger('cacheCleanup',`Found cached link for '${db.data[index].name}' module '${db.data[index].module}' older than ${(cache_config[db.data[index].module] || 6)} hours, removing!`)
                 }
                 removed = db.data.splice(index, 1)
                 index--;
@@ -202,93 +215,9 @@ async function cacheCleanup(modules: ModuleType[]){
         if(removed.length > 0)
             await db.write();
     } catch (error) {
-        console.log(error);
+        logger('cacheCleanup',`Error cleaning up cache: ${error.message || error}`, true)
     }
 
-}
-
-
-/**
- * It checks if a cached link exists for a module, and if it does, it checks if it's older than the
- * cachetime, and if it is, it returns null, otherwise it returns the cached link
- * @param {ModuleType} module - The module you're using
- * @param {string} [id] - The id of the link you want to find.
- * @returns The cache object
- */
-export async function cacheFind(module: ModuleType, id?: string){
-    try {
-        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
-        const db = new Low(adapter)
-        await db.read();
-
-        const cache = db.data && db.data.find(a => id ? a.name === id && a.module === module.MODULE_ID : a.module === module.MODULE_ID);
-        let cachetime = (await module.getConfig()).cachetime
-
-        if(cache){
-            if((((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600)) <= (cachetime ? cachetime : 6)){
-                // let found = cache.link;
-                if(process.env.DEBUG == ('true' || true)){
-                    console.log(`cacheFind| Cached link found for '${id}', module '${module.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()}\n`);
-                }
-                return cache
-            }else return null
-        } else return null
-    } catch (error) {
-        console.error(`cacheFind| ${error.message || error.toString().substring(0, 200)}`);
-    }
-}
-
-/**
- * It takes in a string, a string, and an object, and then it tries to find the cache in the database,
- * and if it does, it updates it, and if it doesn't, it creates it
- * @param {string} id - The id of the cache.
- * @param {string} module_id - The name of the module you're using.
- * @param data - {stream: string, proxy?: string}
- */
-async function cacheFill(id: string, module_id: string, data: {stream: string, proxy?: string}){
-    try {
-        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
-        const db = new Low(adapter)
-        await db.read();
-        db.data ||= [];
-        const cache = db.data && db.data.findIndex(a => a.name === id && a.module === module_id);
-        if(cache && cache !== -1){
-            db.data[cache].data = data;
-            db.data[cache].lastupdated = new Date();
-            await db.write();
-        }else{
-            db.data.push({
-                name: id,
-                data: data,
-                module: module_id,
-                lastupdated: new Date()
-            })
-            await db.write();
-        }
-    } catch (error) {
-        console.error(`cacheFill| ${error.message || error.toString().substring(0, 200)}`);
-    }
-}
-
-/**
- * It deletes all the cache entries for a given module
- * @param {string} module_id - The module id of the module you want to flush the cache for.
- * @returns A string
- */
-export function flushCache(module_id: string){
-    try {
-        const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
-        const db = new Low(adapter)
-        db.read().then(() => {
-            db.data = db.data.filter(a => a.module !== module_id)
-            db.write();
-        })
-        //log to console
-        console.log(`flushCache| Flushed cache for module '${module_id}'`)
-        return `flushCache| Flushed cache for module '${module_id}'`
-    } catch (error) {
-        console.error(`flushCache| ${error.message || error.toString().substring(0, 200)}`);
-    }
 }
 
 /**
@@ -300,34 +229,44 @@ export function flushCache(module_id: string){
  * @returns A promise that resolves to a cache object
  */
 export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<cache['data']>{
-    if(module_id){
+    if(valid_modules.includes(module_id)){
         try {
+            logger('searchChannel',`Searching for channel '${id}' in module '${module_id}'`)
             let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
             // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
             let config = await module.getConfig()
             let auth = await module.getAuth();
             if(config.chList[id]){
+                logger('searchChannel',`Found channel '${id}' in module '${module_id}'`)
                 // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null
                 // let parsed: config = file ? JSON.parse(file) : null;
-                let cache = await cacheFind(module, id)
-                if(cache !== null && config.cache_enabled){
+                let cache = await module.cacheFind(id)
+                if(cache !== null && config.url_cache_enabled){
+                    logger('searchChannel',`Found cached link for channel '${id}' in module '${module_id}'`)
+                    logger('searchChannel',`Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`)
                     return await Promise.resolve(cache.data)
                 }else {
+                    logger('searchChannel',`No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`)
                     let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
-                    cacheFill(id, module_id, data)
+                    await module.cacheFill(id, data)
                     return await Promise.resolve(data);
                 }
                 
             }else {
+                logger('searchChannel',`Channel '${id}' not found in module '${module_id}', updating list`)
                 let get_ch = await module.getChannels()
                 if(get_ch[id]){
+                    logger('searchChannel',`Found channel '${id}' in module '${module_id}'`)
                     module.setConfig("chList", get_ch)
-                    let cache = await cacheFind(module, id)
-                    if(cache !== null && (await module.getConfig()).cache_enabled){
+                    let cache = await module.cacheFind(id)
+                    if(cache !== null && (await module.getConfig()).url_cache_enabled){
+                        logger('searchChannel',`Found cached link for channel '${id}' in module '${module_id}'`)    
+                        logger('searchChannel',`Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`)
                         return await Promise.resolve(cache.data)
                     }else {
+                        logger('searchChannel',`No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`)
                         let data  = await module.liveChannels(get_ch[id], auth.authTokens, auth.lastupdated)
-                        cacheFill(id, module_id, data)
+                        await module.cacheFill(id, data)
                         return await Promise.resolve(data);
                     }
                 }else return await Promise.reject(new Error(`searchChannel| Module ${module_id} doesn't have channel '${id}'`))
@@ -339,22 +278,25 @@ export async function searchChannel(id: string, module_id: string, valid_modules
         let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/src/modules/${mod}.js`)).default()))
         for(let module of modules){
             try {
+                logger('searchChannel',`Searching for channel '${id}' in module '${module.MODULE_ID}'`)
                 let config = await module.getConfig()
                 let auth = await module.getAuth();
                 if(config?.chList[id]){
-                    let cache = await cacheFind(module, id)
-                    if(cache !== null && config.cache_enabled){
+                    logger('searchChannel',`Found channel '${id}' in module '${module.MODULE_ID}'`)
+                    let cache = await module.cacheFind(id)
+                    if(cache !== null && config.url_cache_enabled){
+                        logger('searchChannel',`Found cached link for channel '${id}' in module '${module.MODULE_ID}'`)
+                        logger('searchChannel',`Cached link for channel '${id}' in module '${module.MODULE_ID}' is '${cache.data.stream}'`)
                         return Promise.resolve(cache.data)
                     }else {
+                        logger('searchChannel',`${config.url_cache_enabled ? `No cached link found for channel '${id}' in` : "Cache not enabled for"} module '${module.MODULE_ID}'${config.url_cache_enabled ? `, trying to retrieve from module` : ""}`)
                         let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
-                        if(data){
-                            cacheFill(id, module.MODULE_ID, data)
-                            return Promise.resolve(data)
-                        }
+                        await module.cacheFill(id, data)
+                        return Promise.resolve(data)
                     }
                 }
             } catch (error) {
-                process.env.DEBUG && console.log(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
+                logger('searchChannel',`Error searching channel '${id}' in module '${module.MODULE_ID}': ${error.message || error.toString().substring(0, 200)}`, true)
                 // return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
             }
         }
@@ -415,12 +357,12 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
         try {
             let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
             if(module.hasVOD){
-                let cache = await cacheFind(module, epid)
-                if(cache !== null && (await module.getConfig()).cache_enabled){
+                let cache = await module.cacheFind(epid)
+                if(cache !== null && (await module.getConfig()).url_cache_enabled){
                     return await Promise.resolve(cache.data.stream)
                 }else {
                     let res = await module.getVOD_EP(show_id, epid, (await module.getAuth()).authTokens);
-                    cacheFill(epid, module_id, {stream: res})
+                    await module.cacheFill(epid, {stream: res})
                     return await Promise.resolve(res);
                 }
             }else return await Promise.reject(`getVOD_EP| Module ${module_id} doesn't have VOD available`)

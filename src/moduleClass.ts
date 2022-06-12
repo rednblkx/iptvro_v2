@@ -1,9 +1,10 @@
 import { Low, JSONFile } from 'lowdb'
+import moment from 'moment';
 
 /**
  * The AuthConfig type is an object with two properties: auth and config. The auth property is an
  * object with four properties: username, password, authTokens, and lastupdated. The config property is
- * an object with three properties: cache_enabled, cachetime, and chList.
+ * an object with three properties: url_cache_enabled, url_update_interval, and chList.
  * @property auth - This is the object that contains the username, password, authTokens, and
  * lastupdated properties.
  * @property config - This is the configuration object for the plugin.
@@ -16,11 +17,29 @@ export type AuthConfig = {
         lastupdated: Date;
     }
     config: {
-        cache_enabled: boolean;
-        cachetime: number;
+        url_cache_enabled: boolean;
+        url_update_interval: number;
+        auth_update_interval: number;
         chList: {};
     }
 };
+
+/**
+ * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
+ * string, proxy?: string}`, a `module` property of type `string`, and a `lastupdated` property of type
+ * `Date`.
+ * @property {string} name - The name of the stream.
+ * @property data - This is the data that is returned from the module.
+ * @property {string} module - The module that the stream is from.
+ * @property {Date} lastupdated - The date the cache was last updated.
+ */
+ type cache = {
+    name: string,
+    data: {stream: string, proxy?: string},
+    module: string,
+    lastupdated: Date
+}
+
 
 /* Extending the ModuleFunctions class with the ModuleType interface. */
 export interface ModuleType extends ModuleFunctions {
@@ -42,13 +61,6 @@ class ModuleFunctions {
     hasVOD: boolean;
     chList: string[];
     qualitiesList: string[];
-    // liveChannels: Function;
-    // login: Function;
-    // getVOD: Function;
-    // getVOD_List: Function;
-    // getVOD_EP: Function;
-    // getVOD_EP_List: Function;
-    // getChannels: Function;
     debug: boolean;
 
     /**
@@ -68,15 +80,23 @@ class ModuleFunctions {
         this.hasVOD = hasVOD;
         this.chList = chList || null;
         this.qualitiesList = qualitiesList || null;
-        // this.liveChannels = dummy;
-        // this.login = dummy;
-        // this.getVOD = dummy;
-        // this.getVOD_List = dummy;
-        // this.getVOD_EP = dummy;
-        // this.getVOD_EP_List = dummy;
-        // this.getChannels = dummy;
         this.debug = (process.env.DEBUG?.toLowerCase() === 'true');
     }
+
+    /**
+     * The function takes in three parameters, the first two are required and the third is optional.
+     * The function returns a string or an error
+     * @param {string} id - This is the id of the module that is calling the logger.
+     * @param {string} message - The message to be logged.
+     * @param {boolean} [isError] - boolean - If true, the message will be returned as an Error object.
+     * @returns A string or an error.
+     */
+    logger(id: string, message: string, isError?: boolean): string | Error {
+        if (this.debug === true) {
+            console.log(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
+        }
+        return isError ? new Error(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`) : `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
+    };
 
     /**
      * It creates a config file for the module.
@@ -92,8 +112,9 @@ class ModuleFunctions {
                 "lastupdated": new Date()
             },
             "config": {
-                "cache_enabled": true,
-                "cachetime": 6,
+                "url_cache_enabled": true,
+                "url_update_interval": 6,
+                "auth_update_interval": 6,
                 "chList": chList || {}
             }
         }
@@ -146,7 +167,7 @@ class ModuleFunctions {
         } else {
             db.data.auth = auth;
             await db.write();
-            this.logger('setAuth', 'config file updated - credentials changed')
+            this.logger('setAuth', 'config file updated')
         }
         return Promise.resolve()
     }
@@ -189,19 +210,87 @@ class ModuleFunctions {
     };
 
     /**
-     * The function takes in three parameters, the first two are required and the third is optional.
-     * The function returns a string or an error
-     * @param {string} id - This is the id of the module that is calling the logger.
-     * @param {string} message - The message to be logged.
-     * @param {boolean} [isError] - boolean - If true, the message will be returned as an Error object.
-     * @returns A string or an error.
+     * It checks if a cached link exists for a module, and if it does, it checks if it's older than the
+     * url_update_interval, and if it is, it returns null, otherwise it returns the cached link
+     * @param {ModuleType} module - The module you're using
+     * @param {string} [id] - The id of the link you want to find.
+     * @returns The cache object
      */
-    logger(id: string, message: string, isError?: boolean): string | Error {
-        if (this.debug) {
-            console.log(`${this.MODULE_ID} - ${id}: ${message}`);
+    async cacheFind(id?: string): Promise<cache> {
+        try {
+            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const db = new Low(adapter)
+            await db.read();
+
+            const cache = db.data && db.data.find(a => id ? a.name === id && a.module === this.MODULE_ID : a.module === this.MODULE_ID);
+            let url_update_interval = (await this.getConfig()).url_update_interval
+
+            if(cache){
+                if((((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600)) <= (url_update_interval ? url_update_interval : 6)){
+                    // let found = cache.link;
+                    if(process.env.DEBUG == ('true' || true)){
+                        this.logger('cacheFind',`Cached link found for '${id}', module '${this.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()}`)
+                    }
+                    return cache
+                }else return null
+            } else return null
+        } catch (error) {
+            console.error(`cacheFind| ${error.message || error.toString().substring(0, 200)}`);
         }
-        return isError ? new Error(`${this.MODULE_ID} - ${id}: ${message}`) : `${this.MODULE_ID} - ${id}: ${message}`
-    };
+    }
+
+    /**
+     * It takes in a string, a string, and an object, and then it tries to find the cache in the database,
+     * and if it does, it updates it, and if it doesn't, it creates it
+     * @param {string} id - The id of the cache.
+     * @param {string} module_id - The name of the module you're using.
+     * @param data - {stream: string, proxy?: string}
+     */
+    async cacheFill(id: string, data: {stream: string, proxy?: string}): Promise<void> {
+        try {
+            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const db = new Low(adapter)
+            await db.read();
+            db.data ||= [];
+            const cache = db.data && db.data.findIndex(a => a.name === id && a.module === this.MODULE_ID);
+            if(cache && cache !== -1){
+                db.data[cache].data = data;
+                db.data[cache].lastupdated = new Date();
+                return Promise.resolve(await db.write());
+            }else{
+                db.data.push({
+                    name: id,
+                    data: data,
+                    module: this.MODULE_ID,
+                    lastupdated: new Date()
+                })
+                return Promise.resolve(await db.write());
+            }
+        } catch (error) {
+            this.logger('cacheFill', `${error.message || error.toString().substring(0, 200)}`, true)
+            return Promise.reject(error)
+        }
+    }
+
+    /**
+     * It deletes all the cache entries for this module
+     * @returns result - A promise that resolves when the cache is deleted.
+     */
+    async flushCache(): Promise<string> {
+        try {
+            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const db = new Low(adapter)
+            await db.read()
+            db.data = db.data.filter(a => a.module !== this.MODULE_ID)
+            await db.write();
+            //log to console
+            this.logger('flushCache',`Flushed cache for module '${this.MODULE_ID}'`)
+            return Promise.resolve(`Flushed cache for module '${this.MODULE_ID}'`)
+        } catch (error) {
+            this.logger('flushCache',`Error flushing cache for module '${this.MODULE_ID}': ${error.message || error.toString().substring(0, 200)}`, true)
+            return Promise.reject(error)
+        }
+    }
 }
 
 /* Exporting the ModuleFunctions class as the default export. */

@@ -38,7 +38,7 @@ class ModuleInstance extends ModuleClass {
    */
   async login(username: string, password: string): Promise<string[]> {
     try {
-      this.logger("login", "first step, getting login token")
+      this.logger("login", "getting login token")
       let tokens = await axios.get("https://antenaplay.ro/intra-in-cont", {
         headers: {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -54,7 +54,7 @@ class ModuleInstance extends ModuleClass {
       });
   
       if(tokens.data){
-        this.logger("login", "got login token, trying login")
+        this.logger("login", `got login token: ${tokens.data}, trying login`)
       } else return Promise.reject(this.logger("login", "login failed, could not retrieve login token", true))
   
       const login = await axios.post(
@@ -74,7 +74,7 @@ class ModuleInstance extends ModuleClass {
   
       if(login.headers.location === login.config.url){
         return Promise.reject(this.logger("login", "login failed, Username/Password invalid", true))
-      }else this.logger("login", "login success, getting required authTokens")
+      }else this.logger("login", "login success, getting the cookies")
   
       let live = await axios.get("https://antenaplay.ro/live/antena1", {
         headers: {
@@ -86,7 +86,7 @@ class ModuleInstance extends ModuleClass {
   
       var authTokens = live.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0])
       if (authTokens.some((a) => a.match(/[^=]*/)[0].includes("device"))) {
-          this.logger("login", "authTokens found")
+          this.logger("login", `cookies found: ${JSON.stringify(authTokens)}`)
           return await Promise.resolve(authTokens);
         } else {
           return await Promise.reject(new Error('Something went wrong'));
@@ -106,6 +106,7 @@ class ModuleInstance extends ModuleClass {
   async liveChannels(channel: string, authTokens: string[], lastupdated: string) : Promise<{stream: string, proxy?: string}> {
     try {
     if(!authTokens || typeof authTokens !== 'object'){
+      this.logger("liveChannels", "authTokens not provided, trying login")
       //get config
       var config = await this.getAuth();
       //get authTokens
@@ -122,7 +123,7 @@ class ModuleInstance extends ModuleClass {
       // referrer: "https://antenaplay.ro/seriale",
     });
 
-    if((((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600)) >= 6){
+    if((((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600)) >= (await this.getConfig()).auth_update_interval){
       let newCookies = html.headers['set-cookie']
       let config = await this.getAuth();
       // let parsed = JSON.parse(config);
@@ -140,7 +141,7 @@ class ModuleInstance extends ModuleClass {
       .match("streamURL: (.*)")[1]
       .replace('",', '"')
       .match('"(.*)"')[1]
-      this.logger("liveChannels", `got stream URL - ${stream}`)      
+      this.logger("liveChannels", `got stream URL - ${stream}`)
       var proxy = $(".video-container script")
       .html()
       .match("proxyURL: (.*)")[1]
@@ -159,6 +160,7 @@ class ModuleInstance extends ModuleClass {
    */
   async getChannels(): Promise<object>{
     try {
+      this.logger("getChannels", "Acquiring HTML")
       //axios get request to url https://antenaplay.ro/live
       var live = await axios.get('https://antenaplay.ro/live');
     
@@ -166,16 +168,16 @@ class ModuleInstance extends ModuleClass {
       var $ = htmlload(live.data);
       //get section with class live-channels-listing and class item
       var channels = $('.live-channels-listing .item');
-      //create array
+      //create object to store channels
       var channelList = {};
       //loop trough channels
-      channels.each(function(i, elem) {
+      channels.each((i, elem) => {
           //get channel href 
-          var channel = $(this).attr('href');
+          var channel = $(elem).attr('href');
           //cut "/live/" from channel href
           channel = channel.substring(6);
+          this.logger("getChannels", `got channel - ${channel}`)
           //push channel to channelList
-          // channelList.push(channel);
           channelList[channel] = channel;
       });
       return channelList;

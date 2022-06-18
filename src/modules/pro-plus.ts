@@ -6,7 +6,7 @@ import { load } from 'cheerio';
 class ModuleInstance extends ModuleClass {
     constructor(){
         /* It calls the constructor of the parent class, which is `ModuleClass`. */
-        super('pro', true, false);
+        super('pro-plus', true, true, false);
     }
 
     /**
@@ -71,7 +71,7 @@ class ModuleInstance extends ModuleClass {
         this.logger("liveChannels", `got response ${JSON.stringify(stream.data)}`)
         return Promise.resolve({stream: stream.data.url});
     } catch (error) {
-        return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
+        return Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")), true));
     }
     }
 

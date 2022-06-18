@@ -62,11 +62,11 @@ export async function sanityCheck(): Promise<string[]> {
                 let valid = true;
                 //check if config file exists
                 if(!existsSync(`${process.cwd()}/src/modules/${val.MODULE_ID}.json`)){
-                    if(val.chList && val.chList.length > 0){
+                    if(val.chList){
                         await val.initializeConfig(val.chList);
                         console.log(` - Module '${val.MODULE_ID}' found`);
                         console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
-                    }else if(val.getChannels.constructor.name === "AsyncFunction") {
+                    }else if(val.getChannels?.constructor.name === "AsyncFunction") {
                         console.log(` - Module '${val.MODULE_ID}' found`);
                         await val.initializeConfig()
                         console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
@@ -85,7 +85,7 @@ export async function sanityCheck(): Promise<string[]> {
                 } else {
                     let auth = await val.getAuth();
                     console.log(` - Module '${val.MODULE_ID}' found`);
-                    ((auth.username && auth.password) === (null || undefined || "")) && console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`)
+                    ((auth.username && auth.password) === (null || undefined || "") && val.authReq) && console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`)
                     !val.login && val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING login method not implemented`)
                     if(val.hasLive && !val.liveChannels){
                         val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING hasLive true but liveChannels method not implemented`)
@@ -228,7 +228,7 @@ async function cacheCleanup(modules: ModuleType[]){
  * search through.
  * @returns A promise that resolves to a cache object
  */
-export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<cache['data']>{
+export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<{data: cache['data'], module: string, cache: boolean}>{
     if(valid_modules.includes(module_id)){
         try {
             logger('searchChannel',`Searching for channel '${id}' in module '${module_id}'`)
@@ -244,12 +244,12 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                 if(cache !== null && config.url_cache_enabled){
                     logger('searchChannel',`Found cached link for channel '${id}' in module '${module_id}'`)
                     logger('searchChannel',`Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`)
-                    return await Promise.resolve(cache.data)
+                    return await Promise.resolve({data: cache.data, module: module_id, cache: true})
                 }else {
                     logger('searchChannel',`No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`)
                     let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                     await module.cacheFill(id, data)
-                    return await Promise.resolve(data);
+                    return await Promise.resolve({data: data, module: module_id, cache: false});
                 }
                 
             }else {
@@ -262,12 +262,12 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(cache !== null && (await module.getConfig()).url_cache_enabled){
                         logger('searchChannel',`Found cached link for channel '${id}' in module '${module_id}'`)    
                         logger('searchChannel',`Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`)
-                        return await Promise.resolve(cache.data)
+                        return await Promise.resolve({data: cache.data, module: module_id, cache: true})
                     }else {
                         logger('searchChannel',`No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`)
                         let data  = await module.liveChannels(get_ch[id], auth.authTokens, auth.lastupdated)
                         await module.cacheFill(id, data)
-                        return await Promise.resolve(data);
+                        return await Promise.resolve({data: data, module: module_id, cache: false});
                     }
                 }else return await Promise.reject(new Error(`searchChannel| Module ${module_id} doesn't have channel '${id}'`))
             }
@@ -287,12 +287,12 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                     if(cache !== null && config.url_cache_enabled){
                         logger('searchChannel',`Found cached link for channel '${id}' in module '${module.MODULE_ID}'`)
                         logger('searchChannel',`Cached link for channel '${id}' in module '${module.MODULE_ID}' is '${cache.data.stream}'`)
-                        return Promise.resolve(cache.data)
+                        return Promise.resolve({data: cache.data, module: cache.module, cache: true})
                     }else {
                         logger('searchChannel',`${config.url_cache_enabled ? `No cached link found for channel '${id}' in` : "Cache not enabled for"} module '${module.MODULE_ID}'${config.url_cache_enabled ? `, trying to retrieve from module` : ""}`)
                         let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                         await module.cacheFill(id, data)
-                        return Promise.resolve(data)
+                        return Promise.resolve({data: cache.data, module: cache.module, cache: false})
                     }
                 }
             } catch (error) {

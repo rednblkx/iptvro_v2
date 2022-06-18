@@ -40,11 +40,12 @@ class body_response {
 
     status: string;
     result: object | string;
+    module: string;
     error: string;
     authTokens? : string[];
 
-    constructor(status?: string, result?: object | string, error?: string, authTokens?: string[]){
-        this.status = status;
+    constructor(result?: object | string, error?: string, authTokens?: string[]){
+        this.status = "SUCCESS";
         this.result = result;
         this.error = error;
         this.authTokens = authTokens;
@@ -98,7 +99,7 @@ app.get("/cache",async (req:Request<{}, {}, {}, {id: string, module: string}>, r
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
         
     }
 })
@@ -115,16 +116,16 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
                     logger("live", `live stream requested for channel '${req.params.channel}' on module '${req.query.module}' with parameter proxy`);
                     let data = await Loader.searchChannel(req.params.channel, req.query.module, valid_modules);
                     logger("live", `data: ${JSON.stringify(data)}`);
-                    let rewrite = await Loader.rewritePlaylist(data)
+                    let rewrite = await Loader.rewritePlaylist(data.data)
                     logger("live", `rewrite: ${JSON.stringify(rewrite)}`);
                     res.set("Content-Type", "application/x-mpegURL");
                     if(req.params.player == "player"){
                         logger("live", `live stream requested for channel '${req.params.channel}' with parameters player and proxy`);
-                        let checkRedirect = await axios.get(data.stream);
-                        let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
-                        if(checkRedirect.request.res.responseUrl !== data.stream)
-                            logger("live", `redirected to '${redir}' from '${data.stream}'`);
-                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.proxy, origin: (new URL(redir)).hostname })
+                        let checkRedirect = await axios.get(data.data.stream);
+                        let redir = checkRedirect.request.res.responseUrl !== data.data.stream ? checkRedirect.request.res.responseUrl : data.data.stream;
+                        if(checkRedirect.request.res.responseUrl !== data.data.stream)
+                            logger("live", `redirected to '${redir}' from '${data.data.stream}'`);
+                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname })
                     }else {
                         res.send(rewrite)
                     }
@@ -132,16 +133,17 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
                     logger("live", `live stream requested for channel '${req.params.channel}' on module '${req.query.module}'`);
                     let data = await Loader.searchChannel(req.params.channel, req.query.module, valid_modules);
                     body.status = "SUCCESS";
-                    body.result = data;
+                    body.result = data.data;
+                    body.module = data.module;
                     if(!body.result)
-                    throw "No data received from method!"
+                        throw "No data received from method!"
                     if(req.params.player == "player"){
-                        let checkRedirect = await axios.get(data.stream);
-                        let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
-                        if(checkRedirect.request.res.responseUrl !== data.stream)
-                            logger("live", `redirected to '${redir}' from '${data.stream}'`);
+                        let checkRedirect = await axios.get(data.data.stream);
+                        let redir = checkRedirect.request.res.responseUrl !== data.data.stream ? checkRedirect.request.res.responseUrl : data.data.stream;
+                        if(checkRedirect.request.res.responseUrl !== data.data.stream)
+                            logger("live", `redirected to '${redir}' from '${data.data.stream}'`);
                         logger("live", `live stream requested for channel '${req.params.channel}' with parameter player`);
-                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.proxy, origin: (new URL(redir)).hostname })
+                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname })
                     }else {
                         res.json(body);
                     }
@@ -149,36 +151,38 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
             }else {
                 body.status = "ERROR"
                 body.error = `Module '${req.query.module}' not found`;
-                res.json(body);
+                res.status(400).json(body);
             }
         } else {
             try {
                 if(req.query.proxy){
                     logger("live", `live stream requested for channel '${req.params.channel}' with parameter proxy`);
-                    let data = await Loader.rewritePlaylist(await Loader.searchChannel(req.params.channel, null, valid_modules));
+                    let data = await Loader.rewritePlaylist((await Loader.searchChannel(req.params.channel, null, valid_modules)).data);
                     if(req.params.player == "player"){
                         logger("live", `live stream requested for channel '${req.params.channel}' with parameter player and proxy`);
                         let checkRedirect = await axios.get(data.stream);
                         let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
                         if(checkRedirect.request.res.responseUrl !== data.stream)
                             logger("live", `redirected to '${redir}' from '${data.stream}'`);
-                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.proxy, origin: (new URL(redir)).hostname })
+                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname })
                     }else {
                         res.send(data.stream)
                     }
                 } else {
                     logger("live", `live stream requested for channel '${req.params.channel}'`);
                     let data = await Loader.searchChannel(req.params.channel, null, valid_modules);
-                    body.result = data
+                    body.status = "SUCCESS";
+                    body.result = data.data;
+                    body.module = data.module;
                     if(!body.result)
-                    throw "No data received from method!"
+                        throw "No data received from method!"
                     if(req.params.player == "player"){
                         logger("live", `live stream requested for channel '${req.params.channel}' with player`);
-                        let checkRedirect = await axios.get(data.stream);
-                        let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
-                        if(checkRedirect.request.res.responseUrl !== data.stream)
-                            logger("live", `redirected to '${redir}' from '${data.stream}'`);
-                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.proxy, origin: (new URL(redir)).hostname })
+                        let checkRedirect = await axios.get(data.data.stream);
+                        let redir = checkRedirect.request.res.responseUrl !== data.data.stream ? checkRedirect.request.res.responseUrl : data.data.stream;
+                        if(checkRedirect.request.res.responseUrl !== data.data.stream)
+                            logger("live", `redirected to '${redir}' from '${data.data.stream}'`);
+                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname })
                     }else {
                         res.json(body);
                     }
@@ -186,13 +190,13 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
             } catch (error) {
                 body.status = "ERROR"
                 body.error = error.message || error.toString().substring(0, 200);
-                res.json(body)
+                res.status(400).json(body)
             }
         }
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 
 })
@@ -213,12 +217,12 @@ app.get("/:module/live", async (req,res) => {
         }else {
             body.status = "ERROR"
             body.error = `Module '${req.params.module}' not found`;
-            res.json(body);
+            res.status(400).json(body);
         }
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -238,12 +242,12 @@ app.get("/:module/vod", async (req,res) => {
         }else {
             body.status = "ERROR"
             body.error = `Module '${req.params.module}' not found`;
-            res.json(body);
+            res.status(400).json(body);
         }
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -262,12 +266,12 @@ app.get("/:module/vod/:show", async (req:Request<{module: string, show: string},
         }else {
             body.status = "ERROR"
             body.error = `Module '${req.params.module}' not found`;
-            res.json(body);
+            res.status(400).json(body);
         }
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -287,13 +291,13 @@ app.get("/:module/vod/:show/:epid", async (req,res) => {
             body.status = "ERROR"
             body.result = null;
             body.error = `Module '${req.params.module}' not found`;
-            res.json(body);
+            res.status(400).json(body);
         }
     } catch (error) {
         body.status = "ERROR"
         body.result = null;
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -320,19 +324,19 @@ app.post("/:module/login", async (req: Request<{module: string}, {}, {username: 
                 body.status = "ERROR"
                 body.authTokens = null;
                 body.error = `Authentication failed for module '${req.params.module}'`;
-                res.json(body);
+                res.status(400).json(body);
             }
         }else {
             body.status = "ERROR"
             body.authTokens = null;
             body.error = `Module '${req.params.module}' not found`
-            res.json(body);
+            res.status(400).json(body);
         }
     } catch (error) {
         body.status = "ERROR"
         body.authTokens = null;
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -351,7 +355,7 @@ app.get("/flushcache", async (req,res) => {
             } else {
                 body.status = "ERROR"
                 body.error = `Module '${req.query.module}' not found`;
-                res.json(body);
+                res.status(400).json(body);
             }
         } else {
             logger("flushcache", `Flush cache request for all modules`);
@@ -366,7 +370,7 @@ app.get("/flushcache", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -391,7 +395,7 @@ app.get("/updatechannels", async (req,res) => {
             }else {
                 body.status = "ERROR";
                 body.error = `Module '${req.query.module}' not found`;
-                res.json(body);
+                res.status(400).json(body);
             }
         }else {
             try {
@@ -412,14 +416,14 @@ app.get("/updatechannels", async (req,res) => {
             } catch(err) {
                 body.status = "ERROR";
                 body.error = err;
-                res.json(body);
+                res.status(400).json(body);
             }
         }
     } catch (error) {
         let n = error.toString().indexOf('\n');
         body.status = "ERROR";
         body.error = error.message || error
-        res.json(body)
+        res.status(502).json(body)
     }
 })
 
@@ -435,7 +439,7 @@ app.get("/:module", async (req,res) => {
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.json(body)
+        res.status(400).json(body)
     }
 })
 

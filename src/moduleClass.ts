@@ -59,9 +59,10 @@ class ModuleFunctions {
     MODULE_ID: string;
     hasLive: boolean;
     hasVOD: boolean;
-    chList: string[];
+    chList: object;
     qualitiesList: string[];
     debug: boolean;
+    authReq: boolean;
 
     /**
      * The constructor of the class.
@@ -74,8 +75,9 @@ class ModuleFunctions {
      * @param {string[]} [qualitiesList] - An array of strings that represent the qualities that the
      * module supports.
      */
-    constructor(MODULE_ID: string, hasLive: boolean, hasVOD: boolean, chList?: string[], qualitiesList?: string[]) {
+    constructor(MODULE_ID: string, authReq: boolean, hasLive: boolean, hasVOD: boolean, chList?: object, qualitiesList?: string[]) {
         this.MODULE_ID = MODULE_ID;
+        this.authReq = authReq;
         this.hasLive = hasLive;
         this.hasVOD = hasVOD;
         this.chList = chList || null;
@@ -103,7 +105,7 @@ class ModuleFunctions {
      * @param {string[]} [chList] - An array of channel names to be used for the channel list.
      * @returns A promise that resolves when the config file is written to disk.
      */
-    async initializeConfig(chList?: string[]) {
+    async initializeConfig(chList?: object): Promise<void> {
         var config = {
             "auth": {
                 "username": "",
@@ -129,6 +131,8 @@ class ModuleFunctions {
         
         //write to file and log
         await db.write()
+
+        this.logger('initializeConfig', 'Config file created')
         // .then(() => this.logger('initializeConfig', 'Config file created'))
 
         return Promise.resolve()

@@ -2,7 +2,6 @@ import { ModuleType, default as ModuleFunctions} from "./moduleClass.js";
 import { readdirSync, existsSync } from "fs";
 import { extname } from 'path';
 import { JSONFile, Low } from "lowdb";
-import moment from "moment";
 import {Parser} from 'm3u8-parser';
 import axios from "axios";
 
@@ -46,12 +45,12 @@ type cache = {
  */
 export async function sanityCheck(): Promise<string[]> {
     
-    let files_list = readdirSync(process.cwd() + "/src/modules").filter(a => extname(a) === ".js" );
+    let files_list = readdirSync(`${process.cwd()}/dist/modules`).filter(a => extname(a) === ".js" );
     var valid_list = [];
     console.log("Modules sanity check:\n");
     let modules = await Promise.all<ModuleType & {module: string, error: string}>(files_list.map(async (val) => {
         try {
-            return new (await import(`${process.cwd()}/src/modules/${val}`)).default()
+            return new (await import(`${process.cwd()}/dist/modules/${val}`)).default()
         } catch (error) {
             return {module: val.match(/^(.*)\.js$/)[1], error: error.message || error.toString().substring(0, 200)};
         }
@@ -61,7 +60,7 @@ export async function sanityCheck(): Promise<string[]> {
             if(val instanceof ModuleFunctions && val.MODULE_ID){
                 let valid = true;
                 //check if config file exists
-                if(!existsSync(`${process.cwd()}/src/modules/${val.MODULE_ID}.json`)){
+                if(!existsSync(`${process.cwd()}/dist/modules/${val.MODULE_ID}.json`)){
                     if(val.chList){
                         await val.initializeConfig(val.chList);
                         console.log(` - Module '${val.MODULE_ID}' found`);
@@ -232,13 +231,13 @@ export async function searchChannel(id: string, module_id: string, valid_modules
     if(valid_modules.includes(module_id)){
         try {
             logger('searchChannel',`Searching for channel '${id}' in module '${module_id}'`)
-            let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
-            // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
+            let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${module_id}.js`)).default();
+            // let file = existsSync(`${process.cwd()}/dist/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/dist/modules/${module_id}.json`).toString() : null;
             let config = await module.getConfig()
             let auth = await module.getAuth();
             if(config.chList[id]){
                 logger('searchChannel',`Found channel '${id}' in module '${module_id}'`)
-                // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null
+                // let file = existsSync(`${process.cwd()}/dist/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/dist/modules/${module_id}.json`).toString() : null
                 // let parsed: config = file ? JSON.parse(file) : null;
                 let cache = await module.cacheFind(id)
                 if(cache !== null && config.url_cache_enabled){
@@ -275,7 +274,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
             return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))
         }
     }else {
-        let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/src/modules/${mod}.js`)).default()))
+        let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/dist/modules/${mod}.js`)).default()))
         for(let module of modules){
             try {
                 logger('searchChannel',`Searching for channel '${id}' in module '${module.MODULE_ID}'`)
@@ -312,7 +311,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
 export async function getVODlist(module_id: string){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 return await Promise.resolve(await module.getVOD_List((await module.getAuth()).authTokens));
             }else return await Promise.reject(new Error(`getVODlist| Module ${module_id} doesn't have VOD available`))
@@ -335,7 +334,7 @@ export async function getVODlist(module_id: string){
 export async function getVOD(module_id: string, show_id: string, year?: string, month?: string, season?: string, showfilters?: boolean){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 let res = await module.getVOD(show_id, {authTokens: (await module.getAuth()).authTokens, year, month, season, showfilters});
                 return await Promise.resolve(res);
@@ -355,7 +354,7 @@ export async function getVOD(module_id: string, show_id: string, year?: string, 
 export async function getVOD_EP(module_id: string, show_id: string, epid: string){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${module_id}.js`)).default();
             if(module.hasVOD){
                 let cache = await module.cacheFind(epid)
                 if(cache !== null && (await module.getConfig()).url_cache_enabled){
@@ -383,7 +382,7 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
 export async function login(module_id: string, username: string, password: string){
     try {
         if(username && password){
-            let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${module_id}.js`)).default();
             return await Promise.resolve(await module.login(username, password))
         }else throw new Error("No Username/Password provided")
     } catch (error) {

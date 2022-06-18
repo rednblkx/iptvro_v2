@@ -81,7 +81,7 @@ app.get("/cache",async (req:Request<{}, {}, {}, {id: string, module: string}>, r
     await db.read();
     try {
         if(req.query.module){
-            const module = new (await import(`${process.cwd()}/src/modules/${req.query.module}.js`)).default()
+            const module = new (await import(`${process.cwd()}/dist/modules/${req.query.module}.js`)).default()
             logger("cache", req.query.id ? `cache requested for id '${req.query.id}' on module '${req.query.module}'` : `cache requested for module ${req.query.module}`);
             const cacheAll = db.data && db.data.filter(a => req.query.id ? a.name === req.query.id && a.module === module.MODULE_ID : a.module === module.MODULE_ID);
             logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
@@ -208,7 +208,7 @@ app.get("/:module/live", async (req,res) => {
     try {
         if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
             logger("live", `live channels requested for module '${req.params.module}'`);
-            let mod: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.params.module}.js`)).default();
+            let mod: ModuleType = new (await import(`${process.cwd()}/dist/modules/${req.params.module}.js`)).default();
             body.status = "SUCCESS";
             body.result = (await mod.getConfig()).chList;
             if(!body.result)
@@ -307,7 +307,7 @@ app.post("/:module/login", async (req: Request<{module: string}, {}, {username: 
     let body: body_response = new body_response();
     try {
         logger("login", `login request for module '${req.params.module}'`);
-        let file = fs.existsSync(`${process.cwd()}/src/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/src/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, authTokens: null}, config: {}}
+        let file = fs.existsSync(`${process.cwd()}/dist/modules/${req.params.module}.json`) ? fs.readFileSync(`${process.cwd()}/dist/modules/${req.params.module}.json`).toString() : {auth : {username: req.body.username, password: req.body.password, authTokens: null}, config: {}}
         let config : AuthConfig = typeof file === "object" ? file : JSON.parse(file)
         req.body.username ? logger("login", `'${req.params.module}' login attempt with username "${req.body.username}" from request`) : logger("login", `'${req.params.module}' login attempt with username ${config.auth.username} from file (request empty)`)
         if(valid_modules.find(x => x == req.params.module) != undefined){
@@ -318,7 +318,7 @@ app.post("/:module/login", async (req: Request<{module: string}, {}, {username: 
                 body.authTokens = authTokens;
                 config.auth.authTokens = authTokens;
                 config.auth.lastupdated = new Date();
-                fs.writeFileSync(`${process.cwd()}/src/modules/${req.params.module}.json`, JSON.stringify(config))
+                fs.writeFileSync(`${process.cwd()}/dist/modules/${req.params.module}.json`, JSON.stringify(config))
                 res.json(body);
             }else {
                 body.status = "ERROR"
@@ -348,7 +348,7 @@ app.get("/flushcache", async (req,res) => {
         if(req.query.module){
             if(valid_modules.find(x => x == req.query.module) != undefined){
                 logger("flushcache", `Flush cache request for module '${req.query.module}'`);
-                let module: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.query.module}.js`)).default();
+                let module: ModuleType = new (await import(`${process.cwd()}/dist/modules/${req.query.module}.js`)).default();
                 body.status = "SUCCESS";
                 body.result = await module.flushCache();
                 res.json(body)
@@ -359,7 +359,7 @@ app.get("/flushcache", async (req,res) => {
             }
         } else {
             logger("flushcache", `Flush cache request for all modules`);
-            let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/src/modules/${mod}.js`)).default()))
+            let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`${process.cwd()}/dist/modules/${mod}.js`)).default()))
             body.status = "SUCCESS";
             body.result = {};
             for(let module of modules){
@@ -382,7 +382,7 @@ app.get("/updatechannels", async (req,res) => {
         if(req.query.module){
             if(valid_modules.find(x => x == req.query.module) != undefined){
                 logger("updatechannels", `Update channels request for module '${req.query.module}'`);
-                let mod: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.query.module}.js`)).default();
+                let mod: ModuleType = new (await import(`${process.cwd()}/dist/modules/${req.query.module}.js`)).default();
                 body.status = "SUCCESS";
                 body.result = await mod.getChannels()
                 if(!body.result)
@@ -400,7 +400,7 @@ app.get("/updatechannels", async (req,res) => {
         }else {
             try {
                 logger("updatechannels", `Update channels request for all modules`);
-                let mod: ModuleType[] = await Promise.all(valid_modules.map(async val => new (await import(`${process.cwd()}/src/modules/${val}.js`)).default()))
+                let mod: ModuleType[] = await Promise.all(valid_modules.map(async val => new (await import(`${process.cwd()}/dist/modules/${val}.js`)).default()))
                 let updated = []
                 for(let module of mod){
                     let ch = await module.getChannels()
@@ -432,7 +432,7 @@ app.get("/:module", async (req,res) => {
     var body : body_response = new body_response();
     try {
         if(valid_modules.find(x => x == req.params.module) != undefined){
-            let mod: ModuleType = new (await import(`${process.cwd()}/src/modules/${req.params.module}.js`)).default();
+            let mod: ModuleType = new (await import(`${process.cwd()}/dist/modules/${req.params.module}.js`)).default();
             body.result = {hasLive: mod.hasLive, hasVOD: mod.hasVOD, chList: (await mod.getConfig()).chList}
             res.json(body);
         } else throw "Invalid Module ID"

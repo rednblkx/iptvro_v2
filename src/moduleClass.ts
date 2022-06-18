@@ -121,7 +121,7 @@ class ModuleFunctions {
             }
         }
         //write config to file
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/dist/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -143,7 +143,7 @@ class ModuleFunctions {
      * @returns The auth object from the JSON file
      */
     async getAuth(): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/dist/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -162,7 +162,7 @@ class ModuleFunctions {
      * @returns a promise that resolves to nothing.
      */
     async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<void> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/dist/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -181,7 +181,7 @@ class ModuleFunctions {
      * @returns The config object from the JSON file
      */
     async getConfig(): Promise<AuthConfig['config']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/dist/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -199,7 +199,7 @@ class ModuleFunctions {
      * @returns A promise that resolves when the config file has been updated.
      */
     async setConfig(key: string, value: any) {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/src/modules/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/dist/modules/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
         if (!db.data) {

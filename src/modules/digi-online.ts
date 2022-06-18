@@ -12,7 +12,7 @@ class ModuleInstance extends ModuleClass {
  */
   constructor(){
     /* Calling the constructor of the parent class, which is ModuleClass. */
-    super('digi', true, false);
+    super('digi-online', true, true, false);
   }
 
   /**
@@ -136,15 +136,18 @@ class ModuleInstance extends ModuleClass {
  * @returns A promise that resolves to an object containing the channel name and id.
  */
   async getChannels(): Promise<object> {
-
-    let channels = await axios.get('https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php');
-
-    let chList = {};
-    channels.data.data.channels_list.forEach(element => {
-        // console.log(`${element.channel_name} - ${element.id_channel}`);
-        chList[element.channel_name] = element.id_channel;
-    })
-    return Promise.resolve(chList);
+    try {
+      let channels = await axios.get('https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php');
+  
+      let chList = {};
+      channels.data.data.channels_list.forEach(element => {
+          // console.log(`${element.channel_name} - ${element.id_channel}`);
+          chList[element.channel_name] = element.id_channel;
+      })
+      return Promise.resolve(chList);
+    } catch (error) {
+      return Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")), true)); 
+    }
   }
 }
 

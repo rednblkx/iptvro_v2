@@ -27,7 +27,7 @@ type VOD_config = {
 class ModuleInstance extends ModuleClass {
   constructor(){
     /* Creating a new instance of the class Antena. */
-    super('antena', true, true);
+    super('antena-play', true, true, true);
   }
   /**
    * It logs in to the antenaplay.ro website and returns the authTokens required to access the live

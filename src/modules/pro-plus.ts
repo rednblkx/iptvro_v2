@@ -69,6 +69,9 @@ class ModuleInstance extends ModuleClass {
             }
         })
         this.logger("liveChannels", `got response ${JSON.stringify(stream.data)}`)
+        if(stream.data.url.includes("playlist-live_lq-live_mq-live_hq")){
+            stream.data.url = stream.data.url.replace("playlist-live_lq-live_mq-live_hq", "playlist-live_lq-live_mq-live_hq-live_fullhd");
+        }
         return Promise.resolve({stream: stream.data.url});
     } catch (error) {
         return Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")), true));

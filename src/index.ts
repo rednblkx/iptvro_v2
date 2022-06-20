@@ -20,6 +20,7 @@ const debug = process.env.DEBUG?.toLowerCase();
 app.use(express.json());
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
+app.set("Access-Control-Allow-Origin", "*");
 // try {
     /* Checking if the modules are valid. */
     var valid_modules = await Loader.sanityCheck()
@@ -105,14 +106,15 @@ app.get("/cache",async (req:Request<{}, {}, {}, {id: string, module: string}>, r
 })
 
 /* A simple API that returns a stream URL for a given channel. */
-app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, player?: string}, {}, {}, {module: string, proxy?: string}>,res) => {
+app.get("/live/:channel/:playlist(index.m3u8)?/:player(player)?", async (req:Request<{channel: string, player?: string, playlist?: string}, {}, {}, {module: string}>,res) => {
 
     var body : body_response = new body_response();
+    res.set("Access-Control-Allow-Origin", "*");
 
     try {
         if(req.query.module){
             if(valid_modules.find(x => x == req.query.module) != undefined){
-                if(req.query.proxy){
+                if(req.params.playlist == "index.m3u8"){
                     logger("live", `live stream requested for channel '${req.params.channel}' on module '${req.query.module}' with parameter proxy`);
                     let data = await Loader.searchChannel(req.params.channel, req.query.module, valid_modules);
                     logger("live", `data: ${JSON.stringify(data)}`);
@@ -155,18 +157,24 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
             }
         } else {
             try {
-                if(req.query.proxy){
+                if(req.params.playlist == "index.m3u8"){
                     logger("live", `live stream requested for channel '${req.params.channel}' with parameter proxy`);
-                    let data = await Loader.rewritePlaylist((await Loader.searchChannel(req.params.channel, null, valid_modules)).data);
-                    if(req.params.player == "player"){
+                    let stream = await Loader.searchChannel(req.params.channel, null, valid_modules);
+                    let data = await Loader.rewritePlaylist(stream.data);
+                    if (req.params.player == "player") {
                         logger("live", `live stream requested for channel '${req.params.channel}' with parameter player and proxy`);
-                        let checkRedirect = await axios.get(data.stream);
-                        let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
-                        if(checkRedirect.request.res.responseUrl !== data.stream)
-                            logger("live", `redirected to '${redir}' from '${data.stream}'`);
-                        res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname })
-                    }else {
-                        res.send(data.stream)
+                        if(data.stream){
+                            let checkRedirect = await axios.get(data.stream);
+                            let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
+                            if (checkRedirect.request.res.responseUrl !== data.stream)
+                                logger("live", `redirected to '${redir}' from '${data.stream}'`);
+                            res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname });
+                        }else {
+                            res.render('player', { stream: `http://localhost:${PORT}/live/${req.params.channel}/index.m3u8`, proxy: "" });
+                        }
+                    }
+                    else {
+                       data.stream ? res.send(data.stream) : res.set("Content-Type", "application/vnd.apple.mpegurl").send(data);
                     }
                 } else {
                     logger("live", `live stream requested for channel '${req.params.channel}'`);
@@ -202,7 +210,35 @@ app.get("/live/:channel/:player(player)?", async (req:Request<{channel: string, 
 })
 
 /* A simple GET request that returns the live channels of a module. */
-app.get("/:module/live", async (req,res) => {
+app.get("/:module/live/:playlist(index.m3u8)?", async (req, res, next) => {
+    var body : body_response = new body_response();
+    try {
+        if(req.params.module && valid_modules.find(x => x == req.params.module) != undefined){
+            logger("live", `live channels requested for module '${req.params.module}'`);
+            let mod: ModuleType = new (await import(`${process.cwd()}/dist/modules/${req.params.module}.js`)).default();
+            if(req.params.playlist == "index.m3u8"){
+                let playlist = [];
+                playlist.push(`#EXTM3U`);
+                for(let channel in await mod.getChannels()){
+                    playlist.push(`#EXTINF:-1,${(channel.split("-")).map(a => a[0].toUpperCase() + a.substring(1)).join(" ")}`);
+                    playlist.push(`http://localhost:${PORT}/live/${channel}/index.m3u8`);
+                }
+                // playlist.push(`#EXT-X-ENDLIST`); 
+                playlist.push("\n");
+                res.set("Access-Control-Allow-Origin", "*");
+                res.set("Content-Type", "application/x-mpegURL").send(playlist.join("\n"));
+            } else next()
+        }else {
+            body.status = "ERROR"
+            body.error = `Module '${req.params.module}' not found`;
+            res.status(400).json(body);
+        }
+    } catch (error) {
+        body.status = "ERROR"
+        body.error = error.message || error.toString().substring(0, 200);
+        res.status(502).json(body)
+    }
+}, async (req,res) => {
     var body : body_response = new body_response();
 
     try {

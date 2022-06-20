@@ -1,24 +1,35 @@
-name: NodeJS with Webpack
+name: NodeJS Typescript compile
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [12.x, 14.x, 16.x]
-    
-    steps:
-    - uses: actions/checkout@v3
+        node-version: [10.x, 12.x, 14.x, 15.x]
 
-    - name: Typescript compiler
-      # You may pin to the exact commit or the version.
-      # uses: iCrawl/action-tsc@c3f25c126c7805dbbbcbf6f1db0c3be6f5dac069
-      uses: iCrawl/action-tsc@v1
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: tsc
+      
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          # Artifact name
+          name: transpiled_project
+          # A file, directory or wildcard pattern that describes what to upload
+          path: dist/
+
 

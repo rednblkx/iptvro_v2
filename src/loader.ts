@@ -291,7 +291,7 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                         logger('searchChannel',`${config.url_cache_enabled ? `No cached link found for channel '${id}' in` : "Cache not enabled for"} module '${module.MODULE_ID}'${config.url_cache_enabled ? `, trying to retrieve from module` : ""}`)
                         let data = await module.liveChannels(config.chList[id], auth.authTokens, auth.lastupdated)
                         await module.cacheFill(id, data)
-                        return Promise.resolve({data: cache.data, module: cache.module, cache: false})
+                        return Promise.resolve({data: data, module: module.MODULE_ID, cache: false})
                     }
                 }
             } catch (error) {

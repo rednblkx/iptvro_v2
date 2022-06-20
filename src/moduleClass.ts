@@ -45,7 +45,7 @@ export type AuthConfig = {
 export interface ModuleType extends ModuleFunctions {
     login(username: string, password: string): Promise<string[]>;
     liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}>;
-    getChannels(): Promise<string[]>;
+    getChannels(): Promise<object>;
     getVOD_List(authTokens: string[]): Promise<object[]>;
     getVOD(show: string, config: object): Promise<object | object[]>;
     getVOD_EP_List(url: string, config: object): Promise<object[]>;

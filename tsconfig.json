@@ -11,5 +11,8 @@
       "outDir": "./dist",                             
       "rootDir": "./src"
     },
+    "ts-node": {
+      "esm": true
+    },
     "exclude": ["node_modules", "**/*.spec.ts"]
   }

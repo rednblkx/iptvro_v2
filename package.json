@@ -17,9 +17,7 @@
   },
   "scripts": {
     "start": "tsc && node dist/index.js",
-    "copy-config": "cp src/modules/*.json dist/modules",
-    "start:dev": "npm run copy-config && node dist/index.js",
-    "dev": "tsc-watch --onFirstSuccess \"npm run copy-config\" --onSuccess \"node dist/index.js\""
+    "dev": "tsc-watch --onSuccess \"node dist/index.js\""
   },
   "engines": {
     "node": ">=14"

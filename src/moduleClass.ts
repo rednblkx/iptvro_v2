@@ -161,7 +161,7 @@ class ModuleFunctions {
      * @param auth - { username: string, password: string, authTokens: string[], lastupdated: Date }
      * @returns a promise that resolves to nothing.
      */
-    async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<void> {
+    async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<AuthConfig['auth']> {
         const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
@@ -173,7 +173,7 @@ class ModuleFunctions {
             await db.write();
             this.logger('setAuth', 'config file updated')
         }
-        return Promise.resolve()
+        return Promise.resolve(db.data.auth)
     }
 
     /**

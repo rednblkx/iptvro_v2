@@ -13,7 +13,7 @@
     "express": "^4.17.1",
     "lowdb": "^3.0.0",
     "m3u8-parser": "^4.7.1",
-    "moment": "^2.29.3"
+    "moment": "^2.29.4"
   },
   "scripts": {
     "start": "tsc && node dist/index.js",

@@ -49,13 +49,13 @@ class ModuleInstance extends ModuleClass {
  * @param {string} password - The password you use to login to the Digi Online website
  * @returns a promise that resolves to an array of strings.
  */
-  async login(username: string, password: string): Promise<string[]> {
+async login(username: string, password: string): Promise<string[]> {
+    if(!password || !username)
+      throw "Username/Password not provided"
       // let auth = this.getAuth();
       let pwdHash = md5(password)
       return new Promise(async (resolve, reject) => {
         try {
-          if(!password || !username)
-            throw "Username/Password not provided"
   
           let xhrResponse = await axios.get(`https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${encodeURIComponent(username)}`,
           {
@@ -85,7 +85,8 @@ class ModuleInstance extends ModuleClass {
           
           resolve([id.id]);
         } catch (error) {
-          reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
+          this.logger("login", error.message || error.toString().substring(0, 200), true)
+          reject(error.message || error.toString().substring(0, 200));
         }
       });
   }
@@ -100,12 +101,12 @@ class ModuleInstance extends ModuleClass {
   async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     let config = await this.getConfig();
     return new Promise(async (resolve, reject) => {
-      if(!authTokens){
-        let auth = await this.getAuth(); 
-        this.logger('liveChannels', "No tokens, trying login")
-        authTokens = await this.login(auth.username, auth.password)
-      }
       try {
+        if(!(authTokens.length > 0)){
+          let auth = await this.getAuth(); 
+          this.logger('liveChannels', "No tokens, trying login")
+          authTokens = await this.login(auth.username, auth.password)
+        }
         this.logger('liveChannels',"getting the stream");
         let play = await axios.get(`https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${authTokens[0]}&sn=ro.rcsrds.digionline&s=app&quality=all`,
         {
@@ -126,7 +127,8 @@ class ModuleInstance extends ModuleClass {
         //   this.login(auth.authTokens).then(() => {
         //       getFromDigi(channel).then(stream => resolve(stream)).catch(er => reject(er))
         //   }).catch(er => reject(er))
-        reject(this.logger("liveChannels", `Error from provider: ${error}`, true))
+        this.logger("liveChannels", `Error from provider: ${error}`, true)
+        reject(error);
       }
     })
   }

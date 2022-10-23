@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync } from 'fs';
 import { Low, JSONFile } from 'lowdb'
 import moment from 'moment';
 
@@ -106,6 +107,7 @@ class ModuleFunctions {
      * @returns A promise that resolves when the config file is written to disk.
      */
     async initializeConfig(chList?: object): Promise<void> {
+        existsSync(`${process.cwd()}/configs`) || mkdirSync(`${process.cwd()}/configs`)
         var config = {
             "auth": {
                 "username": "",

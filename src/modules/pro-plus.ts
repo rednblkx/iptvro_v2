@@ -37,7 +37,8 @@ class ModuleInstance extends ModuleClass {
         } else throw "No cookie received"
 
     } catch (error) {
-        return Promise.reject(this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")), true));
+        this.logger("login", error.message || error.toString().substring(0, error.findIndex("\n")));
+        return Promise.reject(error.message || error.toString().substring(0, error.findIndex("\n")));
     }
     }
   
@@ -90,26 +91,28 @@ class ModuleInstance extends ModuleClass {
         this.logger('liveChannels', `getPlaylist: ${$("iframe").attr("src")}`)
             // if(consoleL) console.log(`pro| getPlaylist: getting channel's stream URL`);
         this.logger('liveChannels', `getPlaylist: getting channel's stream URL`)
-            let step3 = await axios.get($("iframe").attr("src"), {
-                headers: {
-                    cookie: authTokens.join(";"),
-                    referer: "https://protvplus.ro/tv-live/1-pro-tv"
-                },
-            });
+        let step3 = await axios.get($("iframe").attr("src"), {
+            headers: {
+                cookie: authTokens.join(";"),
+                referer: "https://protvplus.ro/tv-live/1-pro-tv"
+            },
+        });
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: got channel's stream`);
         this.logger('liveChannels', `getPlaylist: got channel's stream`)
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data}`);
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data.match('{"HLS"(.*)}]}')}`);
-        this.logger('liveChannels', `getPlaylist: ${step3.data.match(/{"HLS":\[\{(.*?)\}\]}/)}`)
-        let stream = JSON.parse(step3.data.match(/{"HLS":\[\{(.*?)\}\]}/)[0]).HLS[0].src;
-        if(stream.includes("playlist-live_lq-live_mq-live_hq")){
-            stream = stream.replace("playlist-live_lq-live_mq-live_hq", "playlist-live_lq-live_mq-live_hq-live_fullhd");
-        }
-            // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${JSON.parse(step3.data.match('{"HLS"(.*)}]}')[0]).HLS[0].src}`);
+        const regex = /"HLS":.+?\s*:\s*["\']?([^"\'\s>]+)["\']?/g
+        let stream = new URL(regex.exec(step3.data)[1]).href;
         this.logger('liveChannels', `getPlaylist: ${stream}`)
+        // if(stream.includes("playlist-live_lq-live_mq-live_hq")){
+        //     stream = stream.replace("playlist-live_lq-live_mq-live_hq", "playlist-live_lq-live_mq-live_hq-live_fullhd");
+        // }
+            // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${JSON.parse(step3.data.match('{"HLS"(.*)}]}')[0]).HLS[0].src}`);
+        // this.logger('liveChannels', `getPlaylist: ${stream}`)
         return Promise.resolve({stream: `http://localhost:8080/${stream}`});
     } catch (error) {
-        return Promise.reject(this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")), true));
+        this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")));
+        return Promise.reject(error.message || error.toString().substring(0, error.findIndex("\n")));
     }
     }
 
@@ -119,14 +122,19 @@ class ModuleInstance extends ModuleClass {
      * @returns A list of channels and their respective IDs
     */
     async getChannels(): Promise<object> {
-        let getHTML = (await axios.get("https://protvplus.ro/")).data
-        let $ = load(getHTML);
-        let channelList = {}
-        $('.channels-main a').each(function(i, el) {
-            let link = el.attribs['href'];
-            channelList[link.match(/([0-9])-(.*)/)[2]] = link.match(/([0-9])-(.*)/)[1]
-        })
-        return Promise.resolve(channelList)
+        try {
+            let getHTML = (await axios.get("https://protvplus.ro/")).data
+            let $ = load(getHTML);
+            let channelList = {}
+            $('.channels-main a').each(function(i, el) {
+                let link = el.attribs['href'];
+                channelList[link.match(/([0-9])-(.*)/)[2]] = link.match(/([0-9])-(.*)/)[1]
+            })
+            return Promise.resolve(channelList)
+        } catch (error) {
+            this.logger("getChannels", error.message || error.toString().substring(0, error.findIndex("\n")));
+            return Promise.reject(error.message || error.toString().substring(0, error.findIndex("\n")));
+        }
     }
 }
 

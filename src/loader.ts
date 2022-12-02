@@ -31,9 +31,9 @@ type cache = {
  */
  function logger(id: string, message: string, isError?: boolean): string | Error {
     if (process.env.DEBUG?.toLowerCase() === 'true') {
-        console.log(`\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
+        console.log(isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
     }
-    return isError ? new Error(`\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`) : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
+    return isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
 };
 
 /**
@@ -146,11 +146,14 @@ function m3u8Select(data, baseUrl){
 function m3uFixURL(m3u, url) {
     m3u = m3u.split("\n");
     m3u.forEach((el, index, array) => {
-      if (!el.includes("http") && el.match('URI="(.*)"') != null) {
-        array[index] = el.replace(
-          el.match('"(.*).key"')[0],
-          `"${url}/${el.match('URI="(.*)"')[1]}"`
-        );
+        if (!el.includes("http") && el.match('URI="(.*)"') != null) {
+            let match = el.match(/(.*)\.key/);
+            if (match !== null) {
+                array[index] = el.replace(
+                  match[0],
+                  `"${url}/${el.match('URI="(.*)"')[1]}"`
+                );
+            }
       }
       if (el.match("(.*).ts") != null) {
         array[index] = `${url}/${el}`;
@@ -164,18 +167,23 @@ function m3uFixURL(m3u, url) {
  * @param link - The link to the playlist
  * @returns A string of the playlist
  */
-export async function rewritePlaylist(stream: {stream: string, proxy?: string}): Promise<any> {
-    let initData = (await axios.get(stream.stream)).data
-    if(initData.includes('#EXTM3U')){
-        let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
-        if(initm3u8.includes(".m3u8")){
-            let q_m3u8 = await axios.get(m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
-            let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url.match(/(.*)\/.*/)[1])
-            return finalP
-        }else return m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)[1])
-    }else {
-        logger('rewritePlaylist',`"${stream.stream}" is not a HLS playlist`)
-        return stream
+export async function rewritePlaylist(stream: { stream: string, proxy?: string }): Promise<any> {
+    try {
+        let initData = (await axios.get(stream.stream)).data
+        if(initData.includes('#EXTM3U')){
+            let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
+            if(initm3u8.includes(".m3u8")){
+                let q_m3u8 = await axios.get(m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
+                let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url.match(/(.*)\/.*/)[1])
+                return finalP
+            }else return Promise.resolve(m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
+        }else {
+            logger('rewritePlaylist',`"${stream.stream}" is not a HLS playlist`)
+            return Promise.resolve(stream)
+        }
+    } catch (error) {
+        logger("rewritePlaylist", error.message || error.toString().substring(0, 200), true);
+        return await Promise.reject(`rewritePlaylist - ${error.message || error.toString().substring(0, 200)}`)
     }
 }
 

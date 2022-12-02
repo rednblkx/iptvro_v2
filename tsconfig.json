@@ -9,7 +9,8 @@
       "allowSyntheticDefaultImports": true,
       "esModuleInterop": true,
       "outDir": "./dist",                             
-      "rootDir": "./src"
+      "rootDir": "./src",
+      "sourceMap": true
     },
     "ts-node": {
       "esm": true

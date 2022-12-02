@@ -152,7 +152,7 @@ class ModuleFunctions {
         if (!db.data) {
             throw "getAuth - Config file is not valid"
         } else {
-            return db.data.auth;
+            return db.data?.auth;
         }
     }
 

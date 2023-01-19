@@ -1,30 +1,38 @@
-import express, {Request} from 'express';
+// import express, {Request} from 'express';
 
-import * as Loader from './loader.js';
+import { Application, helpers, Router } from "https://deno.land/x/oak/mod.ts";
 
-import fs from 'fs';
-import { AuthConfig, ModuleType } from './moduleClass.js';
-import { JSONFile, Low } from 'lowdb';
-import axios from 'axios';
-import cors_proxy from 'cors-anywhere';
-import { URL } from 'url'
-import liveRoutes from './routes/liveChannels.js';
+const router = new Router();
+
+
+import * as Loader from './loader.ts';
+
+// import fs from 'fs';
+import { AuthConfig, ModuleType } from './moduleClass.ts';
+import { Low } from 'npm:lowdb';
+import { JSONFile } from 'npm:lowdb/node'
+// import axios from 'axios';
+import axios from "https://deno.land/x/axiod/mod.ts";
+
+// import cors_proxy from 'cors-anywhere';
+// import { URL } from 'url'
+import liveRoutes from './routes/liveChannels.ts';
 
 /* The below code is creating an instance of express. */
-const app = express();
+// const app = express();
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
-export const PORT = process.env.PORT || 3000;
-const debug = process.env.DEBUG?.toLowerCase();
+export const PORT = Deno.env.get("PORT") || 3000;
+const debug = Deno.env.get("DEBUG")?.toLowerCase();
 
 /* Telling the server to use the express.json() middleware. */
-app.use(express.json());
-app.set('view engine', 'ejs');
-app.use(express.static('public'));
-app.set("Access-Control-Allow-Origin", "*");
+// app.use(express.json());
+// app.set('view engine', 'ejs');
+// app.use(express.static('public'));
+// app.set("Access-Control-Allow-Origin", "*");
 // try {
     /* Checking if the modules are valid. */
-    export var valid_modules = await Loader.sanityCheck()
+    export const valid_modules = await Loader.sanityCheck()
     await Loader.cacheCleanup(valid_modules);
     setInterval(async () => {
         await Loader.cacheCleanup(valid_modules);
@@ -39,27 +47,24 @@ if(debug === 'true') {
     console.log(`DEBUG env true, verbose enabled!\n`);
 }
 
-var moduleParam = (req: any, res, next) => {
-    req.module = req.params.module;
-    req.valid_modules = valid_modules;
-    next();
-}
+// var moduleParam = (req: any, res, next) => {
+//     req.module = req.params.module;
+//     req.valid_modules = valid_modules;
+//     next();
+// }
 
 /* The body_response class is a class that is used to create a response object that is sent back to the
 client */
 export class body_response {
 
     status: string;
-    result: object | string;
     module: string;
-    error: string;
+    error?: string;
     authTokens? : string[];
 
-    constructor(status?: string, result?: object | string, error?: string, authTokens?: string[]){
-        this.status = status;
-        this.result = result;
-        this.error = error;
-        this.authTokens = authTokens;
+    constructor(module: string){
+        this.status = "SUCCESS";
+        this.module = module;
     }
 }
 
@@ -79,77 +84,80 @@ export class body_response {
 };
 
 /* A simple API that returns the cache of a module. */
-app.get("/cache",async (req:Request<{}, {}, {}, {id: string, module: string}>, res) => {
+router.get("/cache",async (context) => {
     type cache = {
         name: string,
         link: string,
         module: string,
         lastupdated: Date
     };
-    var body : body_response = new body_response();
-    const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+    const query = helpers.getQuery(context);
+    let body : body_response & { result: cache | cache[] | null | undefined} = {...new body_response(query.module), result: null};
+    const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
     const db = new Low(adapter)
     await db.read();
     try {
-        if(req.query.module){
-            const module = new (await import(`./modules/${req.query.module}.js`)).default()
-            logger("cache", req.query.id ? `cache requested for id '${req.query.id}' on module '${req.query.module}'` : `cache requested for module ${req.query.module}`);
-            const cacheAll = db.data && db.data.filter(a => req.query.id ? a.name === req.query.id && a.module === module.MODULE_ID : a.module === module.MODULE_ID);
+        if(query.module){
+            const module = new (await import(`./modules/${query.module}.js`)).default()
+            logger("cache", query.id ? `cache requested for id '${query.id}' on module '${query.module}'` : `cache requested for module ${query.module}`);
+            const cacheAll = db.data && db.data.filter(a => query.id ? a.name === query.id && a.module === module.MODULE_ID : a.module === module.MODULE_ID);
             logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
             body.status = "SUCCESS";
             body.result = cacheAll;
-            res.json(body)
+            context.response.body = body;
         }else {
             logger("cache", `cache requested for all modules`);
-            let cacheid = req.query.id ? db.data.find(a => a.name === req.query.id) : db.data
+            const cacheid = query.id ? db.data?.find(a => a.name === query.id) : db.data
             logger("cache", `cacheid: ${JSON.stringify(cacheid)}`);
             body.status = "SUCCESS";
             body.result = cacheid;
-            res.json(body);
+            context.response.body = body;
         }
     } catch (error) {
         body.status = "ERROR"
         body.error = error.message || error.toString().substring(0, 200);
-        res.status(500).json(body)
+        context.response.status = 500;
+        context.response.body = body;
         
     }
 })
 
 /* A simple API that returns a stream URL for a given channel. */
-app.get("/live/:channel/:playlist(index.m3u8)?/:player(player)?", async (req:Request<{channel: string, player?: string, playlist?: string}, {}, {}, {module: string}>,res) => {
+router.get("/live/:channel/:playlist(index.m3u8)?/:player(player)?", async (context) => {
 
-    var body : body_response = new body_response();
-    res.set("Access-Control-Allow-Origin", "*");
+    const query = helpers.getQuery(context);
+    let body : body_response = new body_response(query.module);
+    context.response.headers.set("Access-Control-Allow-Origin", "*");
     try {
-        if(req.params.playlist == "index.m3u8"){
-            logger("live", `live stream requested for channel '${req.params.channel}' with parameter proxy`);
-            let stream = await Loader.searchChannel(req.params.channel, null, valid_modules);
+        if(context.params.playlist == "index.m3u8"){
+            logger("live", `live stream requested for channel '${context.params.channel}' with parameter proxy`);
+            let stream = await Loader.searchChannel(context.params.channel, null, valid_modules);
             let data = await Loader.rewritePlaylist(stream.data);
-            if (req.params.player == "player") {
-                logger("live", `live stream requested for channel '${req.params.channel}' with parameter player and proxy`);
+            if (context.params.player == "player") {
+                logger("live", `live stream requested for channel '${context.params.channel}' with parameter player and proxy`);
                 if(data.stream){
-                    let checkRedirect = await axios.get(data.stream);
-                    let redir = checkRedirect.request.res.responseUrl !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
+                    const checkRedirect = await axios.get(data.stream);
+                    const redir = checkRedirect.config.url !== data.stream ? checkRedirect.request.res.responseUrl : data.stream;
                     if (checkRedirect.request.res.responseUrl !== data.stream)
                         logger("live", `redirected to '${redir}' from '${data.stream}'`);
                     res.render('player', { stream: `http://localhost:8080/${redir}`, proxy: data.data.proxy, origin: (new URL(redir)).hostname });
                 }else {
-                    res.render('player', { stream: `http://localhost:${PORT}/live/${req.params.channel}/index.m3u8`, proxy: "" });
+                    res.render('player', { stream: `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`, proxy: "" });
                 }
             }
             else {
                 data.stream ? res.send(data.stream) : res.set("Content-Type", "application/vnd.apple.mpegurl").send(data);
             }
         } else {
-            logger("live", `live stream requested for channel '${req.params.channel}'`);
-            let data = await Loader.searchChannel(req.params.channel, null, valid_modules);
+            logger("live", `live stream requested for channel '${context.params.channel}'`);
+            let data = await Loader.searchChannel(context.params.channel, null, valid_modules);
             body.status = "SUCCESS";
             body.result = data.data;
             body.module = data.module;
             if(!body.result)
                 throw "No data received from method!"
-            if(req.params.player == "player"){
-                logger("live", `live stream requested for channel '${req.params.channel}' with player`);
+            if(context.params.player == "player"){
+                logger("live", `live stream requested for channel '${context.params.channel}' with player`);
                 let checkRedirect = await axios.get(data.data.stream);
                 let redir = checkRedirect.request.res.responseUrl !== data.data.stream ? checkRedirect.request.res.responseUrl : data.data.stream;
                 if(checkRedirect.request.res.responseUrl !== data.data.stream)
@@ -473,20 +481,28 @@ app.get("/**", (_,res) => {
     res.status(404).json(body)
 })
 
+
+const app = new Application();
+
+app.use(router.routes());
+app.use(router.allowedMethods());
+
+await app.listen({ port: 8000 });
+
 /* The below code is creating a server that listens for requests on port 3000. */
-app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}\n`)})
+// app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}\n`)})
 
 
-// Listen on a specific host via the HOST environment variable
-var host = '0.0.0.0';
-// Listen on a specific port via the PORT environment variable
-var port = 8080;
+// // Listen on a specific host via the HOST environment variable
+// var host = '0.0.0.0';
+// // Listen on a specific port via the PORT environment variable
+// var port = 8080;
 
-cors_proxy.createServer({
-    originWhitelist: [], // Allow all origins
-    // requireHeader: ['referer'],
-    // removeHeaders: ['cookie', 'cookie2']
-    addHeaders: ["User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"]
-}).listen(port, host, function() {
-   logger('cors_proxy','Running CORS Anywhere on ' + host + ':' + port);
-});
+// cors_proxy.createServer({
+//     originWhitelist: [], // Allow all origins
+//     // requireHeader: ['referer'],
+//     // removeHeaders: ['cookie', 'cookie2']
+//     addHeaders: ["User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"]
+// }).listen(port, host, function() {
+//    logger('cors_proxy','Running CORS Anywhere on ' + host + ':' + port);
+// });

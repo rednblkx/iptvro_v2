@@ -238,7 +238,7 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
  * search through.
  * @returns A promise that resolves to a cache object
  */
-export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<{data: cache['data'], module: string, cache: boolean}>{
+export async function searchChannel(id: string, module_id: string | null, valid_modules: string[]): Promise<{data: cache['data'], module: string, cache: boolean}>{
     if(valid_modules.includes(module_id)){
         try {
             logger('searchChannel',`Searching for channel '${id}' in module '${module_id}'`)

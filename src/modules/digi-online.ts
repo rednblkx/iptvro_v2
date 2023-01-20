@@ -1,8 +1,8 @@
-import ModuleClass from '../moduleClass.js';
+import ModuleClass from '../moduleClass.ts';
 
-import axios from 'axios';
-import md5 from 'blueimp-md5';
-import crypto from 'crypto';
+import axios from "https://deno.land/x/axiod/mod.ts";
+// import new Md5().update from 'blueimp-new Md5().update';
+import { Md5 }from "https://deno.land/std@0.119.0/hash/md5.ts";
 
 // var Module = new Class('digi', true, false)
 
@@ -21,7 +21,7 @@ class ModuleInstance extends ModuleClass {
    * @param [uuid] - The uuid to be returned
    * @returns A string of random uuids
    */
-  private uuidGen(number, uuid = ""){
+  private uuidGen(number: number, uuid = ""): string{
     let gen = crypto.randomUUID().replace(/\-/g, "")
     if(number == 0){
         return uuid
@@ -36,10 +36,10 @@ class ModuleInstance extends ModuleClass {
    * @param uhash - This is the hash that is returned from the login request.
    * @returns An object with two properties, id and hash.
    */
-  private generateId(username, password, uhash){
+  private generateId(username: string, password: string, uhash: string){
     let deviceStr = `Kodeative_iptvro_${BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()}`
     let deviceId = `${deviceStr}_${this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))}`
-    let md5hash = md5(`${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`)
+    let md5hash = new Md5().update(`${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`).toString()
     return {id: deviceId, hash: md5hash}
   }
 
@@ -53,7 +53,7 @@ async login(username: string, password: string): Promise<string[]> {
     if(!password || !username)
       throw "Username/Password not provided"
       // let auth = this.getAuth();
-      let pwdHash = md5(password)
+      let pwdHash = new Md5().update(password).toString()
       return new Promise(async (resolve, reject) => {
         try {
   
@@ -100,7 +100,6 @@ async login(username: string, password: string): Promise<string[]> {
    */
   async liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}> {
     let config = await this.getConfig();
-    return new Promise(async (resolve, reject) => {
       try {
         if(!(authTokens.length > 0)){
           let auth = await this.getAuth(); 
@@ -118,9 +117,9 @@ async login(username: string, password: string): Promise<string[]> {
       );
         play.data.stream?.abr && this.logger("liveChannels", "got the stream");
         if(play.data.error !== ""){
-            reject(this.logger("liveChannels", `Error from provider '${play.data.error}'`, true))
+            Promise.reject(this.logger("liveChannels", `Error from provider '${play.data.error}'`, true))
         }
-        resolve({stream: play.data.stream.abr, proxy: play.data.stream.proxy || undefined});
+        return Promise.resolve({stream: play.data.stream.abr, proxy: play.data.stream.proxy || undefined});
       } catch (error) {
             
         //   let auth = this.getAuth();
@@ -128,9 +127,8 @@ async login(username: string, password: string): Promise<string[]> {
         //       getFromDigi(channel).then(stream => resolve(stream)).catch(er => reject(er))
         //   }).catch(er => reject(er))
         this.logger("liveChannels", `Error from provider: ${error}`, true)
-        reject(error);
+        return Promise.reject(error);
       }
-    })
   }
 
 /**
@@ -141,8 +139,8 @@ async login(username: string, password: string): Promise<string[]> {
     try {
       let channels = await axios.get('https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php');
   
-      let chList = {};
-      channels.data.data.channels_list.forEach(element => {
+      let chList : {[k: string]: string} = {};
+      channels.data.data.channels_list.forEach((element: { channel_name: string|number; id_channel: any; }) => {
           // console.log(`${element.channel_name} - ${element.id_channel}`);
           chList[element.channel_name] = element.id_channel;
       })

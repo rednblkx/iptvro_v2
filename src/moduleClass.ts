@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync } from 'fs';
-import { Low, JSONFile } from 'lowdb'
-import moment from 'moment';
+import { Low } from 'npm:lowdb'
+import { JSONFile } from 'npm:lowdb/node'
+import moment from 'npm:moment';
 
 /**
  * The AuthConfig type is an object with two properties: auth and config. The auth property is an
@@ -18,10 +18,11 @@ export type AuthConfig = {
         lastupdated: Date;
     }
     config: {
+        [k: string]: unknown;
         url_cache_enabled: boolean;
         url_update_interval: number;
         auth_update_interval: number;
-        chList: {};
+        chList: {[k: string]: string};
     }
 };
 
@@ -46,10 +47,10 @@ export type AuthConfig = {
 export interface ModuleType extends ModuleFunctions {
     login(username: string, password: string): Promise<string[]>;
     liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}>;
-    getChannels(): Promise<object>;
-    getVOD_List(authTokens: string[]): Promise<object[]>;
-    getVOD(show: string, config: object): Promise<object | object[]>;
-    getVOD_EP_List(url: string, config: object): Promise<object[]>;
+    getChannels(): Promise<{}>;
+    getVOD_List(authTokens: string[]): Promise<{}[]>;
+    getVOD(show: string, config: {}): Promise<{} | {}[]>;
+    getVOD_EP_List(url: string, config: {}): Promise<{}[]>;
     getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string>;
 }
 
@@ -60,8 +61,8 @@ class ModuleFunctions {
     MODULE_ID: string;
     hasLive: boolean;
     hasVOD: boolean;
-    chList: object;
-    qualitiesList: string[];
+    chList: { [k: string]: string; } | null;
+    qualitiesList: string[] | null;
     debug: boolean;
     authReq: boolean;
 
@@ -76,14 +77,14 @@ class ModuleFunctions {
      * @param {string[]} [qualitiesList] - An array of strings that represent the qualities that the
      * module supports.
      */
-    constructor(MODULE_ID: string, authReq: boolean, hasLive: boolean, hasVOD: boolean, chList?: object, qualitiesList?: string[]) {
+    constructor(MODULE_ID: string, authReq: boolean, hasLive: boolean, hasVOD: boolean, chList?: { [k: string]: string; }, qualitiesList?: string[]) {
         this.MODULE_ID = MODULE_ID;
         this.authReq = authReq;
         this.hasLive = hasLive;
         this.hasVOD = hasVOD;
         this.chList = chList || null;
         this.qualitiesList = qualitiesList || null;
-        this.debug = (process.env.DEBUG?.toLowerCase() === 'true');
+        this.debug = (Deno.env.get("DEBUG")?.toLowerCase() === 'true');
     }
 
     /**
@@ -106,9 +107,16 @@ class ModuleFunctions {
      * @param {string[]} [chList] - An array of channel names to be used for the channel list.
      * @returns A promise that resolves when the config file is written to disk.
      */
-    async initializeConfig(chList?: object): Promise<void> {
-        existsSync(`${process.cwd()}/configs`) || mkdirSync(`${process.cwd()}/configs`)
-        var config = {
+    async initializeConfig(chList?: { [k: string]: string; }): Promise<void> {
+        // existsSync(`${Deno.cwd()}/configs`) || mkdirSync(`${Deno.cwd()}/configs`)
+        try {
+            await Deno.mkdir(`${Deno.cwd()}/configs`)
+        } catch (error) {
+            if (error instanceof Deno.errors.AlreadyExists) {
+                this.logger("moduleClass", "configs dir already exists")
+            } else throw error
+        }
+        let config = {
             "auth": {
                 "username": "",
                 "password": "",
@@ -123,7 +131,7 @@ class ModuleFunctions {
             }
         }
         //write config to file
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -145,7 +153,7 @@ class ModuleFunctions {
      * @returns The auth object from the JSON file
      */
     async getAuth(): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
@@ -164,7 +172,7 @@ class ModuleFunctions {
      * @returns a promise that resolves to nothing.
      */
     async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -183,7 +191,7 @@ class ModuleFunctions {
      * @returns The config object from the JSON file
      */
     async getConfig(): Promise<AuthConfig['config']> {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
 
@@ -201,7 +209,7 @@ class ModuleFunctions {
      * @returns A promise that resolves when the config file has been updated.
      */
     async setConfig(key: string, value: any) {
-        const adapter = new JSONFile<AuthConfig>(`${process.cwd()}/configs/${this.MODULE_ID}.json`)
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
         const db = new Low(adapter)
         await db.read();
         if (!db.data) {
@@ -222,9 +230,9 @@ class ModuleFunctions {
      * @param {string} [id] - The id of the link you want to find.
      * @returns The cache object
      */
-    async cacheFind(id?: string): Promise<cache> {
+    async cacheFind(id?: string): Promise<cache|null> {
         try {
-            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const adapter = new JSONFile<cache[]>(`${Deno.cwd()}/cache.json`);
             const db = new Low(adapter)
             await db.read();
 
@@ -234,7 +242,7 @@ class ModuleFunctions {
             if(cache){
                 if((((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) / (1000 * 3600)) <= (url_update_interval ? url_update_interval : 6)){
                     // let found = cache.link;
-                    if(process.env.DEBUG == ('true' || true)){
+                    if(Deno.env.get("DEBUG") == ('true' || true)){
                         this.logger('cacheFind',`Cached link found for '${id}', module '${this.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()}`)
                     }
                     return cache
@@ -243,6 +251,7 @@ class ModuleFunctions {
         } catch (error) {
             console.error(`cacheFind| ${error.message || error.toString().substring(0, 200)}`);
         }
+        return null
     }
 
     /**
@@ -254,7 +263,7 @@ class ModuleFunctions {
      */
     async cacheFill(id: string, data: {stream: string, proxy?: string}): Promise<void> {
         try {
-            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const adapter = new JSONFile<cache[]>(`${Deno.cwd()}/cache.json`);
             const db = new Low(adapter)
             await db.read();
             db.data ||= [];
@@ -284,10 +293,10 @@ class ModuleFunctions {
      */
     async flushCache(): Promise<string> {
         try {
-            const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+            const adapter = new JSONFile<cache[]>(`${Deno.cwd()}/cache.json`);
             const db = new Low(adapter)
             await db.read()
-            db.data = db.data.filter(a => a.module !== this.MODULE_ID)
+            db.data = db.data?.filter(a => a.module !== this.MODULE_ID) || null
             await db.write();
             //log to console
             this.logger('flushCache',`Flushed cache for module '${this.MODULE_ID}'`)

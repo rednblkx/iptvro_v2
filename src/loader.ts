@@ -1,9 +1,9 @@
-import { ModuleType, default as ModuleFunctions} from "./moduleClass.js";
-import { readdirSync, existsSync } from "fs";
-import { extname } from 'path';
-import { JSONFile, Low } from "lowdb";
-import {Parser} from 'm3u8-parser';
-import axios from "axios";
+import { ModuleType, default as ModuleFunctions} from "./moduleClass.ts";
+// import { extname } from 'https://deno.land/std@0.172.0/path/mod.ts';
+import { Low } from "npm:lowdb";
+import { JSONFile } from "npm:lowdb/node";
+import {Parser} from 'npm:m3u8-parser';
+import axios from "https://deno.land/x/axiod/mod.ts";
 
 /**
  * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
@@ -30,7 +30,7 @@ type cache = {
  * @returns a string or an error.
  */
  function logger(id: string, message: string, isError?: boolean): string | Error {
-    if (process.env.DEBUG?.toLowerCase() === 'true') {
+    if (Deno.env.get("DEBUG")?.toLowerCase() === 'true') {
         console.log(isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
     }
     return isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
@@ -45,43 +45,27 @@ type cache = {
  */
 export async function sanityCheck(): Promise<string[]> {
     
-    let files_list = readdirSync(`${process.cwd()}/src/modules`).filter(a => extname(a) === ".ts" ).map(a => a.replace(".ts", ".js"));
+    // let files_list = Deno.readDirSync(`${Deno.cwd()}/src/modules`).filter(a => extname(a) === ".ts").map(a => a.replace(".ts", ".ts"));
+    let files_list: string[] = []
+    for await (let files of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
+        if (files.isFile) {
+            files_list.push(files.name)
+        }
+    }
     var valid_list = [];
     console.log("Modules sanity check:\n");
     let modules = await Promise.all<ModuleType & {module: string, error: string}>(files_list.map(async (val) => {
         try {
             return new (await import(`./modules/${val}`)).default()
         } catch (error) {
-            return {module: val.match(/^(.*)\.js$/)[1], error: error.message || error.toString().substring(0, 200)};
+            return {module: val.slice(0, -2), error: error.message || error.toString().substring(0, 200)};
         }
     }));
     for (let val of modules) {
         try {
             if(val instanceof ModuleFunctions && val.MODULE_ID){
                 let valid = true;
-                //check if config file exists
-                if(!existsSync(`${process.cwd()}/configs/${val.MODULE_ID}.json`)){
-                    if(val.chList){
-                        await val.initializeConfig(val.chList);
-                        console.log(`\n - Module '${val.MODULE_ID}' found`);
-                        console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
-                    }else if(val.getChannels?.constructor.name === "AsyncFunction") {
-                        console.log(`\n - Module '${val.MODULE_ID}' found`);
-                        await val.initializeConfig()
-                        console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
-                        let ch = await val.getChannels()
-                        await val.setConfig("chList", ch)
-                    } else {
-                        await val.initializeConfig();
-                        console.log(` - Module '${val.MODULE_ID}' found`);
-                        console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
-                        console.log(`\t${val.MODULE_ID} - Warning - getChannels failed, unable to update list!`);
-                    }
-
-                    // val.chList && val.chList.length > 0 ? val.initializeConfig(val.chList) : val.getChannels().then(ch => {
-                    //     val.setConfig("chList", ch);
-                    // })
-                } else {
+                try {
                     console.log(`\n - Module '${val.MODULE_ID}' found`);
                     let auth = await val.getAuth();
                     ((auth.username && auth.password) === (null || undefined || "") && val.authReq) && console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`)
@@ -94,7 +78,28 @@ export async function sanityCheck(): Promise<string[]> {
                         val.logger('sanityCheck',`\t${val.MODULE_ID} - WARNING hasVOD true but getVOD method not implemented`)
                         valid = false;
                     }
-                }
+                  } catch (error) {
+                    if (error instanceof Deno.errors.NotFound) {
+                        if(val.chList){
+                            await val.initializeConfig(val.chList);
+                            console.log(`\n - Module '${val.MODULE_ID}' found`);
+                            console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
+                        }else if(val.getChannels?.constructor.name === "AsyncFunction") {
+                            console.log(`\n - Module '${val.MODULE_ID}' found`);
+                            await val.initializeConfig()
+                            console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
+                            let ch = await val.getChannels()
+                            await val.setConfig("chList", ch)
+                        } else {
+                            await val.initializeConfig();
+                            console.log(` - Module '${val.MODULE_ID}' found`);
+                            console.log(`\t${val.MODULE_ID} - initialised - Config file created!`);
+                            console.log(`\t${val.MODULE_ID} - Warning - getChannels failed, unable to update list!`);
+                        }
+                    } else {
+                         throw error
+                    }
+                  }
                 valid && console.log(`\t${val.MODULE_ID} - No issues found`);
                 
                 valid && valid_list.push(val.MODULE_ID)
@@ -113,7 +118,7 @@ export async function sanityCheck(): Promise<string[]> {
  * @param baseUrl - The base url of the m3u8 file.
  * @returns The highest bandwidth m3u8 file
  */
-function m3u8Select(data, baseUrl){
+function m3u8Select(data: string|string[], baseUrl: string){
     var parser = new Parser();
     
     parser.push(data);
@@ -121,9 +126,9 @@ function m3u8Select(data, baseUrl){
     
     var parsedManifest = parser.manifest;
     
-    let highestBandwidth;
+    let highestBandwidth: number;
     
-    parsedManifest.playlists.forEach(element => {
+    parsedManifest.playlists.forEach((element: { attributes: { BANDWIDTH: number; }; }) => {
       if(!highestBandwidth)
         highestBandwidth = element.attributes.BANDWIDTH;
     
@@ -132,8 +137,8 @@ function m3u8Select(data, baseUrl){
     });
     
     if(data.includes('http')){
-      return parsedManifest.playlists.find(a => a.attributes.BANDWIDTH === highestBandwidth).uri
-    }else return `${baseUrl}/${parsedManifest.playlists.find(a => a.attributes.BANDWIDTH === highestBandwidth).uri}`
+      return parsedManifest.playlists.find((a: { attributes: { BANDWIDTH: number; }; }) => a.attributes.BANDWIDTH === highestBandwidth).uri
+    }else return `${baseUrl}/${parsedManifest.playlists.find((a: { attributes: { BANDWIDTH: number; }; }) => a.attributes.BANDWIDTH === highestBandwidth).uri}`
     
 }
 
@@ -143,15 +148,15 @@ function m3u8Select(data, baseUrl){
  * @param url - The URL of the m3u8 file.
  * @returns the m3u file with the correct URLs.
  */
-function m3uFixURL(m3u, url) {
+function m3uFixURL(m3u: { split: (arg0: string) => any; forEach: (arg0: (el: any,index: any,array: any) => void) => void; join: (arg0: string) => any; }, url: string) {
     m3u = m3u.split("\n");
-    m3u.forEach((el, index, array) => {
+    m3u.forEach((el: string, index: string|number, array: { [x: string]: string; }) => {
         if (!el.includes("http") && el.match('URI="(.*)"') != null) {
             let match = el.match(/(.*)\.key/);
             if (match !== null) {
                 array[index] = el.replace(
                   match[0],
-                  `"${url}/${el.match('URI="(.*)"')[1]}"`
+                  `"${url}/${el?.match('URI="(.*)"')?.[1]}"`
                 );
             }
       }
@@ -173,10 +178,10 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
         if(initData.includes('#EXTM3U')){
             let initm3u8 = initData.includes("\n") ? initData : (initData.split(" ")).join("\n")
             if(initm3u8.includes(".m3u8")){
-                let q_m3u8 = await axios.get(m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
-                let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url.match(/(.*)\/.*/)[1])
+                let q_m3u8 = await axios.get(m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""))
+                let finalP = m3uFixURL(q_m3u8.data, q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "")
                 return finalP
-            }else return Promise.resolve(m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)[1]))
+            }else return Promise.resolve(m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""))
         }else {
             logger('rewritePlaylist',`"${stream.stream}" is not a HLS playlist`)
             return Promise.resolve(stream)
@@ -193,8 +198,8 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
  * @param {string[]} valid_modules - string[] - This is an array of all the modules that are valid.
  */
  export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
-    let modules: ModuleType[] = await Promise.all<ModuleType>(valid_modules.map(async val => new (await import(`./modules/${val}.js`)).default()));
-    const adapter = new JSONFile<cache[]>(`${process.cwd()}/cache.json`);
+    let modules: ModuleType[] = await Promise.all<ModuleType>(valid_modules.map(async val => new (await import(`./modules/${val}.ts`)).default()));
+    const adapter = new JSONFile<cache[]>(`${Deno.cwd()}/cache.json`);
     const db = new Low(adapter)
     await db.read();
 
@@ -202,7 +207,7 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
 
     let removed : cache[] = [];
 
-    let cache_config = {}
+    let cache_config: {[l: string] : number} = {}
 
     try {
         for(let mod of modules){
@@ -212,7 +217,7 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
         }
         for (let index = 0; index < db.data.length; index++) {
             if((((new Date()).getTime() - (new Date(db.data[index].lastupdated)).getTime()) / (1000 * 3600)) >= (cache_config[db.data[index].module] || 6)){
-                if(process.env.DEBUG == ('true' || true)){
+                if(Deno.env.get("DEBUG") == ('true' || true)){
                     logger('cacheCleanup',`Found cached link for '${db.data[index].name}' module '${db.data[index].module}' older than ${(cache_config[db.data[index].module] || 6)} hours, removing!`)
                 }
                 removed.push(db.data.splice(index, 1)[0])
@@ -225,9 +230,11 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
             return Promise.resolve(removed);
         }
     } catch (error) {
-        logger('cacheCleanup',`Error cleaning up cache: ${error.message || error}`, true)
+        logger('cacheCleanup', `Error cleaning up cache: ${error.message || error}`, true)
+        return Promise.reject(error)
     }
-
+     
+    return Promise.resolve(removed);
 }
 
 /**
@@ -238,11 +245,11 @@ export async function rewritePlaylist(stream: { stream: string, proxy?: string }
  * search through.
  * @returns A promise that resolves to a cache object
  */
-export async function searchChannel(id: string, module_id: string | null, valid_modules: string[]): Promise<{data: cache['data'], module: string, cache: boolean}>{
-    if(valid_modules.includes(module_id)){
+export async function searchChannel(id: string, module_id: string, valid_modules: string[]): Promise<{data: cache['data'], module: string, cache: boolean}>{
+    if(valid_modules.includes(module_id || "")){
         try {
             logger('searchChannel',`Searching for channel '${id}' in module '${module_id}'`)
-            let module: ModuleType = new (await import(`./modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
             let config = await module.getConfig()
             let auth = await module.getAuth();
@@ -264,7 +271,7 @@ export async function searchChannel(id: string, module_id: string | null, valid_
                 
             }else {
                 logger('searchChannel',`Channel '${id}' not found in module '${module_id}', updating list`)
-                let get_ch = await module.getChannels()
+                let get_ch: {[k: string]: string} = await module.getChannels()
                 if(get_ch[id]){
                     logger('searchChannel',`Found channel '${id}' in module '${module_id}'`)
                     module.setConfig("chList", get_ch)
@@ -285,7 +292,7 @@ export async function searchChannel(id: string, module_id: string | null, valid_
             return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))
         }
     }else {
-        let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`./modules/${mod}.js`)).default()))
+        let modules : ModuleType[] = await Promise.all(valid_modules.map(async mod => new (await import(`./modules/${mod}.ts`)).default()))
         for(let module of modules){
             try {
                 logger('searchChannel',`Searching for channel '${id}' in module '${module.MODULE_ID}'`)
@@ -322,7 +329,7 @@ export async function searchChannel(id: string, module_id: string | null, valid_
 export async function getVODlist(module_id: string){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`./modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
                 return await Promise.resolve(await module.getVOD_List((await module.getAuth()).authTokens));
             }else return await Promise.reject(new Error(`getVODlist| Module ${module_id} doesn't have VOD available`))
@@ -345,7 +352,7 @@ export async function getVODlist(module_id: string){
 export async function getVOD(module_id: string, show_id: string, year?: string, month?: string, season?: string, showfilters?: boolean){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`./modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
                 let res = await module.getVOD(show_id, {authTokens: (await module.getAuth()).authTokens, year, month, season, showfilters});
                 return await Promise.resolve(res);
@@ -365,7 +372,7 @@ export async function getVOD(module_id: string, show_id: string, year?: string, 
 export async function getVOD_EP(module_id: string, show_id: string, epid: string){
     if(module_id){
         try {
-            let module: ModuleType = new (await import(`./modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
                 let cache = await module.cacheFind(epid)
                 if(cache !== null && (await module.getConfig()).url_cache_enabled){
@@ -393,7 +400,7 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
 export async function login(module_id: string, username: string, password: string){
     try {
         if(username && password){
-            let module: ModuleType = new (await import(`./modules/${module_id}.js`)).default();
+            let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             return await Promise.resolve(await module.login(username, password))
         }else throw new Error("No Username/Password provided")
     } catch (error) {

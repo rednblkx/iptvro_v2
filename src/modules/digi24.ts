@@ -1,5 +1,5 @@
-import axios from 'axios';
-import ModuleClass from '../moduleClass.js';
+import axios from "https://deno.land/x/axiod/mod.ts";
+import ModuleClass from '../moduleClass.ts';
 
 /* A class that extends the ModuleClass class. */
 export default class ModuleInstance extends ModuleClass {

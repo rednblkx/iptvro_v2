@@ -1,6 +1,6 @@
-import axios from 'axios';
-import ModuleClass, { AuthConfig } from '../moduleClass.js';
-import { load } from 'cheerio';
+import axios from "https://deno.land/x/axiod/mod.ts";
+import ModuleClass, { AuthConfig } from '../moduleClass.ts';
+import { load } from 'https://esm.sh/cheerio@1.0.0-rc.12';
 
 /* A class that extends the Class class. */
 class ModuleInstance extends ModuleClass {
@@ -25,15 +25,15 @@ class ModuleInstance extends ModuleClass {
                 'Accept': "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            responseType: 'document',
-            maxRedirects: 0,
-            validateStatus: (status) => status === 302
+            responseType: 'text',
+            redirect: "manual",
+            validateStatus: (status: number) => status === 302
           })
         if(step1 && step1.data) this.logger("login", `received response ${step1.data} , ${step1.headers}`);
-        if (step1.headers["set-cookie"]) {
-           this.logger("login", `received cookie ${step1.headers["set-cookie"]}`);
-            this.setAuth({ username, password, authTokens: step1.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0]), lastupdated: new Date() })
-            return Promise.resolve(step1.headers["set-cookie"].map((a) => a.match(/[^;]*/)[0]))
+        if (step1.headers.get("set-cookie")) {
+           this.logger("login", `received cookie ${step1.headers.get("set-cookie")}`);
+            this.setAuth({ username, password, authTokens: step1.headers.get("set-cookie")?.split(";") || [], lastupdated: new Date() })
+            return Promise.resolve(step1.headers.get("set-cookie")?.split(";") || [])
         } else throw "No cookie received"
 
     } catch (error) {
@@ -91,7 +91,7 @@ class ModuleInstance extends ModuleClass {
         this.logger('liveChannels', `getPlaylist: ${$("iframe").attr("src")}`)
             // if(consoleL) console.log(`pro| getPlaylist: getting channel's stream URL`);
         this.logger('liveChannels', `getPlaylist: getting channel's stream URL`)
-        let step3 = await axios.get($("iframe").attr("src"), {
+        let step3 = await axios.get($("iframe").attr("src") || "", {
             headers: {
                 cookie: authTokens.join(";"),
                 referer: "https://protvplus.ro/tv-live/1-pro-tv"
@@ -102,7 +102,7 @@ class ModuleInstance extends ModuleClass {
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data}`);
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data.match('{"HLS"(.*)}]}')}`);
         const regex = /"HLS":.+?\s*:\s*["\']?([^"\'\s>]+)["\']?/g
-        let stream = new URL(regex.exec(step3.data)[1]).href;
+        let stream = new URL(regex.exec(step3.data)?.[1] || "").href;
         this.logger('liveChannels', `getPlaylist: ${stream}`)
         // if(stream.includes("playlist-live_lq-live_mq-live_hq")){
         //     stream = stream.replace("playlist-live_lq-live_mq-live_hq", "playlist-live_lq-live_mq-live_hq-live_fullhd");
@@ -125,10 +125,10 @@ class ModuleInstance extends ModuleClass {
         try {
             let getHTML = (await axios.get("https://protvplus.ro/")).data
             let $ = load(getHTML);
-            let channelList = {}
+            let channelList: {[k :string]: string} = {}
             $('.channels-main a').each(function(i, el) {
                 let link = el.attribs['href'];
-                channelList[link.match(/([0-9])-(.*)/)[2]] = link.match(/([0-9])-(.*)/)[1]
+                channelList[link.match(/([0-9])-(.*)/)?.[2] || 0] = link.match(/([0-9])-(.*)/)?.[1] || ""
             })
             return Promise.resolve(channelList)
         } catch (error) {

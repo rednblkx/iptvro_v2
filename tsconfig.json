@@ -1,19 +1,19 @@
 {
-    "compilerOptions": {
-      "module": "ES2022",
-      "target": "ES2017",
-      "noImplicitAny": false,
-      "removeComments": true,
-      "preserveConstEnums": true,
-      "moduleResolution": "node",
-      "allowSyntheticDefaultImports": true,
-      "esModuleInterop": true,
-      "outDir": "./dist",                             
-      "rootDir": "./src",
-      "sourceMap": true
-    },
-    "ts-node": {
-      "esm": true
-    },
-    "exclude": ["node_modules", "**/*.spec.ts"]
-  }
+  "compilerOptions": {
+    "module": "ES2022",
+    "target": "ES2017",
+    "noImplicitAny": false,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "sourceMap": true
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}

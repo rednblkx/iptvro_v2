@@ -48,10 +48,24 @@ export interface ModuleType extends ModuleFunctions {
     login(username: string, password: string): Promise<string[]>;
     liveChannels(id: string, authTokens: string[], authLastUpdate: Date): Promise<{stream: string, proxy?: string}>;
     getChannels(): Promise<{}>;
-    getVOD_List(authTokens: string[]): Promise<{}[]>;
-    getVOD(show: string, config: {}): Promise<{} | {}[]>;
-    getVOD_EP_List(url: string, config: {}): Promise<{}[]>;
+    getVOD_List(authTokens: string[], page?: number): Promise<{}[]>;
+    getVOD(show: string, config: {}, page?: number): Promise<{} | {}[]>;
     getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string>;
+}
+
+export interface IVOD {
+    data: IVODData[],
+    pagination: {
+        current_page: number,
+        total_pages: number,
+        per_page: number
+    }
+}
+
+export interface IVODData {
+    name: string,
+    link: string,
+    img: string
 }
 
 /* This class is used to create a new module, it contains all the functions that are required for a
@@ -65,6 +79,7 @@ class ModuleFunctions {
     qualitiesList: string[] | null;
     debug: boolean;
     authReq: boolean;
+    db: Low<AuthConfig>;
 
     /**
      * The constructor of the class.
@@ -85,6 +100,8 @@ class ModuleFunctions {
         this.chList = chList || null;
         this.qualitiesList = qualitiesList || null;
         this.debug = (Deno.env.get("DEBUG")?.toLowerCase() === 'true');
+        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
+        this.db = new Low(adapter);
     }
 
     /**
@@ -95,11 +112,11 @@ class ModuleFunctions {
      * @param {boolean} [isError] - boolean - If true, the message will be returned as an Error object.
      * @returns A string or an error.
      */
-    logger(id: string, message: string, isError?: boolean): string | Error {
+    logger(id: string, message: string | Record<string, unknown>, isError?: boolean): string | Error {
         if (this.debug === true) {
-            console.log(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
+            console.log(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message}`);
         }
-        return isError ? new Error(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`) : `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
+        return isError ? new Error(typeof message == "object" ? JSON.stringify(message) : message) : typeof message == "object" ? JSON.stringify(message) : message
     };
 
     /**
@@ -130,20 +147,24 @@ class ModuleFunctions {
                 "chList": chList || {}
             }
         }
-        //write config to file
-        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
-        const db = new Low(adapter)
-
-        // Read data from JSON file, this will set db.data content
-        await db.read()
-
-        db.data = config;
-        
-        //write to file and log
-        await db.write()
-
-        this.logger('initializeConfig', 'Config file created')
-        // .then(() => this.logger('initializeConfig', 'Config file created'))
+        try {
+            // //write config to file
+            // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
+            // const db = new Low(adapter)
+    
+            // Read data from JSON file, this will set db.data content
+            await this.db.read()
+    
+            this.db.data = config;
+            
+            //write to file and log
+            await this.db.write()
+    
+            this.logger('initializeConfig', 'Config file created')
+            // .then(() => this.logger('initializeConfig', 'Config file created'))
+        } catch (error) {
+            return Promise.reject(error)
+        }
 
         return Promise.resolve()
     };
@@ -153,16 +174,16 @@ class ModuleFunctions {
      * @returns The auth object from the JSON file
      */
     async getAuth(): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
-        const db = new Low(adapter)
+        // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
+        // const db = new Low(adapter)
 
         // Read data from JSON file, this will set db.data content
-        await db.read()
+        await this.db.read()
 
-        if (!db.data) {
+        if (!this.db.data) {
             throw "getAuth - Config file is not valid"
         } else {
-            return db.data?.auth;
+            return this.db.data?.auth;
         }
     }
 
@@ -172,18 +193,20 @@ class ModuleFunctions {
      * @returns a promise that resolves to nothing.
      */
     async setAuth(auth: { username: string, password: string, authTokens: string[], lastupdated: Date }): Promise<AuthConfig['auth']> {
-        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
-        const db = new Low(adapter)
-        await db.read();
-
-        if (!db.data) {
-            throw "setAuth - Config file is not valid"
-        } else {
-            db.data.auth = auth;
-            await db.write();
-            this.logger('setAuth', 'config file updated')
+        try {
+            await this.db.read();
+    
+            if (!this.db.data) {
+                throw "setAuth - Config file is not valid"
+            } else {
+                this.db.data.auth = auth;
+                await this.db.write();
+                this.logger('setAuth', 'config file updated')
+            }
+            return Promise.resolve(this.db.data.auth)
+        } catch (error) {
+            return Promise.reject(error)
         }
-        return Promise.resolve(db.data.auth)
     }
 
     /**
@@ -191,14 +214,14 @@ class ModuleFunctions {
      * @returns The config object from the JSON file
      */
     async getConfig(): Promise<AuthConfig['config']> {
-        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
-        const db = new Low(adapter)
-        await db.read();
+        // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
+        // const db = new Low(adapter)
+        await this.db.read();
 
-        if (!db.data) {
+        if (!this.db.data) {
             throw "getConfig - Config file is not valid"
         } else {
-            return db.data.config
+            return this.db.data.config
         }
     };
 
@@ -209,14 +232,14 @@ class ModuleFunctions {
      * @returns A promise that resolves when the config file has been updated.
      */
     async setConfig(key: string, value: any) {
-        const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
-        const db = new Low(adapter)
-        await db.read();
-        if (!db.data) {
+        // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
+        // const db = new Low(adapter)
+        await this.db.read();
+        if (!this.db.data) {
             throw "setConfig - Config file is not valid"
         } else {
-            db.data.config[key] = value;
-            await db.write()
+            this.db.data.config[key] = value;
+            await this.db.write()
             this.logger('setConfig', `config file updated - ${key} changed`)
 
         }

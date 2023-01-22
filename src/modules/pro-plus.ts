@@ -109,7 +109,7 @@ class ModuleInstance extends ModuleClass {
         // }
             // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${JSON.parse(step3.data.match('{"HLS"(.*)}]}')[0]).HLS[0].src}`);
         // this.logger('liveChannels', `getPlaylist: ${stream}`)
-        return Promise.resolve({stream: `http://localhost:8080/${stream}`});
+        return Promise.resolve({stream});
     } catch (error) {
         this.logger("liveChannels", error.message || error.toString().substring(0, error.findIndex("\n")));
         return Promise.reject(error.message || error.toString().substring(0, error.findIndex("\n")));

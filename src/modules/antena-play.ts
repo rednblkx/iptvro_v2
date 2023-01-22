@@ -1,9 +1,9 @@
-import ModuleClass from '../moduleClass.ts';
+import ModuleClass, { IVOD, IVODData } from '../moduleClass.ts';
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 import { load as htmlload } from 'https://esm.sh/cheerio@1.0.0-rc.12';
-import { Data } from 'https://deno.land/x/axiod@0.26.2/interfaces.ts';
-
+import * as queryString from "https://deno.land/x/querystring@v1.0.2/mod.js";
+import { IVODList, IChannels, VOD_config, IVODEpisodes, IVODEpisodeStream}  from "./types/antena-play.d.ts"
 // var Module = new Class('antena', true, true,)
 
 /**
@@ -17,13 +17,6 @@ import { Data } from 'https://deno.land/x/axiod@0.26.2/interfaces.ts';
  * @property {string} showfilters - This is a string that is used to filter the shows that are
  * returned.
  */
-type VOD_config = {
-  authTokens: string[],
-  year?: string,
-  season?: string,
-  month?: string,
-  showfilters?: string,
-}
 
 class ModuleInstance extends ModuleClass {
   constructor() {
@@ -43,59 +36,24 @@ class ModuleInstance extends ModuleClass {
       throw "Username/Password not provided"
     }
     try {
-      this.logger("login", "getting login token")
-      let tokens = await axios.get("https://antenaplay.ro/intra-in-cont", {
+      const auth_token = await axios.post<{ data?: { token: string }, error?: string }>("https://restapi.antenaplay.ro/v1/auth/login",
+        queryString.stringify({ email: username, password }), {
         headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Origin': 'https://antenaplay.ro',
-          referer: "https://antenaplay.ro",
-          'user-agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36",
-        },
-        transformResponse: [
-          (data) => (htmlload(data.toString()))("input[name=_token]").val() as Data
-        ]
-      });
-
-      if (tokens.data) {
-        this.logger("login", `got login token: ${tokens.data}, trying login`)
-      } else return Promise.reject(this.logger("login", "login failed, could not retrieve login token", true))
-
-      const login = await axios.post(
-        'https://antenaplay.ro/intra-in-cont',
-        `email=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&_token=${tokens.data}`,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://antenaplay.ro',
-            referer: "https://antenaplay.ro/intra-in-cont",
-            cookie: tokens.headers.get("set-cookie"),
-            'user-agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
           },
-          redirect: "manual",
-          validateStatus: (status: number) => status === 302,
-        })
-
-      if (login.headers.get("location") === login.config.url) {
-        return Promise.reject(this.logger("login", "login failed, Username/Password invalid", true))
-      } else this.logger("login", "login success, getting the cookies")
-
-      let live = await axios.get("https://antenaplay.ro/live/antena1", {
-        headers: {
-          Referer: "https://antenaplay.ro/live",
-          Cookie: login.headers.get("set-cookie"),
-          'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"
-        },
-      });
-
-      var authTokens = live.headers.get("set-cookie")?.split(";") || []
-      if (authTokens.some((a) => a.match(/[^=]*/)?.[0].includes("device"))) {
-        this.logger("login", `cookies found: ${JSON.stringify(authTokens)}`)
+          validateStatus: (status: number) => status == 200 || 401
+      })
+      this.logger("login", auth_token.data)
+      const authTokens = [auth_token.data?.data?.token || "", auth_token.data?.data ? crypto.randomUUID() : ""]
+      if (!auth_token.data.error) {
         return await Promise.resolve(authTokens);
       } else {
-        return await Promise.reject(new Error('Something went wrong'));
+        return await Promise.reject(auth_token.data.error);
       }
     } catch (error) {
-      this.logger("login", error.message || error.toString().substring(0, 200), true)
+      this.logger("login", error, true)
       return Promise.reject(error.message || error.toString().substring(0, 200));
     }
   }
@@ -108,7 +66,15 @@ class ModuleInstance extends ModuleClass {
    * @returns The stream URL
    */
   async liveChannels(channel: string, authTokens: string[], lastupdated: string): Promise<{ stream: string, proxy?: string }> {
+    type IStreamResponse = {
+      data: {
+        link: string,
+        drmLink: string
+      }
+    }
+
     try {
+      this.logger("liveChannels", `channel: ${channel}, authTokens: ${authTokens}`)
       if (!(authTokens.length > 0) || typeof authTokens !== 'object') {
         this.logger("liveChannels", "authTokens not provided, trying login")
         //get config
@@ -118,48 +84,19 @@ class ModuleInstance extends ModuleClass {
         //set authTokens
         this.setAuth({ username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date() });
       }
-      this.logger("liveChannels", "Acquiring HTML")
-      let html = await axios.get(`https://antenaplay.ro/live/${channel}`, {
+      let channel_stream = await axios.post<IStreamResponse>(`https://restapi.antenaplay.ro/v1/channels/play?source=mobile&id=${channel}&device_type=iOS&device_name=Kodeative&device_id=${authTokens[1]}&free=Y`, {}, {
         headers: {
-          cookie: authTokens.join("; "),
-        },
-        withCredentials: true,
-        // referrer: "https://antenaplay.ro/seriale",
-      });
-
-      if ((((new Date()).getTime() - (new Date(lastupdated)).getTime()) / (1000 * 3600)) >= (await this.getConfig()).auth_update_interval) {
-        let newCookies = html.headers.get('set-cookie')?.split(";") || []
-        let config = await this.getAuth();
-        // let parsed = JSON.parse(config);
-        config.authTokens[config.authTokens.findIndex(el => el.includes('XSRF-TOKEN'))] = newCookies?.[newCookies.findIndex(el => el.includes('XSRF-TOKEN'))];
-        config.authTokens[config.authTokens.findIndex(el => el.includes('laravel_session'))] = newCookies[newCookies.findIndex(el => el.includes('laravel_session'))];
-        config.lastupdated = new Date();
-        //set authTokens
-        this.setAuth(config);
-        this.logger("liveChannels", "Cookies updated")
-      }
-      let $ = htmlload(html.data);
-      if ($) {
-        var stream = $(".video-container script")
-          .html()
-          ?.match("streamURL: (.*)")?.[1]
-          .replace('",', '"')
-          .match('"(.*)"')?.[1] || ""
-        this.logger("liveChannels", `got stream URL - ${stream}`)
-        var temp = $(".video-container script")
-        .html()
-        ?.match("proxyURL: (.*)")
-        if (temp) {
-          var proxy = temp?.[1]
-            ?.replace('",', '"')
-            ?.match('"(.*)"')?.[1]
+          authorization: `Bearer ${authTokens[0]}`,
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
         }
-        this.logger("liveChannels", `got proxy URL - ${proxy}`)
-        return await Promise.resolve({ stream, proxy })
-      } else return await Promise.reject(new Error('Something went wrong'));
+      })
+      this.logger("liveChannel", channel_stream.data)
+
+      return Promise.resolve({stream: channel_stream.data.data.link})
+
     } catch (error) {
-      this.logger("liveChannels", error.message || error.toString().substring(0, 200), true)
-      return await Promise.reject(error.message || error.toString().substring(0, 200));
+      return Promise.reject(this.logger("liveChannels", error, true));
     }
   }
   /**
@@ -168,30 +105,25 @@ class ModuleInstance extends ModuleClass {
    */
   async getChannels(): Promise<object> {
     try {
-      this.logger("getChannels", "Acquiring HTML")
-      //axios get request to url https://antenaplay.ro/live
-      var live = await axios.get('https://antenaplay.ro/live');
-
-      //axios get response
-      var $ = htmlload(live.data);
-      //get section with class live-channels-listing and class item
-      var channels = $('.live-channels-listing .item');
-      //create object to store channels
-      var channelList: {[k: string]: string} = {};
-      //loop trough channels
-      channels.each((i, elem) => {
-        //get channel href 
-        var channel = $(elem).attr('href') || "";
-        //cut "/live/" from channel href
-        channel = channel.substring(6);
-        this.logger("getChannels", `got channel - ${channel}`)
-        //push channel to channelList
-        channelList[channel] = channel;
-      });
-      return channelList;
+      let authTokens = (await this.getAuth()).authTokens;
+      if (!authTokens[0]) {
+        throw "No tokens, cannot update channels list"
+      }
+      let channels = await axios.get<IChannels>("https://restapi.antenaplay.ro/v1/channels?_page=1&_per_page=20&_sort=id&active=Y", {
+        headers: {
+          authorization: `Bearer ${authTokens[0]}`,
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
+        }
+      })
+      let channels_list: {[k: string]: number} = {};
+      channels.data.data.forEach(l => {
+        channels_list[l.slug] = l.id;
+      })
+      return channels_list
     } catch (error) {
-      this.logger("getChannels", error.message || error.toString().substring(0, 200), true)
-      return Promise.reject(error.message || error.toString().substring(0, 200));
+      // this.logger("getChannels", error, true)
+      return Promise.reject(this.logger("getChannels", error, true));
     }
   }
   /**
@@ -199,7 +131,7 @@ class ModuleInstance extends ModuleClass {
    * @param {string[]} authTokens - string[] - The authTokens that are used to authenticate the user.
    * @returns An array of objects containing the name, link and img of the shows
    */
-  async getVOD_List(authTokens: string[]): Promise<object[]> {
+  async getVOD_List(authTokens: string[], page?: number): Promise<IVOD> {
     try {
       if (!authTokens || typeof authTokens !== 'object') {
         // throw new Error(`Cookies Missing/Invalid`)
@@ -210,32 +142,34 @@ class ModuleInstance extends ModuleClass {
         //set authTokens
         this.setAuth({ username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date() });
       }
-      this.logger("getVOD_List", "Acquiring HTML")
-      let html = await axios.get(`https://antenaplay.ro/seriale`, {
+      let shows = await axios.get<IVODList>(`https://restapi.antenaplay.ro/v1/shows?_per_page=20&_sort=created_at%3Adesc&active=Y&_page=${page || 1}`, {
         headers: {
-          cookie: authTokens.join("; "),
+          authorization: `Bearer ${authTokens[0]}`,
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
         },
-        // referrer: `https://antenaplay.ro/`,
-      });
-      let $ = htmlload(await html.data);
-      let $$ = htmlload(
-        $($(".slider-container")[$(".slider-container").length - 1]).html() || ""
-      );
-      let shows: any[] = [];
-      $$($$("a").each((i, el) => {
-        this.logger("loop_vod_list", `Appending show ${$$(el).children("h5").text()}`)
-        this.logger("loop_vod_list", `Appending show link ${'/show' + $$(el).attr("href")}`)
-        this.logger("loop_vod_list", `Appending show img ${$$(el).children('.container').children("img").attr('src')}`)
-        shows.push({
-          name: $$(el).children("h5").text(),
-          link: '/' + this.MODULE_ID + '/vod' + $$(el).attr("href"),
-          img: $$(el).children('.container').children("img").attr('src')
-        })
-      }));
-      return shows.length !== 0 ? await Promise.resolve(shows) : await Promise.reject(new Error("List is empty"));
+      })
+      let list: IVODData[] = [];
+      shows.data.data.forEach(l => {
+        list.push(
+          {
+              name: l.show_name,
+              img: l.main_image,
+              link: `/${this.MODULE_ID}/vod/${l.id}`
+            })
+      })
+      const result: IVOD = {
+        data: list,
+        pagination: {
+          current_page: shows.data.meta.pagination.current_page,
+          per_page: shows.data.meta.pagination.per_page,
+          total_pages: shows.data.meta.pagination.total_pages
+        }
+      }
+      return Promise.resolve(result);
     } catch (error) {
       this.logger("getVOD_List", error.message || error.toString().substring(0, 200), true)
-      return await Promise.reject(error.message || error.toString().substring(0, 200));
+      return Promise.reject(error.message || error.toString().substring(0, 200));
     }
   }
   /**
@@ -244,125 +178,48 @@ class ModuleInstance extends ModuleClass {
    * @param {VOD_config} config - {
    * @returns An array of objects containing the name, link and image of the episodes.
    */
-  async getVOD(show: string, config: VOD_config): Promise<object[] | object> {
+  async getVOD(show: string, authTokens: string[], page: number): Promise<IVOD> {
     try {
-      if (!config.authTokens || typeof config.authTokens !== 'object') {
+      if (!authTokens || typeof authTokens !== 'object') {
         // throw `Cookies Missing/Invalid`
         //get auth
         var auth = await this.getAuth();
         //get authTokens
-        config.authTokens = await this.login(auth.username, auth.password);
+        authTokens = await this.login(auth.username, auth.password);
         //set authTokens
-        this.setAuth({ username: auth.username, password: auth.password, authTokens: config.authTokens, lastupdated: new Date() });
+        this.setAuth({ username: auth.username, password: auth.password, authTokens: authTokens, lastupdated: new Date() });
       }
-      this.logger("getVOD", "Acquiring HTML");
-      let html = await axios.get(`https://antenaplay.ro/${show}`, {
+      const episodes = await axios.get<IVODEpisodes>(`https://restapi.antenaplay.ro/v1/videos?_page=${page || 1}&_per_page=10&_sort=publish_date%3Adesc&active=Y&show_id=${show}`, {
         headers: {
-          cookie: config.authTokens.join("; "),
-        },
-        // referrer: `https://antenaplay.ro/seriale`,
-        redirect: "manual"
-      });
-      let $ = htmlload(await html.data);
-      if (!$(".selector-sezoane").length) {
-        var episodes: any[] = [];
-        $(".slider-wrapper a").each((i, el) => {
-          this.logger("loop_ep_list", `Appending episode ${$(el).children("h5").text()}`)
-          this.logger("loop_ep_list", `Appending episode link ${$(el).attr("href")}`)
-          this.logger("loop_ep_list", `Appending episode img ${$(el).children(".container").children("img").attr('src')}`)
-          episodes.push({
-            name: $(el).children("h5").text(),
-            link: $(el).attr("href"),
-            img: $(el).children(".container").children("img").attr('src')
-          })
-        })
-        return await Promise.resolve(episodes);
-      }
-      if (config.showfilters) {
-        let list: {[k: string]: string[] | string} = {};
-        if ($("#js-selector-year").length) {
-          list["type"] = "calendar"
-          if ($("#js-selector-year option:not([disabled])").length > 0) {
-            $("#js-selector-year option:not([disabled])").each((i, el) => {
-
-              let months = $(el).attr('value') || "0";
-              this.logger("loop_months", `Available month(s) of year ${$(el).attr('value')}: ${($(el).attr('data-months'))?.split(";")}`)
-              list[months] = ($(el).attr('data-months'))?.split(";") || []
-            })
-          } else list[$("#js-selector-year option:not([disabled])").attr('value') || "0"] = ($("#js-selector-year option:not([disabled])").attr('data-months'))?.split(";") || []
-        } else if ($("#js-selector-season option").length) {
-          list["type"] = "seasons"
-          $("#js-selector-season option").each((i, el) => {
-            this.logger("loop_seasons", `Available season: ${$(el).text()}`)
-            $(el).attr('value') && (list[$(el).attr('value') || "0"] = $(el).text())
-          })
+          authorization: `Bearer ${authTokens[0]}`,
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
         }
-        return await Promise.resolve(list);
-      } else if ($) {
-        if (config.season) {
-          return await Promise.resolve(this.getVOD_EP_List(
-            "https://antenaplay.ro" +
-            $("button.js-selector").attr("data-url"), { authTokens: config.authTokens, year: "", month: "", season: config.season }
-          ))
-        } else if (config.year && config.month) {
-          return await this.getVOD_EP_List(
-            "https://antenaplay.ro" +
-            $("button.js-selector").attr("data-url"), { authTokens: config.authTokens, year: config.year, month: config.month, season: "" }
-          )
-        } else
-          return await this.getVOD_EP_List(
-            "https://antenaplay.ro" +
-            $("button.js-selector").attr("data-url"), { authTokens: config.authTokens, year: "", month: "", season: $(".buton-adauga").attr("data-id") }
-          )
+      })
+      let list: IVODData[] = [];
+      episodes.data.data.forEach(l => {
+        list.push(
+          {
+              name: l.video_title,
+              img: l.video_thumbnail,
+              link: `/${this.MODULE_ID}/vod/${show}/${l.id}`
+            })
+      })
+      const result: IVOD = {
+        data: list,
+        pagination: {
+          current_page: episodes.data.meta.pagination.current_page,
+          per_page: episodes.data.meta.pagination.per_page,
+          total_pages: episodes.data.meta.pagination.total_pages
+        }
       }
-      else return await Promise.reject(new Error('Something went wrong'))
+      return Promise.resolve(result)
     } catch (error) {
       this.logger("getVOD", error.message || error.toString().substring(0, 200), true)
       return await Promise.reject(error.message || error.toString().substring(0, 200));
     }
   }
-  /**
-   * It gets the list of episodes for a given show.
-   * @param {string} url - the url to the page you want to scrape
-   * @param {VOD_config} config - {
-   * @returns An array of objects containing the name, link and image of the episodes.
-   */
-  async getVOD_EP_List(url: string, config: VOD_config): Promise<object[]> {
-    try {
-      if (!config.authTokens || typeof config.authTokens !== 'object') {
-        // throw `Cookies Missing/Invalid`
-        //get config
-        var auth = await this.getAuth();
-        //get authTokens
-        config.authTokens = await this.login(auth.username, auth.password);
-        //set authTokens
-        this.setAuth({ username: auth.username, password: auth.password, authTokens: config.authTokens, lastupdated: new Date() });
-      }
-      this.logger("getVOD_EP_List", `Getting Episodes List for ${config.year && config.month ? "year " + config.year + " and month " + config.month : config.season ? "season id " + config.season : 'latest'}`);
-      let response = await axios.get(`${url}${config.year && config.month ? '&year=' + config.year + '&month=' + config.month : config.season ? `?show=${config.season}` : ""}`, {
-        headers: {
-          "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
-          "x-requested-with": "XMLHttpRequest",
-          cookie: config.authTokens.join("; "),
-        },
-        withCredentials: true,
-        // referrer: "https://antenaplay.ro/"
-      });
-      var $ = htmlload(response.data.view);
-      let shows: any[] = [];
-      $("a").each((i, url) => {
-        $(url).prepend($($(url).children('.container').children('img')).attr("width", "200px"))
-        $(url).attr("href", `/${this.MODULE_ID}/vod` + $(url).attr("href"));
-        shows.push({ "name": $(url).children("h5").text(), "link": $(url).attr("href"), "img": $(url).children("img").attr("src") });
-      });
-      $(".container").each((i, el) => { $(el).remove() });
-      this.logger("getVOD_EP_List", `Total episodes ${shows.length}`)
-      return shows.length > 0 ? await Promise.resolve(shows) : await Promise.reject(new Error("Nothing in the list"));
-    } catch (error) {
-      this.logger("getVOD_EP_List", error.message || error.toString().substring(0, 200), true)
-      return Promise.reject(error.message || error.toString().substring(0, 200));
-    }
-  }
+  
   /**
    * It gets the video URL for a specific episode of a show.
    * @param {string} show - The show's name, as it appears in the URL.
@@ -384,37 +241,23 @@ class ModuleInstance extends ModuleClass {
         //set authTokens
         this.setAuth({ username: config.username, password: config.password, authTokens: authTokens, lastupdated: new Date() });
       }
-      this.logger("getVOD_EP", "Acquiring HTML")
-      let response = await axios.get(
-        `https://antenaplay.ro/${show}/${epid}`,
-        {
-          headers: {
-            "x-newrelic-id": "VwMCV1VVGwEEXFdQDwIBVQ==",
-            "x-requested-with": "XMLHttpRequest",
-            cookie: authTokens.join("; "),
-          },
-          // referrer: "https://antenaplay.ro/",
+      let episode_id = await axios.post<IVODEpisodeStream>("https://restapi.antenaplay.ro/v1/videos/play", queryString.stringify({
+        device_id: authTokens[1],
+        device_name: "Kodeative",
+        device_type: 'iPhone',
+        free: "Y",
+        id: epid
+      }), {
+        headers: {
+          authorization: `Bearer ${authTokens[0]}`,
+          "content-type": "application/x-www-form-urlencoded",
+          "api-request-source": "ios",
+          "user-agent": "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1"
         }
-      );
-      this.logger("getVOD_EP", "Acquiring Episode's URL")
-      let link = await axios
-        .get(
-          "https:" +
-          htmlload(response.data)(".video-container script")
-            .html()
-            ?.match("var playerSrc = '(.*)'")?.[1] +
-          "no",
-          {
-            headers: {
-              referer: "https://antenaplay.ro/",
-            },
-          }
-        );
-      this.logger("getVOD_EP", `GOT IT - ${link.data.match('ivmSourceFile.src = "(.*)";')[1]}`)
-      return await Promise.resolve(link.data.match('ivmSourceFile.src = "(.*)";')[1])
+      })
+      return Promise.resolve(episode_id.data.data.url)
     } catch (error) {
-      this.logger("getVOD_EP", error.message || error.toString().substring(0, 200), true)
-      return await Promise.reject(error.message || error.toString().substring(0, 200));
+      return await Promise.reject(this.logger("getVOD_EP", error, true));
     }
   }
 }

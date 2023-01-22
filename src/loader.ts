@@ -31,9 +31,9 @@ type cache = {
  */
  function logger(id: string, message: string, isError?: boolean): string | Error {
     if (Deno.env.get("DEBUG")?.toLowerCase() === 'true') {
-        console.log(isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
+        console.log(isError ? `\x1b[47m\x1b[30miloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`);
     }
-    return isError ? `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
+    return isError ? `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}` : `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`
 };
 
 /**
@@ -53,7 +53,7 @@ export async function sanityCheck(): Promise<string[]> {
         }
     }
     var valid_list = [];
-    console.log("Modules sanity check:\n");
+    console.log("Modules sanity check:");
     let modules = await Promise.all<ModuleType & {module: string, error: string}>(files_list.map(async (val) => {
         try {
             return new (await import(`./modules/${val}`)).default()
@@ -271,7 +271,8 @@ export async function searchChannel(id: string, module_id: string, valid_modules
                 
             }else {
                 logger('searchChannel',`Channel '${id}' not found in module '${module_id}', updating list`)
-                let get_ch: {[k: string]: string} = await module.getChannels()
+                let get_ch: { [k: string]: string } = await module.getChannels();
+                await module.setConfig("chList", get_ch)
                 if(get_ch[id]){
                     logger('searchChannel',`Found channel '${id}' in module '${module_id}'`)
                     module.setConfig("chList", get_ch)
@@ -326,12 +327,12 @@ export async function searchChannel(id: string, module_id: string, valid_modules
  * @param {string} module_id - The module id of the module you want to get the VOD list from.
  * @returns A promise that resolves to an array of VOD objects
  */
-export async function getVODlist(module_id: string){
+export async function getVODlist(module_id: string, page?: number){
     if(module_id){
         try {
             let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
-                return await Promise.resolve(await module.getVOD_List((await module.getAuth()).authTokens));
+                return await Promise.resolve(await module.getVOD_List((await module.getAuth()).authTokens, page));
             }else return await Promise.reject(new Error(`getVODlist| Module ${module_id} doesn't have VOD available`))
         } catch (error) {
            return await Promise.reject(new Error(`${error.message || error.toString().substring(0, 200)}`))
@@ -349,12 +350,12 @@ export async function getVODlist(module_id: string){
  * can be used to filter the VOD.
  * @returns A promise that resolves to an VOD link
  */
-export async function getVOD(module_id: string, show_id: string, year?: string, month?: string, season?: string, showfilters?: boolean){
+export async function getVOD(module_id: string, show_id: string, page?: number){
     if(module_id){
         try {
             let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
-                let res = await module.getVOD(show_id, {authTokens: (await module.getAuth()).authTokens, year, month, season, showfilters});
+                let res = await module.getVOD(show_id, (await module.getAuth()).authTokens, page);
                 return await Promise.resolve(res);
             }else return await Promise.reject(new Error(`getVOD| Module ${module_id} doesn't have VOD available`))
         } catch (error) {
@@ -375,9 +376,11 @@ export async function getVOD_EP(module_id: string, show_id: string, epid: string
             let module: ModuleType = new (await import(`./modules/${module_id}.ts`)).default();
             if(module.hasVOD){
                 let cache = await module.cacheFind(epid)
-                if(cache !== null && (await module.getConfig()).url_cache_enabled){
+                let cache_enabled = (await module.getConfig()).url_cache_enabled
+                if(cache !== null && cache_enabled){
                     return await Promise.resolve(cache.data.stream)
-                }else {
+                } else {
+                    logger('getVOD_EP',`${cache_enabled ? `No cached link found for episode '${epid}' in` : "Cache not enabled for"} module '${module.MODULE_ID}'${cache_enabled ? `, trying to retrieve from module` : ""}`)
                     let res = await module.getVOD_EP(show_id, epid, (await module.getAuth()).authTokens);
                     await module.cacheFill(epid, {stream: res})
                     return await Promise.resolve(res);

@@ -334,11 +334,11 @@ router.get("/:module/live/:channel/:playlist(index.m3u8)?/:player(player)?", asy
 router.get(`/:module(${valid_modules.join("|")})/vod`,async (context) => {
     
     let body : body_response & {result?: object[]} = {...new body_response(context.params.module)};
-
+    const query = helpers.getQuery(context);
     try {
-        logger("vod", `VODs requested for module '${context.params.module}'`);
+        logger("vod", `VOD list requested from module '${context.params.module}'`);
         body.status = "SUCCESS";
-        body.result = await Loader.getVODlist(context.params.module)
+        body.result = await Loader.getVODlist(context.params.module, Number(query.page))
         if(!body.result)
             throw "No data received from method!"
         // res.json(body)
@@ -355,13 +355,12 @@ router.get(`/:module(${valid_modules.join("|")})/vod`,async (context) => {
 /* A simple API endpoint that returns the episodes list for the VOD requested. */
 router.get(`/:module(${valid_modules.join("|")})/vod/:show`, async (context) => {
     let body : body_response & {result?: object} = {...new body_response(context.params.module)};
-
     try {
         if(context.params.module && valid_modules.find(x => x == context.params.module) != undefined){
-            logger("vod", `VOD '${context.params.show}' requested for module '${context.params.module}'`);
+            logger("vod", `VOD '${context.params.show}' requested from module '${context.params.module}'`);
             const query = helpers.getQuery(context);
             body.status = "SUCCESS";
-            body.result = await Loader.getVOD(context.params.module, context.params.show, query.year, query.month, query.season, Boolean(query.showfilters))
+            body.result = await Loader.getVOD(context.params.module, context.params.show, Number(query.page))
             if(!body.result)
                 throw "No data received from method!"
             // res.json(body)
@@ -388,7 +387,7 @@ router.get(`/:module(${valid_modules.join("|")})/vod/:show/:epid`, async (contex
 
     try {
         if(context.params.module && valid_modules.find(x => x == context.params.module) != undefined){
-            logger("vod", `VOD '${context.params.show}' episode '${context.params.epid}' requested for module '${context.params.module}'`);
+            logger("vod", `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`);
             body.status = "SUCCESS";
             body.result = await Loader.getVOD_EP(context.params.module, context.params.show , context.params.epid)
             if(!body.result)
@@ -422,15 +421,14 @@ router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
         let mod : ModuleType = new (await import(`./modules/${context.params.module}.ts`)).default()
         let config = await mod.getAuth();
         const result = await (context.request.body({ type: "json" })).value;
-        console.log(result);
         
-        logger("login", `'${context.params.module}' login attempt with username ${result.username ? result.username + "from request" : config.username + "from file (request empty)"}`)
+        logger("login", `'${context.params.module}' login attempt with username ${result.username ? result.username + " from request" : config.username + " from file (request empty)"}`)
         authTokens = await Loader.login(context.params.module, result.username || config.username, result.password || config.password)
         if(authTokens){
             logger("login", `'${context.params.module}' login success, got authTokens: ${authTokens}`)
             config.authTokens = authTokens;
             config.lastupdated = new Date();
-            mod.setAuth(config);
+            await mod.setAuth(config);
             body.status = "SUCCESS";
             body.authTokens = authTokens;
             // res.json(body);

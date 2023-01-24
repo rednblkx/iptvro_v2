@@ -63,9 +63,9 @@ class ModuleInstance extends ModuleClass {
         auth_token.data?.data ? crypto.randomUUID() : "",
       ];
       if (!auth_token.data.error) {
-        return await Promise.resolve(authTokens);
+        return Promise.resolve(authTokens);
       } else {
-        return await Promise.reject(auth_token.data.error);
+        return Promise.reject(auth_token.data.error);
       }
     } catch (error) {
       this.logger("login", error, true);
@@ -293,7 +293,7 @@ class ModuleInstance extends ModuleClass {
         error.message || error.toString().substring(0, 200),
         true,
       );
-      return await Promise.reject(
+      return Promise.reject(
         error.message || error.toString().substring(0, 200),
       );
     }
@@ -350,7 +350,7 @@ class ModuleInstance extends ModuleClass {
       );
       return Promise.resolve(episode_id.data.data.url);
     } catch (error) {
-      return await Promise.reject(this.logger("getVOD_EP", error, true));
+      return Promise.reject(this.logger("getVOD_EP", error, true));
     }
   }
 }

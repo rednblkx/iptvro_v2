@@ -12,16 +12,18 @@ import {
   viewEngine,
 } from "https://deno.land/x/view_engine@v10.6.0/mod.ts";
 
-const app = new Application();
-const router = new Router();
+import { run as createServer } from "https://deno.land/x/cors_proxy/server.ts";
 
-app.use(router.routes());
-app.use(router.allowedMethods());
+const app = new Application();
+
 app.use(
   viewEngine(oakAdapter, dejsEngine, {
-    viewRoot: "../views",
+    viewRoot: `${Deno.cwd()}/views`,
   }),
 );
+const router = new Router();
+app.use(router.routes());
+app.use(router.allowedMethods());
 
 import * as Loader from "./loader.ts";
 
@@ -200,13 +202,13 @@ router.get(
             if (checkRedirect.config.url !== data.stream) {
               logger("live", `redirected to '${redir}' from '${data.stream}'`);
             }
-            context.render("player", {
-              stream: `http://localhost:8080/${redir}`,
+            context.render("player.ejs", {
+              stream: `http://localhost:${PORT}/cors/${redir}`,
               proxy: data.data.proxy,
               origin: (new URL(redir)).hostname,
             });
           } else {
-            context.render("player", {
+            context.render("player.ejs", {
               stream:
                 `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
               proxy: "",
@@ -256,8 +258,8 @@ router.get(
               `redirected to '${redir}' from '${data.data.stream}'`,
             );
           }
-          context.render("player", {
-            stream: `http://localhost:8080/${redir}`,
+          context.render("player.ejs", {
+            stream: `http://localhost:${PORT}/cors/${redir}`,
             proxy: data.data.proxy,
             origin: (new URL(redir || "")).hostname,
           });
@@ -398,13 +400,13 @@ router.get(
                     `redirected to '${redir}' from '${data.stream}'`,
                   );
                 }
-                context.render("player", {
-                  stream: `http://localhost:8080/${redir}`,
+                context.render("player.ejs", {
+                  stream: `http://localhost:${PORT}/cors/${redir}`,
                   proxy: data.data.proxy,
                   origin: (new URL(redir)).hostname,
                 });
               } else {
-                context.render("player", {
+                context.render("player.ejs", {
                   stream:
                     `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
                   proxy: "",
@@ -461,9 +463,9 @@ router.get(
                 "live",
                 `live stream requested for channel '${context.params.channel}' with parameter player`,
               );
-              context.render("player", {
-                stream: `http://localhost:8080/${redir}`,
-                proxy: `http://localhost:8080/${data.data.proxy}`,
+              context.render("player.ejs", {
+                stream: `http://localhost:${PORT}/cors/${redir}`,
+                proxy: `http://localhost:${PORT}/cors/${data.data.proxy}`,
                 origin: (new URL(redir || "")).hostname,
               });
             } else {
@@ -797,31 +799,78 @@ router.get(`/:module(${valid_modules.join("|")})`, async (context) => {
   }
 });
 
+/**
+ * Checks whether cors proxy server should serve the url
+ * @param url URL to check
+ * @param rules Comma separated list of rules (e.g. "https://duck.com,https://example.com")
+ */
+export function isUrlAllowed(
+  url: string,
+  rules: string,
+): boolean {
+  if (rules !== "") {
+    const rulesList = rules.split(",");
+    return rulesList.some((rule) => {
+      /**
+       * * a) rule without trailing slash matches exactly with url (e.g. rule: https://duck.com/, url: https://duck.com)
+       * * b1) url starts with rule (including trailing slash; e.g. rule: https://example.com, url: https://example.com/path1)
+       * * b2) url starts with rule without trailing slash (only if rule contains at least one slash for path
+       * *        (to avoid using rule as subdomain, e.g. https://duck.com.example.com/)
+       * *        e.g. rule: https://example.com/path1, url: https://example.com/path123)
+       * */
+      const ruleWithoutTrailingSlash =
+        rule.endsWith("/") ? rule.substr(0, rule.length - 1) : rule;
+      const ruleContainsPath = (rule.match(/\//g) || []).length >= 3;
+      return (
+        url === ruleWithoutTrailingSlash ||
+        url.startsWith(
+          rule + (ruleContainsPath || rule.endsWith("/") ? "" : "/")
+        )
+      );
+    });
+  }
+  return true;
+}
+
+app.use(async (ctx, next) => {
+  try {
+    if (ctx.request.url.toString().includes("/cors/")) {
+      const url = ctx.request.url.toString().slice(`${ctx.request.url.protocol}//${ctx.request.headers.get("host")}/cors/`.length);
+      if (!isUrlAllowed(url, "")) {
+        ctx.response.body = "403 Forbidden";
+        ctx.response.status = 403;
+      }
+      const response = await fetch(url, {
+        method: ctx.request.method,
+        body: await ctx.request.body().value
+      });
+      const text = await response.arrayBuffer();
+      const headers = new Headers();
+      headers.set("Access-Control-Allow-Origin", "");
+      ctx.response.body = text;
+      ctx.response.headers = headers;
+    } else {
+      // ctx.response.body = "404 Not Found";
+      // ctx.response.status = 404;
+      next()
+    }
+  } catch {
+    ctx.response.body = "500 Internal Server Error";
+    ctx.response.status = 500;
+  }
+});
+
 /* A catch all route that will return a 404 error with a list of all available modules */
-// app.use((context) => {
-//     let body : {status: string, error: string} = {status: "ERROR", error: "Endpoint did not match any route, listing all available modules: " + valid_modules.join(", ")};
-//     // body.status = "ERROR"
-//     // body.error = "Endpoint did not match any route, listing all available modules: " + valid_modules.join(", ");
-//     // res.status(404).json(body)
-//     context.response.status = 404;
-//     context.response.body = body
-// })
+app.use((context) => {
+    let body : {status: string, error: string} = {status: "ERROR", error: "Endpoint did not match any route, listing all available modules: " + valid_modules.join(", ")};
+    context.response.status = 404;
+    context.response.body = body
+})
+
+// createServer(8080, "/cors/", "", "");
+
+app.addEventListener("listen", () => {
+  logger("oak", `Listening on localhost:${PORT}`);
+});
 
 await app.listen({ port: PORT });
-
-/* The below code is creating a server that listens for requests on port 3000. */
-// app.listen(PORT, () => { console.log(`Listening for requests on port ${PORT}\n`)})
-
-// // Listen on a specific host via the HOST environment variable
-// var host = '0.0.0.0';
-// // Listen on a specific port via the PORT environment variable
-// var port = 8080;
-
-// cors_proxy.createServer({
-//     originWhitelist: [], // Allow all origins
-//     // requireHeader: ['referer'],
-//     // removeHeaders: ['cookie', 'cookie2']
-//     addHeaders: ["User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Safari/537.36"]
-// }).listen(port, host, function() {
-//    logger('cors_proxy','Running CORS Anywhere on ' + host + ':' + port);
-// });

@@ -21,6 +21,16 @@ type cache = {
   lastupdated: Date;
 };
 
+type LoaderFunctions =
+  "sanityCheck"|
+  "rewritePlaylist"|
+  "cacheCleanup"|
+  "searchChannel"|
+  "getVODlist"|
+  "getVOD"|
+  "getVOD_EP"|
+  "login";
+
 /**
  * The function takes in three parameters, the first two are required and the third is optional
  * @param {string} id - This is the id of the function that is calling the logger.
@@ -30,20 +40,30 @@ type cache = {
  * @returns a string or an error.
  */
 function logger(
-  id: string,
-  message: string,
+  id: LoaderFunctions,
+  message: string | Error | Record<string, unknown>,
   isError?: boolean,
-): string | Error {
+): string {
   if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
-    console.log(
-      isError
-        ? `\x1b[47m\x1b[30miloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}`
-        : `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`,
-    );
+    if (isError) {
+      if ((message as Error).message) {
+        console.log(
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message}`,
+        );
+      } else {
+        console.log(
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message) : message}`,
+        );
+      }
+    } else {
+      console.log(`\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message}`);
+      
+    }
   }
-  return isError
-    ? `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${message}`
-    : `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`;
+  if ((message as Error).message) {
+    return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`
+  }
+  return `loader - ${id}: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message.substring(0, 200)}`;
 }
 
 /**
@@ -143,7 +163,8 @@ export async function sanityCheck(): Promise<string[]> {
           }`,
         );}
     } catch (error) {
-      console.error(`${error?.message || error}`);
+      // console.error(`${error?.message || error}`);
+      logger("sanityCheck", error, true)
       // return Promise.reject(error.message || error)
     }
   }
@@ -254,15 +275,12 @@ export async function rewritePlaylist(
       return Promise.resolve(stream);
     }
   } catch (error) {
-    logger(
-      "rewritePlaylist",
-      error.message || error.toString().substring(0, 200),
-      true,
-    );
-    return await Promise.reject(
-      `rewritePlaylist - ${
-        error.message || error.toString().substring(0, 200)
-      }`,
+    return Promise.reject(
+      logger(
+        "rewritePlaylist",
+        error,
+        true,
+      )
     );
   }
 }
@@ -322,12 +340,11 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
       return Promise.resolve(removed);
     }
   } catch (error) {
-    logger(
+    return Promise.reject(logger(
       "cacheCleanup",
-      `Error cleaning up cache: ${error.message || error}`,
+      error,
       true,
-    );
-    return Promise.reject(error);
+    ));
   }
 
   return Promise.resolve(removed);
@@ -374,7 +391,7 @@ export async function searchChannel(
             "searchChannel",
             `Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`,
           );
-          return await Promise.resolve({
+          return Promise.resolve({
             data: cache.data,
             module: module_id,
             cache: true,
@@ -390,7 +407,7 @@ export async function searchChannel(
             auth.lastupdated,
           );
           await module.cacheFill(id, data);
-          return await Promise.resolve({
+          return Promise.resolve({
             data: data,
             module: module_id,
             cache: false,
@@ -419,7 +436,7 @@ export async function searchChannel(
               "searchChannel",
               `Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`,
             );
-            return await Promise.resolve({
+            return Promise.resolve({
               data: cache.data,
               module: module_id,
               cache: true,
@@ -435,21 +452,18 @@ export async function searchChannel(
               auth.lastupdated,
             );
             await module.cacheFill(id, data);
-            return await Promise.resolve({
+            return Promise.resolve({
               data: data,
               module: module_id,
               cache: false,
             });
           }
-        } else {return await Promise.reject(
-            new Error(
-              `searchChannel| Module ${module_id} doesn't have channel '${id}'`,
-            ),
+        } else {return Promise.reject(logger("searchChannel", `Module ${module_id} doesn't have channel '${id}'`)
           );}
       }
     } catch (error) {
-      return await Promise.reject(
-        new Error(`${error.message || error.toString().substring(0, 200)}`),
+      return Promise.reject(
+        logger("searchChannel", error, true),
       );
     }
   } else {
@@ -515,16 +529,19 @@ export async function searchChannel(
       } catch (error) {
         logger(
           "searchChannel",
-          `Error searching channel '${id}' in module '${module.MODULE_ID}': ${
-            error.message || error.toString().substring(0, 200)
-          }`,
+          `Error searching channel '${id}' in module '${module.MODULE_ID}'`,
+          true,
+        );
+        logger(
+          "searchChannel",
+            error,
           true,
         );
         // return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
       }
     }
     return Promise.reject(
-      new Error(`searchChannel - No module has channel '${id}'`),
+      logger("searchChannel", `No module has channel '${id}'`),
     );
   }
 }
@@ -540,20 +557,19 @@ export async function getVODlist(module_id: string, page?: number) {
       let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
-        return await Promise.resolve(
+        return Promise.resolve(
           await module.getVOD_List((await module.getAuth()).authTokens, page),
         );
-      } else {return await Promise.reject(
+      } else {return Promise.reject(
           new Error(
             `getVODlist| Module ${module_id} doesn't have VOD available`,
           ),
         );}
     } catch (error) {
-      return await Promise.reject(
-        new Error(`${error.message || error.toString().substring(0, 200)}`),
+      return Promise.reject(logger("getVODlist", error, true)
       );
     }
-  } else return await Promise.reject(new Error("No module id provided"));
+  } else return Promise.reject(logger("getVODlist", "Module ID not provided"));
 }
 /**
  * It gets the VOD of a show from a module
@@ -581,16 +597,14 @@ export async function getVOD(
           (await module.getAuth()).authTokens,
           page,
         );
-        return await Promise.resolve(res);
-      } else {return await Promise.reject(
-          new Error(`getVOD| Module ${module_id} doesn't have VOD available`),
+        return Promise.resolve(res);
+      } else {return Promise.reject(logger("getVOD", `Module ${module_id} doesn't have VOD enabled/implemented`)
         );}
     } catch (error) {
-      return await Promise.reject(
-        new Error(`${error.message || error.toString().substring(0, 200)}`),
+      return Promise.reject(logger("getVOD", error, true)
       );
     }
-  } else return await Promise.reject(new Error("No module id provided"));
+  } else return Promise.reject(logger("getVOD", "Module ID not provided"));
 }
 /**
  * It gets the VOD episode from the module with the given module_id, show_id and epid
@@ -612,7 +626,7 @@ export async function getVOD_EP(
         let cache = await module.cacheFind(epid);
         let cache_enabled = (await module.getConfig()).url_cache_enabled;
         if (cache !== null && cache_enabled) {
-          return await Promise.resolve(cache.data.stream);
+          return Promise.resolve(cache.data.stream);
         } else {
           logger(
             "getVOD_EP",
@@ -630,17 +644,15 @@ export async function getVOD_EP(
             (await module.getAuth()).authTokens,
           );
           await module.cacheFill(epid, { stream: res });
-          return await Promise.resolve(res);
+          return Promise.resolve(res);
         }
-      } else {return await Promise.reject(
-          `getVOD_EP| Module ${module_id} doesn't have VOD available`,
+      } else {return Promise.reject(logger("getVOD_EP", `Module ${module_id} doesn't have VOD enabled/implemented`)
         );}
     } catch (error) {
-      return await Promise.reject(
-        new Error(`${error.message || error.toString().substring(0, 200)}`),
+      return Promise.reject(logger("getVOD_EP", error, true)
       );
     }
-  } else return await Promise.reject(new Error("No module id provided"));
+  } else return Promise.reject(logger("getVOD_EP", "Module ID not provided"));
 }
 
 /**
@@ -660,11 +672,10 @@ export async function login(
     if (username && password) {
       let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
-      return await Promise.resolve(await module.login(username, password));
-    } else throw new Error("No Username/Password provided");
+      return Promise.resolve(await module.login(username, password));
+    } else return  Promise.reject(logger("login", "Username/Password not provided", true))
   } catch (error) {
-    return await Promise.reject(
-      new Error(`${error.message || error.toString().substring(0, 200)}`),
+    return Promise.reject(logger("login", error, true)
     );
   }
 }

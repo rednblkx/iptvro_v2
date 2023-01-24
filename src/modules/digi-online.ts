@@ -178,7 +178,7 @@ class ModuleInstance extends ModuleClass {
       );
       play.data.stream?.abr && this.logger("liveChannels", "got the stream");
       if (play.data.error !== "") {
-        Promise.reject(
+        return Promise.reject(
           this.logger(
             "liveChannels",
             `Error from provider '${play.data.error}'`,

@@ -125,23 +125,29 @@ class ModuleFunctions {
    */
   logger(
     id: string,
-    message: string | Record<string, unknown>,
+    message: string | Error | Record<string, unknown>,
     isError?: boolean,
-  ): string | Error {
-    if (this.debug === true) {
-      console.log(
-        `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object" ? JSON.stringify(message) : message
-        }`,
-      );
+  ): string {
+    if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
+      if (isError) {
+        if ((message as Error).message) {
+          console.log(
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message}`,
+          );
+        } else {
+          console.log(
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message) : message}`,
+          );
+        }
+      } else {
+        console.log(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message}`);
+        
+      }
     }
-    return isError
-      ? new Error(
-        typeof message == "object" ? JSON.stringify(message) : message,
-      )
-      : typeof message == "object"
-      ? JSON.stringify(message)
-      : message;
+    if ((message as Error).message) {
+      return `${this.MODULE_ID} - ${id}: ${((message as Error).message).substring(0, 200)}`
+    }
+    return `${this.MODULE_ID} - ${id}: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message.substring(0, 200)}`;
   }
 
   /**

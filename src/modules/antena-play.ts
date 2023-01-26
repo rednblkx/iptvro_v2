@@ -1,14 +1,12 @@
 import ModuleClass, { IVOD, IVODData } from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
-import { load as htmlload } from "https://esm.sh/cheerio@1.0.0-rc.12";
 import * as queryString from "https://deno.land/x/querystring@v1.0.2/mod.js";
 import {
   IChannels,
   IVODEpisodes,
   IVODEpisodeStream,
   IVODList,
-  VOD_config,
 } from "./types/antena-play.d.ts";
 // var Module = new Class('antena', true, true,)
 
@@ -85,7 +83,7 @@ class ModuleInstance extends ModuleClass {
   async liveChannels(
     channel: string,
     authTokens: string[],
-    lastupdated: string,
+    _lastupdated: string,
   ): Promise<{ stream: string; proxy?: string }> {
     type IStreamResponse = {
       data: {
@@ -102,7 +100,7 @@ class ModuleInstance extends ModuleClass {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         this.logger("liveChannels", "authTokens not provided, trying login");
         //get config
-        var config = await this.getAuth();
+        const config = await this.getAuth();
         //get authTokens
         authTokens = await this.login(config.username, config.password);
         //set authTokens
@@ -113,7 +111,7 @@ class ModuleInstance extends ModuleClass {
           lastupdated: new Date(),
         });
       }
-      let channel_stream = await axios.post<IStreamResponse>(
+      const channel_stream = await axios.post<IStreamResponse>(
         `https://restapi.antenaplay.ro/v1/channels/play?source=mobile&id=${channel}&device_type=iOS&device_name=Kodeative&device_id=${
           authTokens[1]
         }&free=Y`,
@@ -138,13 +136,13 @@ class ModuleInstance extends ModuleClass {
    * It gets the channels from antenaplay.ro/live
    * @returns An object with all the channels
    */
-  async getChannels(): Promise<object> {
+  async getChannels(): Promise<Record<string, unknown>> {
     try {
-      let authTokens = (await this.getAuth()).authTokens;
+      const authTokens = (await this.getAuth()).authTokens;
       if (!authTokens[0]) {
         throw "No tokens, cannot update channels list";
       }
-      let channels = await axios.get<IChannels>(
+      const channels = await axios.get<IChannels>(
         "https://restapi.antenaplay.ro/v1/channels?_page=1&_per_page=20&_sort=id&active=Y",
         {
           headers: {
@@ -155,7 +153,7 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
-      let channels_list: { [k: string]: number } = {};
+      const channels_list: { [k: string]: number } = {};
       channels.data.data.forEach((l) => {
         channels_list[l.slug] = l.id;
       });
@@ -175,7 +173,7 @@ class ModuleInstance extends ModuleClass {
       if (!authTokens || typeof authTokens !== "object") {
         // throw new Error(`Cookies Missing/Invalid`)
         //get config
-        var config = await this.getAuth();
+        const config = await this.getAuth();
         //get authTokens
         authTokens = await this.login(config.username, config.password);
         //set authTokens
@@ -186,8 +184,8 @@ class ModuleInstance extends ModuleClass {
           lastupdated: new Date(),
         });
       }
-      let shows = await axios.get<IVODList>(
-        `https://restapi.antenaplay.ro/v1/shows?_per_page=20&_sort=created_at%3Adesc&active=Y&_page=${
+      const shows = await axios.get<IVODList>(
+        `https://restapi.antenaplay.ro/v1/shows?_per_page=20&_sort=last_video_date%3Adesc&active=Y&_page=${
           page || 1
         }`,
         {
@@ -199,7 +197,8 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
-      let list: IVODData[] = [];
+      this.logger("getVOD_List", shows.data);
+      const list: IVODData[] = [];
       shows.data.data.forEach((l) => {
         list.push(
           {
@@ -244,7 +243,7 @@ class ModuleInstance extends ModuleClass {
       if (!authTokens || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`
         //get auth
-        var auth = await this.getAuth();
+        const auth = await this.getAuth();
         //get authTokens
         authTokens = await this.login(auth.username, auth.password);
         //set authTokens
@@ -268,7 +267,8 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
-      let list: IVODData[] = [];
+      this.logger("getVOD", episodes.data);
+      const list: IVODData[] = [];
       episodes.data.data.forEach((l) => {
         list.push(
           {
@@ -318,7 +318,7 @@ class ModuleInstance extends ModuleClass {
       if (!authTokens || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`
         //get config
-        var config = await this.getAuth();
+        const config = await this.getAuth();
         //get authTokens
         authTokens = await this.login(config.username, config.password);
         //set authTokens
@@ -329,7 +329,7 @@ class ModuleInstance extends ModuleClass {
           lastupdated: new Date(),
         });
       }
-      let episode_id = await axios.post<IVODEpisodeStream>(
+      const episode_id = await axios.post<IVODEpisodeStream>(
         "https://restapi.antenaplay.ro/v1/videos/play",
         queryString.stringify({
           device_id: authTokens[1],

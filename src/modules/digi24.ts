@@ -20,7 +20,7 @@ export default class ModuleInstance extends ModuleClass {
    * @param {string} password - string - the password you use to login to the app
    * @returns The access token
    */
-  async login(username: string, password: string): Promise<string[]> {
+  login(_username: string, _password: string): Promise<string[]> {
     try {
       return Promise.resolve(["Login not implemented, no use on this module"]);
     } catch (error) {
@@ -44,16 +44,16 @@ export default class ModuleInstance extends ModuleClass {
   async liveChannels(
     id: string,
     authTokens: string[],
-    authLastUpdate: Date,
+    _authLastUpdate: Date,
   ): Promise<{ stream: string; proxy?: string }> {
     try {
       if (!authTokens && this.authReq) {
-        let auth = await this.getAuth();
+        const auth = await this.getAuth();
         this.logger("liveChannels", "No tokens, trying login");
         authTokens = await this.login(auth.username, auth.password);
       }
       this.logger("liveChannels", "Getting token");
-      let key = await axios.get(
+      const key = await axios.get(
         "https://balancer2.digi24.ro/streamer/make_key.php",
         {
           headers: {
@@ -70,7 +70,7 @@ export default class ModuleInstance extends ModuleClass {
         },
       );
       key.status === 200 && this.logger("liveChannels", "Got token");
-      let stream = await axios.get(
+      const stream = await axios.get(
         `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&is=4&ns=${id}&pe=site&s=site&sn=${
           id.includes("sport") ? "digisport.ro" : "digi24.ro"
         }&p=browser&pd=linux`,

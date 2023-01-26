@@ -50,9 +50,16 @@ export interface ModuleType extends ModuleFunctions {
     authTokens: string[],
     authLastUpdate: Date,
   ): Promise<{ stream: string; proxy?: string }>;
-  getChannels(): Promise<{}>;
-  getVOD_List(authTokens: string[], page?: number): Promise<{}[]>;
-  getVOD(show: string, config: {}, page?: number): Promise<{} | {}[]>;
+  getChannels(): Promise<Record<string, string>>;
+  getVOD_List(
+    authTokens: string[],
+    page?: number,
+  ): Promise<Record<string, unknown>[]>;
+  getVOD(
+    show: string,
+    authTokens: string[],
+    page?: number,
+  ): Promise<Record<string, unknown> | Record<string, unknown>[]>;
   getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string>;
 }
 
@@ -132,22 +139,35 @@ class ModuleFunctions {
       if (isError) {
         if ((message as Error).message) {
           console.log(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message}`,
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              (message as Error).message
+            }`,
           );
         } else {
           console.log(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message) : message}`,
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              typeof message == "object" ? JSON.stringify(message) : message
+            }`,
           );
         }
       } else {
-        console.log(`\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message}`);
-        
+        console.log(
+          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+            typeof message == "object" ? JSON.stringify(message) : message
+          }`,
+        );
       }
     }
     if ((message as Error).message) {
-      return `${this.MODULE_ID} - ${id}: ${((message as Error).message).substring(0, 200)}`
+      return `${this.MODULE_ID} - ${id}: ${
+        ((message as Error).message).substring(0, 200)
+      }`;
     }
-    return `${this.MODULE_ID} - ${id}: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message.substring(0, 200)}`;
+    return `${this.MODULE_ID} - ${id}: ${
+      typeof message == "object"
+        ? JSON.stringify(message).substring(0, 200)
+        : message.substring(0, 200)
+    }`;
   }
 
   /**
@@ -164,7 +184,7 @@ class ModuleFunctions {
         this.logger("moduleClass", "configs dir already exists");
       } else throw error;
     }
-    let config = {
+    const config = {
       "auth": {
         "username": "",
         "password": "",
@@ -269,7 +289,7 @@ class ModuleFunctions {
    * @param {any} value - any - this is the value you want to set the key to.
    * @returns A promise that resolves when the config file has been updated.
    */
-  async setConfig(key: string, value: any) {
+  async setConfig(key: string, value: string) {
     // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
     // const db = new Low(adapter)
     await this.db.read();
@@ -302,14 +322,14 @@ class ModuleFunctions {
             ? a.name === id && a.module === this.MODULE_ID
             : a.module === this.MODULE_ID
         );
-      let url_update_interval = (await this.getConfig()).url_update_interval;
+      const url_update_interval = (await this.getConfig()).url_update_interval;
 
       if (cache) {
         if (
           (((new Date()).getTime() - (new Date(cache.lastupdated)).getTime()) /
             (1000 * 3600)) <= (url_update_interval ? url_update_interval : 6)
         ) {
-          // let found = cache.link;
+          // const found = cache.link;
           if (Deno.env.get("DEBUG") == ("true" || true)) {
             this.logger(
               "cacheFind",

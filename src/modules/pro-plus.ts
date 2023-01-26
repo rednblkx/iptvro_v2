@@ -1,5 +1,5 @@
 import axios from "https://deno.land/x/axiod/mod.ts";
-import ModuleClass, { AuthConfig } from "../moduleClass.ts";
+import ModuleClass from "../moduleClass.ts";
 import { load } from "https://esm.sh/cheerio@1.0.0-rc.12";
 
 /* A class that extends the Class class. */
@@ -17,7 +17,7 @@ class ModuleInstance extends ModuleClass {
    */
   async login(username: string, password: string): Promise<string[]> {
     try {
-      let step1 = await axios.post(
+      const step1 = await axios.post(
         "https://protvplus.ro/login",
         `email=${encodeURIComponent(username)}&password=${
           encodeURIComponent(password)
@@ -75,16 +75,16 @@ class ModuleInstance extends ModuleClass {
   async liveChannels(
     id: string,
     authTokens: string[],
-    authLastUpdate: Date,
+    _authLastUpdate: Date,
   ): Promise<{ stream: string; proxy?: string }> {
     try {
       if (!authTokens) {
-        let auth = await this.getAuth();
+        const auth = await this.getAuth();
         this.logger("liveChannels", "No tokens, trying login");
         authTokens = await this.login(auth.username, auth.password);
       }
-      let channel = (await this.getConfig()).chList;
-      let step1 = await axios.get(
+      const channel = (await this.getConfig()).chList;
+      const step1 = await axios.get(
         `https://protvplus.ro/tv-live/${id}-${
           Object.keys(channel).find((key) => channel[key] === id)
         }`,
@@ -111,7 +111,7 @@ class ModuleInstance extends ModuleClass {
       );
       // if(consoleL) console.log(`pro| getPlaylist: getting channel's second link`);
       this.logger("liveChannels", `getPlaylist: getting channel's second link`);
-      let step2 = await axios.get(
+      const step2 = await axios.get(
         $(".live-iframe-wrapper.js-user-box")[0].attribs["data-url"],
         {
           headers: {
@@ -133,7 +133,7 @@ class ModuleInstance extends ModuleClass {
       this.logger("liveChannels", `getPlaylist: ${$("iframe").attr("src")}`);
       // if(consoleL) console.log(`pro| getPlaylist: getting channel's stream URL`);
       this.logger("liveChannels", `getPlaylist: getting channel's stream URL`);
-      let step3 = await axios.get($("iframe").attr("src") || "", {
+      const step3 = await axios.get($("iframe").attr("src") || "", {
         headers: {
           cookie: authTokens.join(";"),
           referer: "https://protvplus.ro/tv-live/1-pro-tv",
@@ -144,7 +144,7 @@ class ModuleInstance extends ModuleClass {
       // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data}`);
       // if(consoleL && step3.data) console.log(`pro| getPlaylist: ${step3.data.match('{"HLS"(.*)}]}')}`);
       const regex = /"HLS":.+?\s*:\s*["\']?([^"\'\s>]+)["\']?/g;
-      let stream = new URL(regex.exec(step3.data)?.[1] || "").href;
+      const stream = new URL(regex.exec(step3.data)?.[1] || "").href;
       this.logger("liveChannels", `getPlaylist: ${stream}`);
       // if(stream.includes("playlist-live_lq-live_mq-live_hq")){
       //     stream = stream.replace("playlist-live_lq-live_mq-live_hq", "playlist-live_lq-live_mq-live_hq-live_fullhd");
@@ -168,13 +168,13 @@ class ModuleInstance extends ModuleClass {
    * and adds them to an object
    * @returns A list of channels and their respective IDs
    */
-  async getChannels(): Promise<object> {
+  async getChannels(): Promise<Record<string, unknown>> {
     try {
-      let getHTML = (await axios.get("https://protvplus.ro/")).data;
-      let $ = load(getHTML);
-      let channelList: { [k: string]: string } = {};
-      $(".channels-main a").each(function (i, el) {
-        let link = el.attribs["href"];
+      const getHTML = (await axios.get("https://protvplus.ro/")).data;
+      const $ = load(getHTML);
+      const channelList: { [k: string]: string } = {};
+      $(".channels-main a").each(function (_i, el) {
+        const link = el.attribs["href"];
         channelList[link.match(/([0-9])-(.*)/)?.[2] || 0] =
           link.match(/([0-9])-(.*)/)?.[1] || "";
       });

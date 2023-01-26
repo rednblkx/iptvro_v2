@@ -1,5 +1,3 @@
-// import express, {Request} from 'express';
-
 import {
   Application,
   helpers,
@@ -11,8 +9,6 @@ import {
   oakAdapter,
   viewEngine,
 } from "https://deno.land/x/view_engine@v10.6.0/mod.ts";
-
-import { run as createServer } from "https://deno.land/x/cors_proxy/server.ts";
 
 const app = new Application();
 
@@ -27,39 +23,21 @@ app.use(router.allowedMethods());
 
 import * as Loader from "./loader.ts";
 
-// import fs from 'fs';
-import { AuthConfig, ModuleType } from "./moduleClass.ts";
+import { ModuleType } from "./moduleClass.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
-// import axios from 'axios';
 import axios from "https://deno.land/x/axiod/mod.ts";
-
-// import cors_proxy from 'cors-anywhere';
-// import { URL } from 'url'
-// import liveRoutes from './routes/liveChannels.ts';
-
-/* The below code is creating an instance of express. */
-// const app = express();
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
 export const PORT = Number(Deno.env.get("PORT")) || 3000;
 const debug = Deno.env.get("DEBUG")?.toLowerCase();
 
-/* Telling the server to use the express.json() middleware. */
-// app.use(express.json());
-// app.set('view engine', 'ejs');
-// app.use(express.static('public'));
-// app.set("Access-Control-Allow-Origin", "*");
-// try {
 /* Checking if the modules are valid. */
 export const valid_modules = await Loader.sanityCheck();
 await Loader.cacheCleanup(valid_modules);
 setInterval(async () => {
   await Loader.cacheCleanup(valid_modules);
 }, 1000 * 60 * 60);
-// } catch (error) {
-//     console.log(`${error.message || error}`);
-// }
 
 console.log(`\nValid modules: ${valid_modules}\n`);
 
@@ -67,15 +45,10 @@ if (debug === "true") {
   console.log(`DEBUG env true, verbose enabled!\n`);
 }
 
-// var moduleParam = (req: any, res, next) => {
-//     req.module = req.params.module;
-//     req.valid_modules = valid_modules;
-//     next();
-// }
-
 /* The body_response class is a class that is used to create a response object that is sent back to the
 client */
 export class body_response {
+  [k: string]: unknown;
   status: string;
   module: string;
   error?: string;
@@ -97,19 +70,40 @@ export class body_response {
  */
 function logger(
   id: string,
-  message: string,
+  message: string | Error | Record<string, unknown>,
   isError?: boolean,
-): string | Error {
-  if (debug === "true") {
-    console.log(
-      `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`,
-    );
+): string {
+  if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
+    if (isError) {
+      if ((message as Error).message) {
+        console.log(
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            (message as Error).message
+          }`,
+        );
+      } else {
+        console.log(
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            typeof message == "object" ? JSON.stringify(message) : message
+          }`,
+        );
+      }
+    } else {
+      console.log(
+        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+          typeof message == "object" ? JSON.stringify(message) : message
+        }`,
+      );
+    }
   }
-  return isError
-    ? new Error(
-      `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`,
-    )
-    : `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${message}`;
+  if ((message as Error).message) {
+    return `index - ${id}: ${((message as Error).message).substring(0, 200)}`;
+  }
+  return `loader - ${id}: ${
+    typeof message == "object"
+      ? JSON.stringify(message).substring(0, 200)
+      : message.substring(0, 200)
+  }`;
 }
 
 /* A simple API that returns the cache of a module. */
@@ -121,7 +115,7 @@ router.get("/cache", async (context) => {
     lastupdated: Date;
   };
   const query = helpers.getQuery(context);
-  let body: body_response & { result: cache | cache[] | null | undefined } = {
+  const body: body_response & { result: cache | cache[] | null | undefined } = {
     ...new body_response(query.module),
     result: null,
   };
@@ -169,9 +163,9 @@ router.get("/cache", async (context) => {
 /* A simple API that returns a stream URL for a given channel. */
 router.get(
   "/live/:channel/:playlist(index.m3u8)?/:player(player)?",
-  async (context, next) => {
+  async (context) => {
     const query = helpers.getQuery(context);
-    let body: body_response & {
+    const body: body_response & {
       result: { stream: string; proxy?: string | undefined } | null | undefined;
     } = { ...new body_response(query.module), result: null };
     context.response.headers.set("Access-Control-Allow-Origin", "*");
@@ -181,31 +175,34 @@ router.get(
           "live",
           `live stream requested for channel '${context.params.channel}' with parameter proxy`,
         );
-        let stream = await Loader.searchChannel(
+        const stream = await Loader.searchChannel(
           context.params.channel,
           "",
           valid_modules,
         );
-        let data = await Loader.rewritePlaylist(stream.data);
+        const data = await Loader.rewritePlaylist(stream.data) as {
+          stream: string;
+          proxy?: string;
+        };
         if (context.params.player == "player") {
           logger(
             "live",
             `live stream requested for channel '${context.params.channel}' with parameter player and proxy`,
           );
           if (data.stream) {
-            const checkRedirect = await axios.get(data.stream, {
-              redirect: "follow",
-            });
-            const redir = checkRedirect.config.url !== data.stream
-              ? checkRedirect.config.redirect
-              : data.stream;
-            if (checkRedirect.config.url !== data.stream) {
-              logger("live", `redirected to '${redir}' from '${data.stream}'`);
-            }
+            // const checkRedirect = await axios.get(data.stream, {
+            //   redirect: "follow",
+            // });
+            // const redir = checkRedirect.config.url !== data.stream
+            //   ? checkRedirect.config.url
+            //   : data.stream;
+            // if (checkRedirect.config.url !== data.stream) {
+            //   logger("live", `redirected to '${redir}' from '${data.stream}'`);
+            // }
             context.render("player.ejs", {
-              stream: `http://localhost:${PORT}/cors/${redir}`,
-              proxy: data.data.proxy,
-              origin: (new URL(redir)).hostname,
+              stream: `http://localhost:${PORT}/cors/${data.stream}`,
+              proxy: data.proxy,
+              origin: (new URL(data.stream)).hostname,
             });
           } else {
             context.render("player.ejs", {
@@ -230,7 +227,7 @@ router.get(
           "live",
           `live stream requested for channel '${context.params.channel}'`,
         );
-        let data = await Loader.searchChannel(
+        const data = await Loader.searchChannel(
           context.params.channel,
           "",
           valid_modules,
@@ -246,10 +243,10 @@ router.get(
             "live",
             `live stream requested for channel '${context.params.channel}' with player`,
           );
-          let checkRedirect = await axios.get(data.data.stream, {
+          const checkRedirect = await axios.get(data.data.stream, {
             redirect: "follow",
           });
-          let redir = checkRedirect.config.url !== data.data.stream
+          const redir = checkRedirect.config.url !== data.data.stream
             ? checkRedirect.config.url
             : data.data.stream;
           if (checkRedirect.config.url !== data.data.stream) {
@@ -279,7 +276,7 @@ router.get(
 
 /* A simple GET request that returns the live channels of a module. */
 router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
-  var body: body_response = new body_response(context.params.module);
+  const body: body_response = new body_response(context.params.module);
   try {
     if (
       context.params.module &&
@@ -289,12 +286,12 @@ router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
         "live",
         `live channels requested for module '${context.params.module}'`,
       );
-      let mod: ModuleType =
+      const mod: ModuleType =
         new (await import(`./modules/${context.params.module}.ts`)).default();
       if (context.params.playlist == "index.m3u8") {
-        let playlist = [];
+        const playlist = [];
         playlist.push(`#EXTM3U`);
-        for (let channel in await mod.getChannels()) {
+        for (const channel in await mod.getChannels()) {
           playlist.push(
             `#EXTINF:-1,${
               (channel.split("-")).map((a) =>
@@ -309,7 +306,7 @@ router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
         context.response.headers.set("Access-Control-Allow-Origin", "*");
         context.response.headers.set("Content-Type", "application/x-mpegURL");
         context.response.body = playlist.join("\n");
-      } else next();
+      } else await next();
     } else {
       body.status = "ERROR";
       body.error = `Module '${context.params.module}' not found`;
@@ -324,50 +321,52 @@ router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
     context.response.status = 500;
     context.response.body = body;
   }
-}, async (context) => {
-  let body: body_response & { result: {} } = {
-    ...new body_response(context.params.module),
-    result: {},
+}, async (ctx) => {
+  const body: body_response & { result: string[] } = {
+    ...new body_response(ctx.params.module),
+    result: [],
   };
 
   try {
     if (
-      context.params.module &&
-      valid_modules.find((x) => x == context.params.module) != undefined
+      ctx.params.module &&
+      valid_modules.find((x) => x == ctx.params.module) != undefined
     ) {
       logger(
         "live",
-        `live channels requested for module '${context.params.module}'`,
+        `live channels requested for module '${ctx.params.module}'`,
       );
-      let mod: ModuleType =
-        new (await import(`./modules/${context.params.module}.ts`)).default();
+      const mod: ModuleType =
+        new (await import(`./modules/${ctx.params.module}.ts`)).default();
       body.status = "SUCCESS";
-      body.result = (await mod.getConfig()).chList;
+      body.result = Object.keys((await mod.getConfig()).chList);
       if (!body.result) {
         throw "No data received from method!";
       }
       // res.json(body)
-      context.response.body = body;
+      ctx.response.body = body;
     } else {
       body.status = "ERROR";
-      body.error = `Module '${context.params.module}' not found`;
+      body.error = `Module '${ctx.params.module}' not found`;
       // res.status(400).json(body);
-      context.response.status = 400;
-      context.response.body = body;
+      ctx.response.status = 400;
+      ctx.response.body = body;
     }
   } catch (error) {
+    logger("index", body);
+    logger("index", error);
     body.status = "ERROR";
-    body.error = error.message || error.toString().substring(0, 200);
+    body.error = error;
     // res.status(502).json(body)
-    context.response.status = 500;
-    context.response.body = body;
+    // ctx.response.status = 500;
+    ctx.response.body = "";
   }
 });
 
 router.get(
   "/:module/live/:channel/:playlist(index.m3u8)?/:player(player)?",
-  async (context, next) => {
-    let body: body_response & {
+  async (context) => {
+    const body: body_response & {
       result?: { stream: string; proxy?: string | undefined };
     } = { ...new body_response(context.params.module) };
     if (context.params.module) {
@@ -378,32 +377,35 @@ router.get(
               "live",
               `live stream requested for channel '${context.params.channel}' with parameter proxy`,
             );
-            let stream = await Loader.searchChannel(
+            const stream = await Loader.searchChannel(
               context.params.channel,
               context.params.module,
               valid_modules,
             );
-            let data = await Loader.rewritePlaylist(stream.data);
+            const data = await Loader.rewritePlaylist(stream.data) as {
+              stream: string;
+              proxy?: string;
+            };
             if (context.params.player == "player") {
               logger(
                 "live",
                 `live stream requested for channel '${context.params.channel}' with also parameter player`,
               );
               if (data.stream) {
-                let checkRedirect = await axios.get(data.stream);
-                let redir = checkRedirect.config.url !== data.stream
-                  ? checkRedirect.config.url
-                  : data.stream;
-                if (checkRedirect.config.url !== data.stream) {
-                  logger(
-                    "live",
-                    `redirected to '${redir}' from '${data.stream}'`,
-                  );
-                }
+                // const checkRedirect = await axios.get(data.stream);
+                // const redir = checkRedirect.config.url !== data.stream
+                //   ? checkRedirect.config.url
+                //   : data.stream;
+                // if (checkRedirect.config.url !== data.stream) {
+                //   logger(
+                //     "live",
+                //     `redirected to '${redir}' from '${data.stream}'`,
+                //   );
+                // }
                 context.render("player.ejs", {
-                  stream: `http://localhost:${PORT}/cors/${redir}`,
-                  proxy: data.data.proxy,
-                  origin: (new URL(redir)).hostname,
+                  stream: `http://localhost:${PORT}/cors/${data.stream}`,
+                  proxy: data.proxy,
+                  origin: (new URL(data.stream)).hostname,
                 });
               } else {
                 context.render("player.ejs", {
@@ -437,7 +439,7 @@ router.get(
               "live",
               `live stream requested for channel '${context.params.channel}' on module '${context.params.module}'`,
             );
-            let data = await Loader.searchChannel(
+            const data = await Loader.searchChannel(
               context.params.channel,
               context.params.module,
               valid_modules,
@@ -449,8 +451,8 @@ router.get(
               throw "No data received from method!";
             }
             if (context.params.player == "player") {
-              let checkRedirect = await axios.get(data.data.stream);
-              let redir = checkRedirect.config.url !== data.data.stream
+              const checkRedirect = await axios.get(data.data.stream);
+              const redir = checkRedirect.config.url !== data.data.stream
                 ? checkRedirect.config.url
                 : data.data.stream;
               if (checkRedirect.config.url !== data.data.stream) {
@@ -492,7 +494,7 @@ router.get(
 
 /* A simple API endpoint that returns a list of VODs for a given module. */
 router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
-  let body: body_response & { result?: object[] } = {
+  const body: body_response & { result?: Record<string, unknown>[] } = {
     ...new body_response(context.params.module),
   };
   const query = helpers.getQuery(context);
@@ -521,7 +523,9 @@ router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show`,
   async (context) => {
-    let body: body_response & { result?: object } = {
+    const body: body_response & {
+      result?: Record<string, unknown> | Record<string, unknown>[];
+    } = {
       ...new body_response(context.params.module),
     };
     try {
@@ -566,7 +570,7 @@ router.get(
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show/:epid`,
   async (context) => {
-    let body: body_response & { result?: string | null } = {
+    const body: body_response & { result?: string | null } = {
       ...new body_response(context.params.module),
     };
 
@@ -612,14 +616,16 @@ router.get(
 /* A login endpoint for the API. It is using the module login function to get the authTokens. */
 router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
   let authTokens = [];
-  let body: body_response & { result?: {} | null } = {
+  const body: body_response & {
+    result?: Record<string | number | symbol, never> | null;
+  } = {
     ...new body_response(context.params.module),
   };
   logger("login", `login request for module '${context.params.module}'`);
   try {
-    let mod: ModuleType =
+    const mod: ModuleType =
       new (await import(`./modules/${context.params.module}.ts`)).default();
-    let config = await mod.getAuth();
+    const config = await mod.getAuth();
     const result = await (context.request.body({ type: "json" })).value;
 
     logger(
@@ -670,7 +676,7 @@ router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
 router.get(
   `/:module(${valid_modules.join("|")})?/clearcache`,
   async (context) => {
-    let body: body_response & {
+    const body: body_response & {
       result?: { [k: string]: string } | string | null;
     } = { ...new body_response(context.params.module) };
 
@@ -680,7 +686,7 @@ router.get(
           "clearcache",
           `Flush cache request for module '${context.params.module}'`,
         );
-        let module: ModuleType =
+        const module: ModuleType =
           new (await import(`./modules/${context.params.module}.ts`)).default();
         body.status = "SUCCESS";
         body.result = await module.flushCache();
@@ -688,14 +694,14 @@ router.get(
         context.response.body = body;
       } else {
         logger("flushcache", `Flush cache request for all modules`);
-        let modules: ModuleType[] = await Promise.all(
+        const modules: ModuleType[] = await Promise.all(
           valid_modules.map(async (mod) =>
             new (await import(`./modules/${mod}.ts`)).default()
           ),
         );
         body.status = "SUCCESS";
         body.result = {};
-        for (let module of modules) {
+        for (const module of modules) {
           body.result[module.MODULE_ID] = await module.flushCache();
         }
         // res.json(body)
@@ -715,7 +721,9 @@ router.get(
 router.get(
   `/:module(${valid_modules.join("|")})?/updatechannels`,
   async (context) => {
-    let body: body_response & { result?: object | string | null } = {
+    const body: body_response & {
+      result?: Record<string, unknown> | string | null;
+    } = {
       ...new body_response(context.params.module),
     };
 
@@ -725,7 +733,7 @@ router.get(
           "updatechannels",
           `Update channels request for module '${context.params.module}'`,
         );
-        let mod: ModuleType =
+        const mod: ModuleType =
           new (await import(`./modules/${context.params.module}.ts`)).default();
         body.status = "SUCCESS";
         body.result = await mod.getChannels();
@@ -743,14 +751,14 @@ router.get(
         context.response.body = body;
       } else {
         logger("updatechannels", `Update channels request for all modules`);
-        let mod: ModuleType[] = await Promise.all(
+        const mod: ModuleType[] = await Promise.all(
           valid_modules.map(async (val) =>
             new (await import(`./modules/${val}.ts`)).default()
           ),
         );
-        let updated = [];
-        for (let module of mod) {
-          let ch = await module.getChannels();
+        const updated = [];
+        for (const module of mod) {
+          const ch = await module.getChannels();
           ch && updated.push(module.MODULE_ID);
           //save config
           ch && await module.setConfig("chList", ch);
@@ -777,11 +785,13 @@ router.get(
 
 /* A simple API endpoint that returns the module's configuration. */
 router.get(`/:module(${valid_modules.join("|")})`, async (context) => {
-  let body: body_response & { result?: object | string | null } = {
+  const body: body_response & {
+    result?: Record<string, unknown> | string | null;
+  } = {
     ...new body_response(context.params.module),
   };
   try {
-    let mod: ModuleType =
+    const mod: ModuleType =
       new (await import(`./modules/${context.params.module}.ts`)).default();
     body.result = {
       hasLive: mod.hasLive,
@@ -817,14 +827,15 @@ export function isUrlAllowed(
        * * b2) url starts with rule without trailing slash (only if rule contains at least one slash for path
        * *        (to avoid using rule as subdomain, e.g. https://duck.com.example.com/)
        * *        e.g. rule: https://example.com/path1, url: https://example.com/path123)
-       * */
-      const ruleWithoutTrailingSlash =
-        rule.endsWith("/") ? rule.substr(0, rule.length - 1) : rule;
+       */
+      const ruleWithoutTrailingSlash = rule.endsWith("/")
+        ? rule.substr(0, rule.length - 1)
+        : rule;
       const ruleContainsPath = (rule.match(/\//g) || []).length >= 3;
       return (
         url === ruleWithoutTrailingSlash ||
         url.startsWith(
-          rule + (ruleContainsPath || rule.endsWith("/") ? "" : "/")
+          rule + (ruleContainsPath || rule.endsWith("/") ? "" : "/"),
         )
       );
     });
@@ -835,14 +846,17 @@ export function isUrlAllowed(
 app.use(async (ctx, next) => {
   try {
     if (ctx.request.url.toString().includes("/cors/")) {
-      const url = ctx.request.url.toString().slice(`${ctx.request.url.protocol}//${ctx.request.headers.get("host")}/cors/`.length);
+      const url = ctx.request.url.toString().slice(
+        `${ctx.request.url.protocol}//${ctx.request.headers.get("host")}/cors/`
+          .length,
+      );
       if (!isUrlAllowed(url, "")) {
         ctx.response.body = "403 Forbidden";
         ctx.response.status = 403;
       }
       const response = await fetch(url, {
         method: ctx.request.method,
-        body: await ctx.request.body().value
+        body: await ctx.request.body().value,
       });
       const text = await response.arrayBuffer();
       const headers = new Headers();
@@ -852,7 +866,7 @@ app.use(async (ctx, next) => {
     } else {
       // ctx.response.body = "404 Not Found";
       // ctx.response.status = 404;
-      next()
+      next();
     }
   } catch {
     ctx.response.body = "500 Internal Server Error";
@@ -862,10 +876,14 @@ app.use(async (ctx, next) => {
 
 /* A catch all route that will return a 404 error with a list of all available modules */
 app.use((context) => {
-    let body : {status: string, error: string} = {status: "ERROR", error: "Endpoint did not match any route, listing all available modules: " + valid_modules.join(", ")};
-    context.response.status = 404;
-    context.response.body = body
-})
+  const body: { status: string; error: string } = {
+    status: "ERROR",
+    error: "Endpoint did not match any route, listing all available modules: " +
+      valid_modules.join(", "),
+  };
+  context.response.status = 404;
+  context.response.body = body;
+});
 
 // createServer(8080, "/cors/", "", "");
 

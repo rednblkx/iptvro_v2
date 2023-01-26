@@ -22,14 +22,14 @@ type cache = {
 };
 
 type LoaderFunctions =
-  "sanityCheck"|
-  "rewritePlaylist"|
-  "cacheCleanup"|
-  "searchChannel"|
-  "getVODlist"|
-  "getVOD"|
-  "getVOD_EP"|
-  "login";
+  | "sanityCheck"
+  | "rewritePlaylist"
+  | "cacheCleanup"
+  | "searchChannel"
+  | "getVODlist"
+  | "getVOD"
+  | "getVOD_EP"
+  | "login";
 
 /**
  * The function takes in three parameters, the first two are required and the third is optional
@@ -48,22 +48,33 @@ function logger(
     if (isError) {
       if ((message as Error).message) {
         console.log(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message}`,
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            (message as Error).message
+          }`,
         );
       } else {
         console.log(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message) : message}`,
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            typeof message == "object" ? JSON.stringify(message) : message
+          }`,
         );
       }
     } else {
-      console.log(`\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message}`);
-      
+      console.log(
+        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+          typeof message == "object" ? JSON.stringify(message) : message
+        }`,
+      );
     }
   }
   if ((message as Error).message) {
-    return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`
+    return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message.substring(0, 200)}`;
+  return `loader - ${id}: ${
+    typeof message == "object"
+      ? JSON.stringify(message).substring(0, 200)
+      : message.substring(0, 200)
+  }`;
 }
 
 /**
@@ -74,16 +85,16 @@ function logger(
  * @returns A list of valid modules
  */
 export async function sanityCheck(): Promise<string[]> {
-  // let files_list = Deno.readDirSync(`${Deno.cwd()}/src/modules`).filter(a => extname(a) === ".ts").map(a => a.replace(".ts", ".ts"));
-  let files_list: string[] = [];
-  for await (let files of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
+  // const files_list = Deno.readDirSync(`${Deno.cwd()}/src/modules`).filter(a => extname(a) === ".ts").map(a => a.replace(".ts", ".ts"));
+  const files_list: string[] = [];
+  for await (const files of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
     if (files.isFile) {
       files_list.push(files.name);
     }
   }
-  var valid_list = [];
+  const valid_list = [];
   console.log("Modules sanity check:");
-  let modules = await Promise.all<
+  const modules = await Promise.all<
     ModuleType & { module: string; error: string }
   >(files_list.map(async (val) => {
     try {
@@ -95,13 +106,13 @@ export async function sanityCheck(): Promise<string[]> {
       };
     }
   }));
-  for (let val of modules) {
+  for (const val of modules) {
     try {
       if (val instanceof ModuleFunctions && val.MODULE_ID) {
         let valid = true;
         try {
           console.log(`\n - Module '${val.MODULE_ID}' found`);
-          let auth = await val.getAuth();
+          const auth = await val.getAuth();
           ((auth.username && auth.password) === (null || undefined || "") &&
             val.authReq) &&
             console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
@@ -138,7 +149,7 @@ export async function sanityCheck(): Promise<string[]> {
               console.log(
                 `\t${val.MODULE_ID} - initialised - Config file created!`,
               );
-              let ch = await val.getChannels();
+              const ch = await val.getChannels();
               await val.setConfig("chList", ch);
             } else {
               await val.initializeConfig();
@@ -164,7 +175,7 @@ export async function sanityCheck(): Promise<string[]> {
         );}
     } catch (error) {
       // console.error(`${error?.message || error}`);
-      logger("sanityCheck", error, true)
+      logger("sanityCheck", error, true);
       // return Promise.reject(error.message || error)
     }
   }
@@ -178,12 +189,12 @@ export async function sanityCheck(): Promise<string[]> {
  * @returns The highest bandwidth m3u8 file
  */
 function m3u8Select(data: string | string[], baseUrl: string) {
-  var parser = new Parser();
+  const parser = new Parser();
 
   parser.push(data);
   parser.end();
 
-  var parsedManifest = parser.manifest;
+  const parsedManifest = parser.manifest;
 
   let highestBandwidth: number;
 
@@ -217,18 +228,14 @@ function m3u8Select(data: string | string[], baseUrl: string) {
  * @returns the m3u file with the correct URLs.
  */
 function m3uFixURL(
-  m3u: {
-    split: (arg0: string) => any;
-    forEach: (arg0: (el: any, index: any, array: any) => void) => void;
-    join: (arg0: string) => any;
-  },
+  m3u: string,
   url: string,
 ) {
-  m3u = m3u.split("\n");
-  m3u.forEach(
-    (el: string, index: string | number, array: { [x: string]: string }) => {
+  const m3u_arr = m3u.split("\n");
+  m3u_arr.forEach(
+    (el: string, index: number, array: string[]) => {
       if (!el.includes("http") && el.match('URI="(.*)"') != null) {
-        let match = el.match(/(.*)\.key/);
+        const match = el.match(/(.*)\.key/);
         if (match !== null) {
           array[index] = el.replace(
             match[0],
@@ -241,7 +248,7 @@ function m3uFixURL(
       }
     },
   );
-  return m3u.join("\n");
+  return m3u_arr.join("\n");
 }
 
 /**
@@ -251,18 +258,23 @@ function m3uFixURL(
  */
 export async function rewritePlaylist(
   stream: { stream: string; proxy?: string },
-): Promise<any> {
+): Promise<
+  string | {
+    stream: string;
+    proxy?: string;
+  }
+> {
   try {
-    let initData = (await axios.get(stream.stream)).data;
+    const initData = (await axios.get(stream.stream)).data;
     if (initData.includes("#EXTM3U")) {
-      let initm3u8 = initData.includes("\n")
+      const initm3u8 = initData.includes("\n")
         ? initData
         : (initData.split(" ")).join("\n");
       if (initm3u8.includes(".m3u8")) {
-        let q_m3u8 = await axios.get(
+        const q_m3u8 = await axios.get(
           m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""),
         );
-        let finalP = m3uFixURL(
+        const finalP = m3uFixURL(
           q_m3u8.data,
           q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
@@ -280,7 +292,7 @@ export async function rewritePlaylist(
         "rewritePlaylist",
         error,
         true,
-      )
+      ),
     );
   }
 }
@@ -290,7 +302,7 @@ export async function rewritePlaylist(
  * @param {string[]} valid_modules - string[] - This is an array of all the modules that are valid.
  */
 export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
-  let modules: ModuleType[] = await Promise.all<ModuleType>(
+  const modules: ModuleType[] = await Promise.all<ModuleType>(
     valid_modules.map(async (val) =>
       new (await import(`./modules/${val}.ts`)).default()
     ),
@@ -301,12 +313,12 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
 
   db.data ||= [];
 
-  let removed: cache[] = [];
+  const removed: cache[] = [];
 
-  let cache_config: { [l: string]: number } = {};
+  const cache_config: { [l: string]: number } = {};
 
   try {
-    for (let mod of modules) {
+    for (const mod of modules) {
       if (mod instanceof ModuleFunctions) {
         cache_config[mod.MODULE_ID] =
           (await mod.getConfig()).url_update_interval;
@@ -369,19 +381,19 @@ export async function searchChannel(
         "searchChannel",
         `Searching for channel '${id}' in module '${module_id}'`,
       );
-      let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
-      // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
-      let config = await module.getConfig();
-      let auth = await module.getAuth();
+      // const file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
+      const config = await module.getConfig();
+      const auth = await module.getAuth();
       if (config.chList[id]) {
         logger(
           "searchChannel",
           `Found channel '${id}' in module '${module_id}'`,
         );
-        // let file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null
-        // let parsed: config = file ? JSON.parse(file) : null;
-        let cache = await module.cacheFind(id);
+        // const file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null
+        // const parsed: config = file ? JSON.parse(file) : null;
+        const cache = await module.cacheFind(id);
         if (cache !== null && config.url_cache_enabled) {
           logger(
             "searchChannel",
@@ -401,7 +413,7 @@ export async function searchChannel(
             "searchChannel",
             `No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`,
           );
-          let data = await module.liveChannels(
+          const data = await module.liveChannels(
             config.chList[id],
             auth.authTokens,
             auth.lastupdated,
@@ -418,7 +430,7 @@ export async function searchChannel(
           "searchChannel",
           `Channel '${id}' not found in module '${module_id}', updating list`,
         );
-        let get_ch: { [k: string]: string } = await module.getChannels();
+        const get_ch: { [k: string]: string } = await module.getChannels();
         await module.setConfig("chList", get_ch);
         if (get_ch[id]) {
           logger(
@@ -426,7 +438,7 @@ export async function searchChannel(
             `Found channel '${id}' in module '${module_id}'`,
           );
           module.setConfig("chList", get_ch);
-          let cache = await module.cacheFind(id);
+          const cache = await module.cacheFind(id);
           if (cache !== null && (await module.getConfig()).url_cache_enabled) {
             logger(
               "searchChannel",
@@ -446,7 +458,7 @@ export async function searchChannel(
               "searchChannel",
               `No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`,
             );
-            let data = await module.liveChannels(
+            const data = await module.liveChannels(
               get_ch[id],
               auth.authTokens,
               auth.lastupdated,
@@ -458,7 +470,11 @@ export async function searchChannel(
               cache: false,
             });
           }
-        } else {return Promise.reject(logger("searchChannel", `Module ${module_id} doesn't have channel '${id}'`)
+        } else {return Promise.reject(
+            logger(
+              "searchChannel",
+              `Module ${module_id} doesn't have channel '${id}'`,
+            ),
           );}
       }
     } catch (error) {
@@ -467,25 +483,25 @@ export async function searchChannel(
       );
     }
   } else {
-    let modules: ModuleType[] = await Promise.all(
+    const modules: ModuleType[] = await Promise.all(
       valid_modules.map(async (mod) =>
         new (await import(`./modules/${mod}.ts`)).default()
       ),
     );
-    for (let module of modules) {
+    for (const module of modules) {
       try {
         logger(
           "searchChannel",
           `Searching for channel '${id}' in module '${module.MODULE_ID}'`,
         );
-        let config = await module.getConfig();
-        let auth = await module.getAuth();
+        const config = await module.getConfig();
+        const auth = await module.getAuth();
         if (config?.chList[id]) {
           logger(
             "searchChannel",
             `Found channel '${id}' in module '${module.MODULE_ID}'`,
           );
-          let cache = await module.cacheFind(id);
+          const cache = await module.cacheFind(id);
           if (cache !== null && config.url_cache_enabled) {
             logger(
               "searchChannel",
@@ -513,7 +529,7 @@ export async function searchChannel(
                   : ""
               }`,
             );
-            let data = await module.liveChannels(
+            const data = await module.liveChannels(
               config.chList[id],
               auth.authTokens,
               auth.lastupdated,
@@ -534,7 +550,7 @@ export async function searchChannel(
         );
         logger(
           "searchChannel",
-            error,
+          error,
           true,
         );
         // return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
@@ -554,7 +570,7 @@ export async function searchChannel(
 export async function getVODlist(module_id: string, page?: number) {
   if (module_id) {
     try {
-      let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
         return Promise.resolve(
@@ -566,8 +582,7 @@ export async function getVODlist(module_id: string, page?: number) {
           ),
         );}
     } catch (error) {
-      return Promise.reject(logger("getVODlist", error, true)
-      );
+      return Promise.reject(logger("getVODlist", error, true));
     }
   } else return Promise.reject(logger("getVODlist", "Module ID not provided"));
 }
@@ -589,20 +604,23 @@ export async function getVOD(
 ) {
   if (module_id) {
     try {
-      let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
-        let res = await module.getVOD(
+        const res = await module.getVOD(
           show_id,
           (await module.getAuth()).authTokens,
           page,
         );
         return Promise.resolve(res);
-      } else {return Promise.reject(logger("getVOD", `Module ${module_id} doesn't have VOD enabled/implemented`)
+      } else {return Promise.reject(
+          logger(
+            "getVOD",
+            `Module ${module_id} doesn't have VOD enabled/implemented`,
+          ),
         );}
     } catch (error) {
-      return Promise.reject(logger("getVOD", error, true)
-      );
+      return Promise.reject(logger("getVOD", error, true));
     }
   } else return Promise.reject(logger("getVOD", "Module ID not provided"));
 }
@@ -620,11 +638,11 @@ export async function getVOD_EP(
 ) {
   if (module_id) {
     try {
-      let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
-        let cache = await module.cacheFind(epid);
-        let cache_enabled = (await module.getConfig()).url_cache_enabled;
+        const cache = await module.cacheFind(epid);
+        const cache_enabled = (await module.getConfig()).url_cache_enabled;
         if (cache !== null && cache_enabled) {
           return Promise.resolve(cache.data.stream);
         } else {
@@ -638,7 +656,7 @@ export async function getVOD_EP(
               cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
-          let res = await module.getVOD_EP(
+          const res = await module.getVOD_EP(
             show_id,
             epid,
             (await module.getAuth()).authTokens,
@@ -646,11 +664,14 @@ export async function getVOD_EP(
           await module.cacheFill(epid, { stream: res });
           return Promise.resolve(res);
         }
-      } else {return Promise.reject(logger("getVOD_EP", `Module ${module_id} doesn't have VOD enabled/implemented`)
+      } else {return Promise.reject(
+          logger(
+            "getVOD_EP",
+            `Module ${module_id} doesn't have VOD enabled/implemented`,
+          ),
         );}
     } catch (error) {
-      return Promise.reject(logger("getVOD_EP", error, true)
-      );
+      return Promise.reject(logger("getVOD_EP", error, true));
     }
   } else return Promise.reject(logger("getVOD_EP", "Module ID not provided"));
 }
@@ -670,13 +691,14 @@ export async function login(
 ) {
   try {
     if (username && password) {
-      let module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       return Promise.resolve(await module.login(username, password));
-    } else return  Promise.reject(logger("login", "Username/Password not provided", true))
+    } else {return Promise.reject(
+        logger("login", "Username/Password not provided", true),
+      );}
   } catch (error) {
-    return Promise.reject(logger("login", error, true)
-    );
+    return Promise.reject(logger("login", error, true));
   }
 }
 

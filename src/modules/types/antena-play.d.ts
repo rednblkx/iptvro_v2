@@ -1,9 +1,11 @@
 export interface IVODList {
+  [k: string]: unknown;
   data: Datum_VOD[];
   meta: Meta;
 }
 
 interface Datum_VOD {
+  [k: string]: unknown;
   id: number;
   show_name: string;
   ivm_category: string;
@@ -118,11 +120,13 @@ interface Meta {
 }
 
 export interface IVODEpisodes {
+  [k: string]: unknown;
   data: DatumEpisodes[];
   meta: Meta;
 }
 
 export interface DatumEpisodes {
+  [k: string]: unknown;
   id: number;
   video_title: string;
   video_description: string;

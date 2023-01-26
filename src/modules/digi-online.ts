@@ -22,7 +22,7 @@ class ModuleInstance extends ModuleClass {
    * @returns A string of random uuids
    */
   private uuidGen(number: number, uuid = ""): string {
-    let gen = crypto.randomUUID().replace(/\-/g, "");
+    const gen = crypto.randomUUID().replace(/\-/g, "");
     if (number == 0) {
       return uuid;
     }
@@ -37,13 +37,13 @@ class ModuleInstance extends ModuleClass {
    * @returns An object with two properties, id and hash.
    */
   private generateId(username: string, password: string, uhash: string) {
-    let deviceStr = `Kodeative_iptvro_${
+    const deviceStr = `Kodeative_iptvro_${
       BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()
     }`;
-    let deviceId = `${deviceStr}_${
+    const deviceId = `${deviceStr}_${
       this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))
     }`;
-    let md5hash = new Md5().update(
+    const md5hash = new Md5().update(
       `${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`,
     ).toString();
     return { id: deviceId, hash: md5hash };
@@ -59,8 +59,8 @@ class ModuleInstance extends ModuleClass {
     if (!password || !username) {
       throw "Username/Password not provided";
     }
-    // let auth = this.getAuth();
-    let pwdHash = new Md5().update(password).toString();
+    // const auth = this.getAuth();
+    const pwdHash = new Md5().update(password).toString();
     try {
       type login = {
         meta: {
@@ -94,7 +94,7 @@ class ModuleInstance extends ModuleClass {
           h: string;
         };
       };
-      let login_res = await axios.get<login>(
+      const login_res = await axios.get<login>(
         `https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${
           encodeURIComponent(username)
         }`,
@@ -109,15 +109,15 @@ class ModuleInstance extends ModuleClass {
       if (login_res.data.meta.error != "0") {
         throw login_res.data.result.message;
       }
-      let userHash = login_res.data?.data?.h;
+      const userHash = login_res.data?.data?.h;
 
       if (!userHash) {
         throw "Hash not received, something went wrong!";
       }
 
-      let id = this.generateId(username, pwdHash, userHash);
+      const id = this.generateId(username, pwdHash, userHash);
 
-      let register = await axios.get<device_register>(
+      const register = await axios.get<device_register>(
         `https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${
           encodeURIComponent(username)
         }&o=REL_12`,
@@ -155,17 +155,16 @@ class ModuleInstance extends ModuleClass {
   async liveChannels(
     id: string,
     authTokens: string[],
-    authLastUpdate: Date,
+    _authLastUpdate: Date,
   ): Promise<{ stream: string; proxy?: string }> {
-    let config = await this.getConfig();
     try {
       if (!(authTokens.length > 0)) {
-        let auth = await this.getAuth();
+        const auth = await this.getAuth();
         this.logger("liveChannels", "No tokens, trying login");
         authTokens = await this.login(auth.username, auth.password);
       }
       this.logger("liveChannels", "getting the stream");
-      let play = await axios.get(
+      const play = await axios.get(
         `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${
           authTokens[0]
         }&sn=ro.rcsrds.digionline&s=app&quality=all`,
@@ -191,10 +190,6 @@ class ModuleInstance extends ModuleClass {
         proxy: play.data.stream.proxy || undefined,
       });
     } catch (error) {
-      //   let auth = this.getAuth();
-      //   this.login(auth.authTokens).then(() => {
-      //       getFromDigi(channel).then(stream => resolve(stream)).catch(er => reject(er))
-      //   }).catch(er => reject(er))
       this.logger("liveChannels", `Error from provider: ${error}`, true);
       return Promise.reject(error);
     }
@@ -204,15 +199,15 @@ class ModuleInstance extends ModuleClass {
    * It gets a list of channels from the API and returns a promise with a list of channels
    * @returns A promise that resolves to an object containing the channel name and id.
    */
-  async getChannels(): Promise<object> {
+  async getChannels(): Promise<Record<string, unknown>> {
     try {
-      let channels = await axios.get(
+      const channels = await axios.get(
         "https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php",
       );
 
-      let chList: { [k: string]: string } = {};
+      const chList: { [k: string]: string } = {};
       channels.data.data.channels_list.forEach(
-        (element: { channel_name: string | number; id_channel: any }) => {
+        (element: { channel_name: string | number; id_channel: string }) => {
           // console.log(`${element.channel_name} - ${element.id_channel}`);
           chList[element.channel_name] = element.id_channel;
         },

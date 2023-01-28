@@ -212,7 +212,6 @@ class ModuleFunctions {
       await this.db.write();
 
       this.logger("initializeConfig", "Config file created");
-      // .then(() => this.logger('initializeConfig', 'Config file created'))
     } catch (error) {
       return Promise.reject(error);
     }
@@ -289,7 +288,7 @@ class ModuleFunctions {
    * @param {any} value - any - this is the value you want to set the key to.
    * @returns A promise that resolves when the config file has been updated.
    */
-  async setConfig(key: string, value: string) {
+  async setConfig(key: string, value: Record<string, unknown> | string) {
     // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
     // const db = new Low(adapter)
     await this.db.read();

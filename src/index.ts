@@ -290,10 +290,6 @@ router.get(
 router.get(
   `/:module(${valid_modules.join("|")})/live/:playlist(index.m3u8)?`,
   async (context, next) => {
-    if (
-      context.params.module &&
-      valid_modules.find((x) => x == context.params.module) != undefined
-    ) {
       logger(
         "live",
         `live channels requested for module '${context.params.module}'`,
@@ -317,46 +313,21 @@ router.get(
         context.response.headers.set("Access-Control-Allow-Origin", "*");
         context.response.headers.set("Content-Type", "application/x-mpegURL");
         context.response.body = playlist.join("\n");
-      } else await next();
-    } else {
-      context.response.status = 400;
-      context.response.body = new Response(
-        "ERROR",
-        context.params.module,
-        null,
-        undefined,
-        `Module '${context.params.module}' not found`,
-      );
-    }
-  },
-  async (ctx) => {
-    if (
-      ctx.params.module &&
-      valid_modules.find((x) => x == ctx.params.module) != undefined
-    ) {
-      logger(
-        "live",
-        `live channels requested for module '${ctx.params.module}'`,
-      );
-      const mod: ModuleType =
-        new (await import(`./modules/${ctx.params.module}.ts`)).default();
-      const data = Object.keys((await mod.getConfig()).chList);
-      if (!data) {
-        throw "No data received from method!";
+      } else {
+        logger(
+          "live",
+          `live channels requested for module '${context.params.module}'`,
+        );
+        const mod: ModuleType =
+          new (await import(`./modules/${context.params.module}.ts`)).default();
+        const data = Object.keys((await mod.getConfig()).chList);
+        if (!data) {
+          throw "No data received from method!";
+        }
+        // res.json(body)
+        context.response.body = new Response("SUCCESS", context.params.module, data);
       }
-      // res.json(body)
-      ctx.response.body = new Response("SUCCESS", ctx.params.module, data);
-    } else {
-      ctx.response.status = 400;
-      ctx.response.body = new Response(
-        "ERROR",
-        ctx.params.module,
-        null,
-        undefined,
-        `Module '${ctx.params.module}' not found`,
-      );
     }
-  },
 );
 
 router.get(
@@ -480,10 +451,6 @@ router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show`,
   async (context) => {
-    if (
-      context.params.module &&
-      valid_modules.find((x) => x == context.params.module) != undefined
-    ) {
       logger(
         "vod",
         `VOD '${context.params.show}' requested from module '${context.params.module}'`,
@@ -503,27 +470,13 @@ router.get(
         context.params.module,
         data,
       );
-    } else {
-      context.response.status = 400;
-      context.response.body = new Response(
-        "ERROR",
-        context.params.module,
-        null,
-        undefined,
-        `Module '${context.params.module}' not found`,
-      );
     }
-  },
 );
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show/:epid`,
   async (context) => {
-    if (
-      context.params.module &&
-      valid_modules.find((x) => x == context.params.module) != undefined
-    ) {
       logger(
         "vod",
         `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`,
@@ -543,16 +496,6 @@ router.get(
         data.stream,
         data.cache,
       );
-    } else {
-      context.response.status = 400;
-      context.response.body = new Response(
-        "ERROR",
-        context.params.module,
-        null,
-        undefined,
-        `Module '${context.params.module}' not found`,
-      );
-    }
   },
 );
 

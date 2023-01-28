@@ -1,5 +1,5 @@
 import { default as ModuleFunctions, ModuleType } from "./moduleClass.ts";
-// import { extname } from 'https://deno.land/std@0.172.0/path/mod.ts';
+import { extname } from "https://deno.land/std@0.172.0/path/mod.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import { Parser } from "npm:m3u8-parser";
@@ -85,11 +85,10 @@ function logger(
  * @returns A list of valid modules
  */
 export async function sanityCheck(): Promise<string[]> {
-  // const files_list = Deno.readDirSync(`${Deno.cwd()}/src/modules`).filter(a => extname(a) === ".ts").map(a => a.replace(".ts", ".ts"));
   const files_list: string[] = [];
-  for await (const files of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
-    if (files.isFile) {
-      files_list.push(files.name);
+  for await (const file of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
+    if (file.isFile && extname(file.name) === ".ts") {
+      files_list.push(file.name);
     }
   }
   const valid_list = [];
@@ -113,7 +112,7 @@ export async function sanityCheck(): Promise<string[]> {
         try {
           console.log(`\n - Module '${val.MODULE_ID}' found`);
           const auth = await val.getAuth();
-          ((auth.username && auth.password) === (null || undefined || "") &&
+          ((!auth.username || !auth.password) &&
             val.authReq) &&
             console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
           !val.login &&
@@ -124,14 +123,14 @@ export async function sanityCheck(): Promise<string[]> {
           if (val.hasLive && !val.liveChannels) {
             val.logger(
               "sanityCheck",
-              `\t${val.MODULE_ID} - WARNING hasLive true but liveChannels method not implemented`,
+              `\t${val.MODULE_ID} - WARNING hasLive is enabled but liveChannels method not implemented`,
             );
             valid = false;
           }
           if (val.hasVOD && !val.getVOD) {
             val.logger(
               "sanityCheck",
-              `\t${val.MODULE_ID} - WARNING hasVOD true but getVOD method not implemented`,
+              `\t${val.MODULE_ID} - WARNING hasVOD is enabled but getVOD method not implemented`,
             );
             valid = false;
           }
@@ -141,13 +140,13 @@ export async function sanityCheck(): Promise<string[]> {
               await val.initializeConfig(val.chList);
               console.log(`\n - Module '${val.MODULE_ID}' found`);
               console.log(
-                `\t${val.MODULE_ID} - initialised - Config file created!`,
+                `\t${val.MODULE_ID} - Config file created!`,
               );
             } else if (val.getChannels?.constructor.name === "AsyncFunction") {
               console.log(`\n - Module '${val.MODULE_ID}' found`);
               await val.initializeConfig();
               console.log(
-                `\t${val.MODULE_ID} - initialised - Config file created!`,
+                `\t${val.MODULE_ID} - Config file created!`,
               );
               const ch = await val.getChannels();
               await val.setConfig("chList", ch);
@@ -383,35 +382,34 @@ export async function searchChannel(
       );
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
-      // const file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null;
       const config = await module.getConfig();
       const auth = await module.getAuth();
+      const cache = await module.cacheFind(id);
       if (config.chList[id]) {
         logger(
           "searchChannel",
           `Found channel '${id}' in module '${module_id}'`,
         );
-        // const file = existsSync(`${process.cwd()}/src/modules/${module_id}.json`) ? readFileSync(`${process.cwd()}/src/modules/${module_id}.json`).toString() : null
-        // const parsed: config = file ? JSON.parse(file) : null;
-        const cache = await module.cacheFind(id);
         if (cache !== null && config.url_cache_enabled) {
           logger(
             "searchChannel",
-            `Found cached link for channel '${id}' in module '${module_id}'`,
-          );
-          logger(
-            "searchChannel",
-            `Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`,
+            `Found cached link for channel '${id}' in module '${module_id}' - '${cache.data.stream}'`,
           );
           return Promise.resolve({
             data: cache.data,
             module: module_id,
-            cache: true,
+            cache: config.url_cache_enabled,
           });
         } else {
           logger(
             "searchChannel",
-            `No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`,
+            `${
+              config.url_cache_enabled
+                ? `No cached link found for channel '${id}' in`
+                : "Cache not enabled for"
+            } module '${module.MODULE_ID}'${
+              config.url_cache_enabled ? `, trying to retrieve from module` : ""
+            }`,
           );
           const data = await module.liveChannels(
             config.chList[id],
@@ -422,7 +420,7 @@ export async function searchChannel(
           return Promise.resolve({
             data: data,
             module: module_id,
-            cache: false,
+            cache: config.url_cache_enabled,
           });
         }
       } else {
@@ -438,25 +436,28 @@ export async function searchChannel(
             `Found channel '${id}' in module '${module_id}'`,
           );
           module.setConfig("chList", get_ch);
-          const cache = await module.cacheFind(id);
-          if (cache !== null && (await module.getConfig()).url_cache_enabled) {
+          if (cache !== null && config.url_cache_enabled) {
             logger(
               "searchChannel",
-              `Found cached link for channel '${id}' in module '${module_id}'`,
-            );
-            logger(
-              "searchChannel",
-              `Cached link for channel '${id}' in module '${module_id}' is '${cache.data.stream}'`,
+              `Found cached link for channel '${id}' in module '${module_id}' - '${cache.data.stream}'`,
             );
             return Promise.resolve({
               data: cache.data,
               module: module_id,
-              cache: true,
+              cache: config.url_cache_enabled,
             });
           } else {
             logger(
               "searchChannel",
-              `No cached link found for channel '${id}' in module '${module_id}', trying to retrieve from module`,
+              `${
+                config.url_cache_enabled
+                  ? `No cached link found for channel '${id}' in`
+                  : "Cache not enabled for"
+              } module '${module.MODULE_ID}'${
+                config.url_cache_enabled
+                  ? `, trying to retrieve from module`
+                  : ""
+              }`,
             );
             const data = await module.liveChannels(
               get_ch[id],
@@ -467,7 +468,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: data,
               module: module_id,
-              cache: false,
+              cache: config.url_cache_enabled,
             });
           }
         } else {return Promise.reject(
@@ -505,16 +506,12 @@ export async function searchChannel(
           if (cache !== null && config.url_cache_enabled) {
             logger(
               "searchChannel",
-              `Found cached link for channel '${id}' in module '${module.MODULE_ID}'`,
-            );
-            logger(
-              "searchChannel",
-              `Cached link for channel '${id}' in module '${module.MODULE_ID}' is '${cache.data.stream}'`,
+              `Found cached link for channel '${id}' in module '${module.MODULE_ID}' - '${cache.data.stream}'`,
             );
             return Promise.resolve({
               data: cache.data,
               module: cache.module,
-              cache: true,
+              cache: config.url_cache_enabled,
             });
           } else {
             logger(
@@ -538,7 +535,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: data,
               module: module.MODULE_ID,
-              cache: false,
+              cache: config.url_cache_enabled,
             });
           }
         }
@@ -635,7 +632,7 @@ export async function getVOD_EP(
   module_id: string,
   show_id: string,
   epid: string,
-) {
+): Promise<{ stream: string; cache: boolean }> {
   if (module_id) {
     try {
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
@@ -644,7 +641,10 @@ export async function getVOD_EP(
         const cache = await module.cacheFind(epid);
         const cache_enabled = (await module.getConfig()).url_cache_enabled;
         if (cache !== null && cache_enabled) {
-          return Promise.resolve(cache.data.stream);
+          return Promise.resolve({
+            stream: cache.data.stream,
+            cache: cache_enabled,
+          });
         } else {
           logger(
             "getVOD_EP",
@@ -662,7 +662,7 @@ export async function getVOD_EP(
             (await module.getAuth()).authTokens,
           );
           await module.cacheFill(epid, { stream: res });
-          return Promise.resolve(res);
+          return Promise.resolve({ stream: res, cache: cache_enabled });
         }
       } else {return Promise.reject(
           logger(

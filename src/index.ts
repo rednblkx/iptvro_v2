@@ -10,23 +10,37 @@ import {
   viewEngine,
 } from "https://deno.land/x/view_engine@v10.6.0/mod.ts";
 
+import * as Loader from "./loader.ts";
+
+import { ModuleType } from "./moduleClass.ts";
+import { Low } from "npm:lowdb";
+import { JSONFile } from "npm:lowdb/node";
+import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
+
 const app = new Application();
+const router = new Router();
+app.use(router.routes());
+app.use(router.allowedMethods());
 
 app.use(
   viewEngine(oakAdapter, dejsEngine, {
     viewRoot: `${Deno.cwd()}/views`,
   }),
 );
-const router = new Router();
-app.use(router.routes());
-app.use(router.allowedMethods());
-
-import * as Loader from "./loader.ts";
-
-import { ModuleType } from "./moduleClass.ts";
-import { Low } from "npm:lowdb";
-import { JSONFile } from "npm:lowdb/node";
-import axios from "https://deno.land/x/axiod/mod.ts";
+app.use(async (ctx, next: () => Promise<unknown>) => {
+  const body: { status: string; error: string } = {
+    status: "",
+    error: "",
+  };
+  try {
+    await next();
+  } catch (error) {
+    body.status = "ERROR";
+    body.error = error.message || error.toString().substring(0, 200);
+    ctx.response.status = 500;
+    ctx.response.body = body;
+  }
+});
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
 export const PORT = Number(Deno.env.get("PORT")) || 3000;
@@ -47,16 +61,33 @@ if (debug === "true") {
 
 /* The body_response class is a class that is used to create a response object that is sent back to the
 client */
-export class body_response {
-  [k: string]: unknown;
+export interface body_response {
   status: string;
   module: string;
+  data: string | Record<string, unknown> | unknown[] | null;
   error?: string;
   authTokens?: string[] | null;
+}
 
-  constructor(module: string) {
-    this.status = "SUCCESS";
+class Response {
+  status: "SUCCESS" | "ERROR";
+  module: string | null;
+  data: string | Record<string, unknown> | unknown[] | null;
+  cache?: boolean;
+  error?: string;
+
+  constructor(
+    status: "SUCCESS" | "ERROR",
+    module: string | null,
+    data: string | Record<string, unknown> | unknown[] | null,
+    cache?: boolean,
+    error?: string,
+  ) {
+    this.status = status;
     this.module = module;
+    this.data = data;
+    this.cache = cache;
+    this.error = error;
   }
 }
 
@@ -70,7 +101,7 @@ export class body_response {
  */
 function logger(
   id: string,
-  message: string | Error | Record<string, unknown>,
+  message: unknown,
   isError?: boolean,
 ): string {
   if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
@@ -102,12 +133,27 @@ function logger(
   return `loader - ${id}: ${
     typeof message == "object"
       ? JSON.stringify(message).substring(0, 200)
-      : message.substring(0, 200)
+      : (message as string).substring(0, 200)
   }`;
 }
 
+// const RouteErrorHandling = async (ctx: RouterContext<string, RouteParams<string>, Record<string, any>>, next: () => Promise<unknown>) => {
+//   const body: {status: string, data: unknown, error?: string} = {
+//     status: "",
+//     data: "",
+//   };
+//   try {
+//     await next()
+//   } catch (error) {
+//     body.status = "ERROR";
+//     body.error = error.message || error.toString().substring(0, 200);
+//     ctx.response.status = 500;
+//     ctx.response.body = body;
+//   }
+// }
+
 /* A simple API that returns the cache of a module. */
-router.get("/cache", async (context) => {
+router.get(`/:module(${valid_modules.join("|")})?/cache`, async (context) => {
   type cache = {
     name: string;
     link: string;
@@ -115,48 +161,39 @@ router.get("/cache", async (context) => {
     lastupdated: Date;
   };
   const query = helpers.getQuery(context);
-  const body: body_response & { result: cache | cache[] | null | undefined } = {
-    ...new body_response(query.module),
-    result: null,
-  };
   const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
   const db = new Low(adapter);
   await db.read();
-  try {
-    if (query.module) {
-      const module = new (await import(`./modules/${query.module}.ts`))
-        .default();
-      logger(
-        "cache",
+  if (context.params.module) {
+    logger(
+      "cache",
+      query.id
+        ? `cache requested for id '${query.id}' on module '${context.params.module}'`
+        : `cache requested for module ${context.params.module}`,
+    );
+    const cacheAll = db.data &&
+      db.data.filter((a) =>
         query.id
-          ? `cache requested for id '${query.id}' on module '${query.module}'`
-          : `cache requested for module ${query.module}`,
+          ? a.name === query.id && a.module === context.params.module
+          : a.module === context.params.module
       );
-      const cacheAll = db.data &&
-        db.data.filter((a) =>
-          query.id
-            ? a.name === query.id && a.module === module.MODULE_ID
-            : a.module === module.MODULE_ID
-        );
-      logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
-      body.status = "SUCCESS";
-      body.result = cacheAll;
-      context.response.body = body;
-    } else {
-      logger("cache", `cache requested for all modules`);
-      const cacheid = query.id
-        ? db.data?.find((a) => a.name === query.id)
-        : db.data;
-      logger("cache", `cacheid: ${JSON.stringify(cacheid)}`);
-      body.status = "SUCCESS";
-      body.result = cacheid;
-      context.response.body = body;
-    }
-  } catch (error) {
-    body.status = "ERROR";
-    body.error = error.message || error.toString().substring(0, 200);
-    context.response.status = 500;
-    context.response.body = body;
+    logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
+    context.response.body = new Response(
+      "SUCCESS",
+      context.params.module,
+      cacheAll,
+    );
+  } else {
+    logger("cache", `cache requested for all modules`);
+    const cacheid = query.id
+      ? db.data?.find((a) => a.name === query.id)
+      : db.data;
+    logger("cache", `cacheid: ${JSON.stringify(cacheid)}`);
+    context.response.body = new Response(
+      "SUCCESS",
+      context.params.module,
+      cacheid || null,
+    );
   }
 });
 
@@ -164,120 +201,109 @@ router.get("/cache", async (context) => {
 router.get(
   "/live/:channel/:playlist(index.m3u8)?/:player(player)?",
   async (context) => {
-    const query = helpers.getQuery(context);
-    const body: body_response & {
-      result: { stream: string; proxy?: string | undefined } | null | undefined;
-    } = { ...new body_response(query.module), result: null };
-    context.response.headers.set("Access-Control-Allow-Origin", "*");
-    try {
-      if (context.params.playlist == "index.m3u8") {
+    if (context.params.playlist == "index.m3u8") {
+      logger(
+        "live",
+        `live stream requested for channel '${context.params.channel}' with parameter proxy`,
+      );
+      const stream = await Loader.searchChannel(
+        context.params.channel,
+        "",
+        valid_modules,
+      );
+      const data = await Loader.rewritePlaylist(stream.data) as {
+        stream: string;
+        proxy?: string;
+      };
+      if (context.params.player == "player") {
         logger(
           "live",
-          `live stream requested for channel '${context.params.channel}' with parameter proxy`,
+          `live stream requested for channel '${context.params.channel}' with parameter player and proxy`,
         );
-        const stream = await Loader.searchChannel(
-          context.params.channel,
-          "",
-          valid_modules,
-        );
-        const data = await Loader.rewritePlaylist(stream.data) as {
-          stream: string;
-          proxy?: string;
-        };
-        if (context.params.player == "player") {
-          logger(
-            "live",
-            `live stream requested for channel '${context.params.channel}' with parameter player and proxy`,
-          );
-          if (data.stream) {
-            // const checkRedirect = await axios.get(data.stream, {
-            //   redirect: "follow",
-            // });
-            // const redir = checkRedirect.config.url !== data.stream
-            //   ? checkRedirect.config.url
-            //   : data.stream;
-            // if (checkRedirect.config.url !== data.stream) {
-            //   logger("live", `redirected to '${redir}' from '${data.stream}'`);
-            // }
-            context.render("player.ejs", {
-              stream: `http://localhost:${PORT}/cors/${data.stream}`,
-              proxy: data.proxy,
-              origin: (new URL(data.stream)).hostname,
-            });
-          } else {
-            context.render("player.ejs", {
-              stream:
-                `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
-              proxy: "",
-            });
-          }
+        if (data.stream) {
+          // const checkRedirect = await axios.get(data.stream, {
+          //   redirect: "follow",
+          // });
+          // const redir = checkRedirect.config.url !== data.stream
+          //   ? checkRedirect.config.url
+          //   : data.stream;
+          // if (checkRedirect.config.url !== data.stream) {
+          //   logger("live", `redirected to '${redir}' from '${data.stream}'`);
+          // }
+          context.render("player.ejs", {
+            stream: `http://localhost:${PORT}/cors/${data.stream}`,
+            proxy: data.proxy,
+            origin: (new URL(data.stream)).hostname,
+          });
         } else {
-          if (data.stream) {
-            context.response.body = data.stream;
-          } else {
-            context.response.headers.set(
-              "Content-Type",
-              "application/vnd.apple.mpegurl",
-            );
-            context.response.body = data;
-          }
+          context.render("player.ejs", {
+            stream:
+              `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
+            proxy: "",
+          });
         }
       } else {
-        logger(
-          "live",
-          `live stream requested for channel '${context.params.channel}'`,
-        );
-        const data = await Loader.searchChannel(
-          context.params.channel,
-          "",
-          valid_modules,
-        );
-        body.status = "SUCCESS";
-        body.result = data.data;
-        body.module = data.module;
-        if (!body.result) {
-          throw "No data received from method!";
-        }
-        if (context.params.player == "player") {
-          logger(
-            "live",
-            `live stream requested for channel '${context.params.channel}' with player`,
-          );
-          const checkRedirect = await axios.get(data.data.stream, {
-            redirect: "follow",
-          });
-          const redir = checkRedirect.config.url !== data.data.stream
-            ? checkRedirect.config.url
-            : data.data.stream;
-          if (checkRedirect.config.url !== data.data.stream) {
-            logger(
-              "live",
-              `redirected to '${redir}' from '${data.data.stream}'`,
-            );
-          }
-          context.render("player.ejs", {
-            stream: `http://localhost:${PORT}/cors/${redir}`,
-            proxy: data.data.proxy,
-            origin: (new URL(redir || "")).hostname,
-          });
+        if (data.stream) {
+          context.response.body = data.stream;
         } else {
-          context.response.body = body;
+          context.response.headers.set(
+            "Content-Type",
+            "application/vnd.apple.mpegurl",
+          );
+          context.response.body = data;
         }
       }
-    } catch (error) {
-      body.status = "ERROR";
-      body.error = error.message || error.toString().substring(0, 200);
-      // context.status(400).json(body)
-      context.response.status = 400;
-      context.response.body = body;
+    } else {
+      logger(
+        "live",
+        `live stream requested for channel '${context.params.channel}'`,
+      );
+      const data = await Loader.searchChannel(
+        context.params.channel,
+        "",
+        valid_modules,
+      );
+      if (!data.data) {
+        throw "No data received from method!";
+      }
+      if (context.params.player == "player") {
+        logger(
+          "live",
+          `live stream requested for channel '${context.params.channel}' with player`,
+        );
+        const checkRedirect = await axios.get(data.data.stream, {
+          redirect: "follow",
+        });
+        const redir = checkRedirect.config.url !== data.data.stream
+          ? checkRedirect.config.url
+          : data.data.stream;
+        if (checkRedirect.config.url !== data.data.stream) {
+          logger(
+            "live",
+            `redirected to '${redir}' from '${data.data.stream}'`,
+          );
+        }
+        context.render("player.ejs", {
+          stream: `http://localhost:${PORT}/cors/${redir}`,
+          proxy: data.data.proxy,
+          origin: (new URL(redir || "")).hostname,
+        });
+      } else {
+        context.response.body = new Response(
+          "SUCCESS",
+          data.module,
+          data.data,
+          data.cache,
+        );
+      }
     }
   },
 );
 
 /* A simple GET request that returns the live channels of a module. */
-router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
-  const body: body_response = new body_response(context.params.module);
-  try {
+router.get(
+  `/:module(${valid_modules.join("|")})/live/:playlist(index.m3u8)?`,
+  async (context, next) => {
     if (
       context.params.module &&
       valid_modules.find((x) => x == context.params.module) != undefined
@@ -308,26 +334,17 @@ router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
         context.response.body = playlist.join("\n");
       } else await next();
     } else {
-      body.status = "ERROR";
-      body.error = `Module '${context.params.module}' not found`;
-      // res.status(400).json(body);
       context.response.status = 400;
-      context.response.body = body;
+      context.response.body = new Response(
+        "ERROR",
+        context.params.module,
+        null,
+        undefined,
+        `Module '${context.params.module}' not found`,
+      );
     }
-  } catch (error) {
-    body.status = "ERROR";
-    body.error = error.message || error.toString().substring(0, 200);
-    // res.status(502).json(body)
-    context.response.status = 500;
-    context.response.body = body;
-  }
-}, async (ctx) => {
-  const body: body_response & { result: string[] } = {
-    ...new body_response(ctx.params.module),
-    result: [],
-  };
-
-  try {
+  },
+  async (ctx) => {
     if (
       ctx.params.module &&
       valid_modules.find((x) => x == ctx.params.module) != undefined
@@ -338,155 +355,137 @@ router.get("/:module/live/:playlist(index.m3u8)?", async (context, next) => {
       );
       const mod: ModuleType =
         new (await import(`./modules/${ctx.params.module}.ts`)).default();
-      body.status = "SUCCESS";
-      body.result = Object.keys((await mod.getConfig()).chList);
-      if (!body.result) {
+      const data = Object.keys((await mod.getConfig()).chList);
+      if (!data) {
         throw "No data received from method!";
       }
       // res.json(body)
-      ctx.response.body = body;
+      ctx.response.body = new Response("SUCCESS", ctx.params.module, data);
     } else {
-      body.status = "ERROR";
-      body.error = `Module '${ctx.params.module}' not found`;
-      // res.status(400).json(body);
       ctx.response.status = 400;
-      ctx.response.body = body;
+      ctx.response.body = new Response(
+        "ERROR",
+        ctx.params.module,
+        null,
+        undefined,
+        `Module '${ctx.params.module}' not found`,
+      );
     }
-  } catch (error) {
-    logger("index", body);
-    logger("index", error);
-    body.status = "ERROR";
-    body.error = error;
-    // res.status(502).json(body)
-    // ctx.response.status = 500;
-    ctx.response.body = "";
-  }
-});
+  },
+);
 
 router.get(
-  "/:module/live/:channel/:playlist(index.m3u8)?/:player(player)?",
+  `/:module(${
+    valid_modules.join("|")
+  })/live/:channel/:playlist(index.m3u8)?/:player(player)?`,
   async (context) => {
-    const body: body_response & {
-      result?: { stream: string; proxy?: string | undefined };
-    } = { ...new body_response(context.params.module) };
     if (context.params.module) {
       if (valid_modules.find((x) => x == context.params.module) != undefined) {
         if (context.params.playlist == "index.m3u8") {
-          try {
+          logger(
+            "live",
+            `live stream requested for channel '${context.params.channel}' with parameter proxy`,
+          );
+          const stream = await Loader.searchChannel(
+            context.params.channel,
+            context.params.module,
+            valid_modules,
+          );
+          const data = await Loader.rewritePlaylist(stream.data) as {
+            stream: string;
+            proxy?: string;
+          };
+          if (context.params.player == "player") {
             logger(
               "live",
-              `live stream requested for channel '${context.params.channel}' with parameter proxy`,
+              `live stream requested for channel '${context.params.channel}' with also parameter player`,
             );
-            const stream = await Loader.searchChannel(
-              context.params.channel,
-              context.params.module,
-              valid_modules,
-            );
-            const data = await Loader.rewritePlaylist(stream.data) as {
-              stream: string;
-              proxy?: string;
-            };
-            if (context.params.player == "player") {
-              logger(
-                "live",
-                `live stream requested for channel '${context.params.channel}' with also parameter player`,
-              );
-              if (data.stream) {
-                // const checkRedirect = await axios.get(data.stream);
-                // const redir = checkRedirect.config.url !== data.stream
-                //   ? checkRedirect.config.url
-                //   : data.stream;
-                // if (checkRedirect.config.url !== data.stream) {
-                //   logger(
-                //     "live",
-                //     `redirected to '${redir}' from '${data.stream}'`,
-                //   );
-                // }
-                context.render("player.ejs", {
-                  stream: `http://localhost:${PORT}/cors/${data.stream}`,
-                  proxy: data.proxy,
-                  origin: (new URL(data.stream)).hostname,
-                });
-              } else {
-                context.render("player.ejs", {
-                  stream:
-                    `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
-                  proxy: "",
-                });
-              }
-            } else {
-              // data.stream ? res.send(data.stream) : res.set("Content-Type", "application/vnd.apple.mpegurl").send(data);
-              if (data.stream) {
-                context.response.body = data.stream;
-              } else {
-                context.response.headers.set(
-                  "Content-Type",
-                  "application/vnd.apple.mpegurl",
-                );
-                context.response.body = data;
-              }
-            }
-          } catch (error) {
-            body.status = "ERROR";
-            body.error = error;
-            // res.status(500).json(body);
-            context.response.status = 500;
-            context.response.body = body;
-          }
-        } else {
-          try {
-            logger(
-              "live",
-              `live stream requested for channel '${context.params.channel}' on module '${context.params.module}'`,
-            );
-            const data = await Loader.searchChannel(
-              context.params.channel,
-              context.params.module,
-              valid_modules,
-            );
-            body.status = "SUCCESS";
-            body.result = data.data;
-            body.module = data.module;
-            if (!body.result) {
-              throw "No data received from method!";
-            }
-            if (context.params.player == "player") {
-              const checkRedirect = await axios.get(data.data.stream);
-              const redir = checkRedirect.config.url !== data.data.stream
-                ? checkRedirect.config.url
-                : data.data.stream;
-              if (checkRedirect.config.url !== data.data.stream) {
-                logger(
-                  "live",
-                  `redirected to '${redir}' from '${data.data.stream}'`,
-                );
-              }
-              logger(
-                "live",
-                `live stream requested for channel '${context.params.channel}' with parameter player`,
-              );
+            if (data.stream) {
+              // const checkRedirect = await axios.get(data.stream);
+              // const redir = checkRedirect.config.url !== data.stream
+              //   ? checkRedirect.config.url
+              //   : data.stream;
+              // if (checkRedirect.config.url !== data.stream) {
+              //   logger(
+              //     "live",
+              //     `redirected to '${redir}' from '${data.stream}'`,
+              //   );
+              // }
               context.render("player.ejs", {
-                stream: `http://localhost:${PORT}/cors/${redir}`,
-                proxy: `http://localhost:${PORT}/cors/${data.data.proxy}`,
-                origin: (new URL(redir || "")).hostname,
+                stream: `http://localhost:${PORT}/cors/${data.stream}`,
+                proxy: data.proxy,
+                origin: (new URL(data.stream)).hostname,
               });
             } else {
+              context.render("player.ejs", {
+                stream:
+                  `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
+                proxy: "",
+              });
+            }
+          } else {
+            // data.stream ? res.send(data.stream) : res.set("Content-Type", "application/vnd.apple.mpegurl").send(data);
+            if (data.stream) {
+              context.response.body = data.stream;
+            } else {
+              context.response.headers.set(
+                "Content-Type",
+                "application/vnd.apple.mpegurl",
+              );
               context.response.body = data;
             }
-          } catch (error) {
-            body.status = "ERROR";
-            body.error = error.message || error;
-            // res.status(500).json(body);
-            context.response.status = 500;
-            context.response.body = body;
+          }
+        } else {
+          logger(
+            "live",
+            `live stream requested for channel '${context.params.channel}' on module '${context.params.module}'`,
+          );
+          const data = await Loader.searchChannel(
+            context.params.channel,
+            context.params.module,
+            valid_modules,
+          );
+          if (!data.data) {
+            throw "No data received from method!";
+          }
+          if (context.params.player == "player") {
+            const checkRedirect = await axios.get(data.data.stream);
+            const redir = checkRedirect.config.url !== data.data.stream
+              ? checkRedirect.config.url
+              : data.data.stream;
+            if (checkRedirect.config.url !== data.data.stream) {
+              logger(
+                "live",
+                `redirected to '${redir}' from '${data.data.stream}'`,
+              );
+            }
+            logger(
+              "live",
+              `live stream requested for channel '${context.params.channel}' with parameter player`,
+            );
+            context.render("player.ejs", {
+              stream: `http://localhost:${PORT}/cors/${redir}`,
+              proxy: `http://localhost:${PORT}/cors/${data.data.proxy}`,
+              origin: (new URL(redir || "")).hostname,
+            });
+          } else {
+            context.response.body = new Response(
+              "SUCCESS",
+              data.module,
+              data.data,
+              data.cache,
+            );
           }
         }
       } else {
-        body.status = "ERROR";
-        body.error = `Module '${context.params.module}' not found`;
-        // res.status(400).json(body);
         context.response.status = 400;
-        context.response.body = body;
+        context.response.body = new Response(
+          "ERROR",
+          context.params.module,
+          null,
+          undefined,
+          `Module '${context.params.module}' not found`,
+        );
       }
     }
   },
@@ -494,74 +493,54 @@ router.get(
 
 /* A simple API endpoint that returns a list of VODs for a given module. */
 router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
-  const body: body_response & { result?: Record<string, unknown>[] } = {
-    ...new body_response(context.params.module),
-  };
   const query = helpers.getQuery(context);
-  try {
-    logger("vod", `VOD list requested from module '${context.params.module}'`);
-    body.status = "SUCCESS";
-    body.result = await Loader.getVODlist(
-      context.params.module,
-      Number(query.page),
-    );
-    if (!body.result) {
-      throw "No data received from method!";
-    }
-    // res.json(body)
-    context.response.body = body;
-  } catch (error) {
-    body.status = "ERROR";
-    body.error = error.message || error.toString().substring(0, 200);
-    // res.status(500).json(body)
-    context.response.status = 500;
-    context.response.body = body;
+  logger("vod", `VOD list requested from module '${context.params.module}'`);
+  const list = await Loader.getVODlist(
+    context.params.module,
+    Number(query.page),
+  );
+  if (list.length! > 0) {
+    throw "No data received from method!";
   }
+  context.response.body = new Response("SUCCESS", context.params.module, list);
 });
 
 /* A simple API endpoint that returns the episodes list for the VOD requested. */
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show`,
   async (context) => {
-    const body: body_response & {
-      result?: Record<string, unknown> | Record<string, unknown>[];
-    } = {
-      ...new body_response(context.params.module),
-    };
-    try {
-      if (
-        context.params.module &&
-        valid_modules.find((x) => x == context.params.module) != undefined
-      ) {
-        logger(
-          "vod",
-          `VOD '${context.params.show}' requested from module '${context.params.module}'`,
-        );
-        const query = helpers.getQuery(context);
-        body.status = "SUCCESS";
-        body.result = await Loader.getVOD(
-          context.params.module,
-          context.params.show,
-          Number(query.page),
-        );
-        if (!body.result) {
-          throw "No data received from method!";
-        }
-        // res.json(body)
-        context.response.body = body;
-      } else {
-        body.status = "ERROR";
-        body.error = `Module '${context.params.module}' not found`;
-        // res.status(400).json(body);
-        context.response.status = 400;
-        context.response.body = body;
+    if (
+      context.params.module &&
+      valid_modules.find((x) => x == context.params.module) != undefined
+    ) {
+      logger(
+        "vod",
+        `VOD '${context.params.show}' requested from module '${context.params.module}'`,
+      );
+      const query = helpers.getQuery(context);
+      const data = await Loader.getVOD(
+        context.params.module,
+        context.params.show,
+        Number(query.page),
+      );
+      if (!data) {
+        throw "No data received from method!";
       }
-    } catch (error) {
-      body.status = "ERROR";
-      body.error = error.message || error.toString().substring(0, 200);
-      // res.status(500).json(body)
-      context.response.status = 500;
-      context.response.body = body;
+      // res.json(body)
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        data,
+      );
+    } else {
+      context.response.status = 400;
+      context.response.body = new Response(
+        "ERROR",
+        context.params.module,
+        null,
+        undefined,
+        `Module '${context.params.module}' not found`,
+      );
     }
   },
 );
@@ -570,45 +549,38 @@ router.get(
 router.get(
   `/:module(${valid_modules.join("|")})/vod/:show/:epid`,
   async (context) => {
-    const body: body_response & { result?: string | null } = {
-      ...new body_response(context.params.module),
-    };
-
-    try {
-      if (
-        context.params.module &&
-        valid_modules.find((x) => x == context.params.module) != undefined
-      ) {
-        logger(
-          "vod",
-          `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`,
-        );
-        body.status = "SUCCESS";
-        body.result = await Loader.getVOD_EP(
-          context.params.module,
-          context.params.show,
-          context.params.epid,
-        );
-        if (!body.result) {
-          throw "No data received from method!";
-        }
-        // res.json(body)
-        context.response.body = body;
-      } else {
-        body.status = "ERROR";
-        body.result = null;
-        body.error = `Module '${context.params.module}' not found`;
-        // res.status(400).json(body);
-        context.response.status = 400;
-        context.response.body = body;
+    if (
+      context.params.module &&
+      valid_modules.find((x) => x == context.params.module) != undefined
+    ) {
+      logger(
+        "vod",
+        `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`,
+      );
+      const data = await Loader.getVOD_EP(
+        context.params.module,
+        context.params.show,
+        context.params.epid,
+      );
+      if (!data) {
+        throw "No data received from method!";
       }
-    } catch (error) {
-      body.status = "ERROR";
-      body.result = null;
-      body.error = error.message || error.toString().substring(0, 200);
-      // res.status(500).json(body)
-      context.response.status = 500;
-      context.response.body = body;
+      // res.json(body)
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        data.stream,
+        data.cache,
+      );
+    } else {
+      context.response.status = 400;
+      context.response.body = new Response(
+        "ERROR",
+        context.params.module,
+        null,
+        undefined,
+        `Module '${context.params.module}' not found`,
+      );
     }
   },
 );
@@ -616,59 +588,47 @@ router.get(
 /* A login endpoint for the API. It is using the module login function to get the authTokens. */
 router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
   let authTokens = [];
-  const body: body_response & {
-    result?: Record<string | number | symbol, never> | null;
-  } = {
-    ...new body_response(context.params.module),
-  };
   logger("login", `login request for module '${context.params.module}'`);
-  try {
-    const mod: ModuleType =
-      new (await import(`./modules/${context.params.module}.ts`)).default();
-    const config = await mod.getAuth();
-    const result = await (context.request.body({ type: "json" })).value;
+  const mod: ModuleType =
+    new (await import(`./modules/${context.params.module}.ts`)).default();
+  const config = await mod.getAuth();
+  const result = await (context.request.body({ type: "json" })).value;
 
+  logger(
+    "login",
+    `'${context.params.module}' login attempt with username ${
+      result.username
+        ? result.username + " from request"
+        : config.username + " from file (request empty)"
+    }`,
+  );
+  authTokens = await Loader.login(
+    context.params.module,
+    result.username || config.username,
+    result.password || config.password,
+  );
+  if (authTokens) {
     logger(
       "login",
-      `'${context.params.module}' login attempt with username ${
-        result.username
-          ? result.username + " from request"
-          : config.username + " from file (request empty)"
-      }`,
+      `'${context.params.module}' login success, got authTokens: ${authTokens}`,
     );
-    authTokens = await Loader.login(
+    config.authTokens = authTokens;
+    config.lastupdated = new Date();
+    await mod.setAuth(config);
+    context.response.body = new Response(
+      "SUCCESS",
       context.params.module,
-      result.username || config.username,
-      result.password || config.password,
+      authTokens,
     );
-    if (authTokens) {
-      logger(
-        "login",
-        `'${context.params.module}' login success, got authTokens: ${authTokens}`,
-      );
-      config.authTokens = authTokens;
-      config.lastupdated = new Date();
-      await mod.setAuth(config);
-      body.status = "SUCCESS";
-      body.authTokens = authTokens;
-      // res.json(body);
-      context.response.body = body;
-    } else {
-      body.status = "ERROR";
-      body.authTokens = null;
-      body.error =
-        `Authentication failed for module '${context.params.module}'`;
-      // res.status(400).json(body);
-      context.response.status = 400;
-      context.response.body = body;
-    }
-  } catch (error) {
-    body.status = "ERROR";
-    body.authTokens = null;
-    body.error = error.message || error.toString().substring(0, 200);
-    // res.status(500).json(body)
-    context.response.status = 500;
-    context.response.body = body;
+  } else {
+    context.response.status = 400;
+    context.response.body = new Response(
+      "ERROR",
+      context.params.module,
+      null,
+      undefined,
+      `Authentication failed for module '${context.params.module}'`,
+    );
   }
 });
 
@@ -676,43 +636,30 @@ router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
 router.get(
   `/:module(${valid_modules.join("|")})?/clearcache`,
   async (context) => {
-    const body: body_response & {
-      result?: { [k: string]: string } | string | null;
-    } = { ...new body_response(context.params.module) };
-
-    try {
-      if (context.params.module) {
-        logger(
-          "clearcache",
-          `Flush cache request for module '${context.params.module}'`,
-        );
-        const module: ModuleType =
-          new (await import(`./modules/${context.params.module}.ts`)).default();
-        body.status = "SUCCESS";
-        body.result = await module.flushCache();
-        // res.json(body)
-        context.response.body = body;
-      } else {
-        logger("flushcache", `Flush cache request for all modules`);
-        const modules: ModuleType[] = await Promise.all(
-          valid_modules.map(async (mod) =>
-            new (await import(`./modules/${mod}.ts`)).default()
-          ),
-        );
-        body.status = "SUCCESS";
-        body.result = {};
-        for (const module of modules) {
-          body.result[module.MODULE_ID] = await module.flushCache();
-        }
-        // res.json(body)
-        context.response.body = body;
+    if (context.params.module) {
+      logger(
+        "clearcache",
+        `Flush cache request for module '${context.params.module}'`,
+      );
+      const module: ModuleType =
+        new (await import(`./modules/${context.params.module}.ts`)).default();
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        await module.flushCache(),
+      );
+    } else {
+      logger("flushcache", `Flush cache request for all modules`);
+      const modules: ModuleType[] = await Promise.all(
+        valid_modules.map(async (mod) =>
+          new (await import(`./modules/${mod}.ts`)).default()
+        ),
+      );
+      const data: { [k: string]: string } = {};
+      for (const module of modules) {
+        data[module.MODULE_ID] = await module.flushCache();
       }
-    } catch (error) {
-      body.status = "ERROR";
-      body.error = error.message || error.toString().substring(0, 200);
-      // res.status(500).json(body)
-      context.response.status = 500;
-      context.response.body = body;
+      context.response.body = new Response("SUCCESS", null, data);
     }
   },
 );
@@ -721,92 +668,64 @@ router.get(
 router.get(
   `/:module(${valid_modules.join("|")})?/updatechannels`,
   async (context) => {
-    const body: body_response & {
-      result?: Record<string, unknown> | string | null;
-    } = {
-      ...new body_response(context.params.module),
-    };
-
-    try {
-      if (context.params.module) {
-        logger(
-          "updatechannels",
-          `Update channels request for module '${context.params.module}'`,
-        );
-        const mod: ModuleType =
-          new (await import(`./modules/${context.params.module}.ts`)).default();
-        body.status = "SUCCESS";
-        body.result = await mod.getChannels();
-        if (!body.result) {
-          throw "No data received from method!";
-        }
-        //save config
-        await mod.setConfig("chList", body.result);
-        //log to console
-        logger(
-          "updatechannels",
-          `Channels updated for module '${context.params.module}'`,
-        );
-        // res.json(body)
-        context.response.body = body;
-      } else {
-        logger("updatechannels", `Update channels request for all modules`);
-        const mod: ModuleType[] = await Promise.all(
-          valid_modules.map(async (val) =>
-            new (await import(`./modules/${val}.ts`)).default()
-          ),
-        );
-        const updated = [];
-        for (const module of mod) {
-          const ch = await module.getChannels();
-          ch && updated.push(module.MODULE_ID);
-          //save config
-          ch && await module.setConfig("chList", ch);
-        }
-        if (updated.length > 0) {
-          body.status = "SUCCESS";
-          body.result = `Channel list updated for modules '${
-            updated.join(",")
-          }'`;
-          // res.json(body)
-          context.response.body = body;
-        } else throw "Channel list could not be updated for all modules";
+    if (context.params.module) {
+      logger(
+        "updatechannels",
+        `Update channels request for module '${context.params.module}'`,
+      );
+      const mod: ModuleType =
+        new (await import(`./modules/${context.params.module}.ts`)).default();
+      const channels = await mod.getChannels();
+      if (!channels) {
+        throw "No data received from method!";
       }
-    } catch (error) {
-      body.status = "ERROR";
-      body.error = error.message ||
-        error.substring(0, error.toString().indexOf("\n"));
-      // res.status(500).json(body);
-      context.response.status = 500;
-      context.response.body = body;
+      //save config
+      await mod.setConfig("chList", channels);
+      //log to console
+      logger(
+        "updatechannels",
+        `Channels updated for module '${context.params.module}'`,
+      );
+      // res.json(body)
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        channels,
+      );
+    } else {
+      logger("updatechannels", `Update channels request for all modules`);
+      const mod: ModuleType[] = await Promise.all(
+        valid_modules.map(async (val) =>
+          new (await import(`./modules/${val}.ts`)).default()
+        ),
+      );
+      const updated = [];
+      for (const module of mod) {
+        const ch = await module.getChannels();
+        ch && updated.push(module.MODULE_ID);
+        //save config
+        ch && await module.setConfig("chList", ch);
+      }
+      if (updated.length > 0) {
+        context.response.body = new Response(
+          "SUCCESS",
+          null,
+          `Channel list updated for modules '${updated.join(",")}'`,
+        );
+      } else throw "Channel list could not be updated for all modules";
     }
   },
 );
 
 /* A simple API endpoint that returns the module's configuration. */
 router.get(`/:module(${valid_modules.join("|")})`, async (context) => {
-  const body: body_response & {
-    result?: Record<string, unknown> | string | null;
-  } = {
-    ...new body_response(context.params.module),
-  };
-  try {
-    const mod: ModuleType =
-      new (await import(`./modules/${context.params.module}.ts`)).default();
-    body.result = {
-      hasLive: mod.hasLive,
-      hasVOD: mod.hasVOD,
-      chList: (await mod.getConfig()).chList,
-    };
-    // res.json(body);
-    context.response.body = body;
-  } catch (error) {
-    body.status = "ERROR";
-    body.error = error.message || error.toString().substring(0, 200);
-    // res.status(400).json(body)
-    context.response.status = 400;
-    context.response.body = body;
-  }
+  const mod: ModuleType =
+    new (await import(`./modules/${context.params.module}.ts`)).default();
+  context.response.body = new Response("SUCCESS", context.params.module, {
+    hasLive: mod.hasLive,
+    hasVOD: mod.hasVOD,
+    chList: (await mod.getConfig()).chList,
+  });
 });
 
 /**

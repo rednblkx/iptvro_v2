@@ -573,10 +573,7 @@ export async function getVODlist(module_id: string, page?: number) {
         return Promise.resolve(
           await module.getVOD_List((await module.getAuth()).authTokens, page),
         );
-      } else {return Promise.reject(
-          new Error(
-            `getVODlist| Module ${module_id} doesn't have VOD available`,
-          ),
+      } else {return Promise.reject(logger("getVODlist", `Module ${module_id} doesn't have VOD available`, true),
         );}
     } catch (error) {
       return Promise.reject(logger("getVODlist", error, true));

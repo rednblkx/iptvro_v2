@@ -19,20 +19,20 @@ import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 
 const app = new Application();
 const router = new Router();
-app.use(router.routes());
-app.use(router.allowedMethods());
 
 app.use(
   viewEngine(oakAdapter, dejsEngine, {
     viewRoot: `${Deno.cwd()}/views`,
   }),
 );
+
 app.use(async (ctx, next: () => Promise<unknown>) => {
   const body: { status: string; error: string } = {
     status: "",
     error: "",
   };
   try {
+    ctx.response.headers.set("Access-Control-Allow-Origin", "*");
     await next();
   } catch (error) {
     body.status = "ERROR";
@@ -41,6 +41,9 @@ app.use(async (ctx, next: () => Promise<unknown>) => {
     ctx.response.body = body;
   }
 });
+
+app.use(router.routes());
+app.use(router.allowedMethods());
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
 export const PORT = Number(Deno.env.get("PORT")) || 3000;
@@ -289,7 +292,7 @@ router.get(
 /* A simple GET request that returns the live channels of a module. */
 router.get(
   `/:module(${valid_modules.join("|")})/live/:playlist(index.m3u8)?`,
-  async (context, next) => {
+  async (context) => {
       logger(
         "live",
         `live channels requested for module '${context.params.module}'`,
@@ -310,14 +313,9 @@ router.get(
         }
         // playlist.push(`#EXT-X-ENDLIST`);
         playlist.push("\n");
-        context.response.headers.set("Access-Control-Allow-Origin", "*");
         context.response.headers.set("Content-Type", "application/x-mpegURL");
         context.response.body = playlist.join("\n");
       } else {
-        logger(
-          "live",
-          `live channels requested for module '${context.params.module}'`,
-        );
         const mod: ModuleType =
           new (await import(`./modules/${context.params.module}.ts`)).default();
         const data = Object.keys((await mod.getConfig()).chList);
@@ -402,24 +400,24 @@ router.get(
         throw "No data received from method!";
       }
       if (context.params.player == "player") {
-        const checkRedirect = await axios.get(data.data.stream);
-        const redir = checkRedirect.config.url !== data.data.stream
-          ? checkRedirect.config.url
-          : data.data.stream;
-        if (checkRedirect.config.url !== data.data.stream) {
-          logger(
-            "live",
-            `redirected to '${redir}' from '${data.data.stream}'`,
-          );
-        }
+        // const checkRedirect = await axios.get(data.data.stream);
+        // const redir = checkRedirect.config.url !== data.data.stream
+        //   ? checkRedirect.config.url
+        //   : data.data.stream;
+        // if (checkRedirect.config.url !== data.data.stream) {
+        //   logger(
+        //     "live",
+        //     `redirected to '${redir}' from '${data.data.stream}'`,
+        //   );
+        // }
         logger(
           "live",
           `live stream requested for channel '${context.params.channel}' with parameter player`,
         );
         context.render("player.ejs", {
-          stream: `http://localhost:${PORT}/cors/${redir}`,
+          stream: `http://localhost:${PORT}/cors/${data.data.stream}`,
           proxy: `http://localhost:${PORT}/cors/${data.data.proxy}`,
-          origin: (new URL(redir || "")).hostname,
+          origin: (new URL(data.data.stream || "")).hostname,
         });
       } else {
         context.response.body = new Response(

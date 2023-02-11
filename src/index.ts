@@ -235,14 +235,14 @@ router.get(
           //   logger("live", `redirected to '${redir}' from '${data.stream}'`);
           // }
           context.render("player.ejs", {
-            stream: `http://localhost:${PORT}/cors/${data.stream}`,
+            stream: `http://${context.request.url.host}/cors/${data.stream}`,
             proxy: data.proxy,
             origin: (new URL(data.stream)).hostname,
           });
         } else {
           context.render("player.ejs", {
             stream:
-              `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
+              `http://${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
             proxy: "",
           });
         }
@@ -288,7 +288,7 @@ router.get(
           );
         }
         context.render("player.ejs", {
-          stream: `http://localhost:${PORT}/cors/${redir}`,
+          stream: `http://${context.request.url.host}/cors/${redir}`,
           proxy: data.data.proxy,
           origin: (new URL(redir || "")).hostname,
         });
@@ -383,14 +383,14 @@ router.get(
           //   );
           // }
           context.render("player.ejs", {
-            stream: `http://localhost:${PORT}/cors/${data.stream}`,
+            stream: `http://${context.request.url.host}/cors/${data.stream}`,
             proxy: data.proxy,
             origin: (new URL(data.stream)).hostname,
           });
         } else {
           context.render("player.ejs", {
             stream:
-              `http://localhost:${PORT}/live/${context.params.channel}/index.m3u8`,
+              `http://${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
             proxy: "",
           });
         }
@@ -435,8 +435,8 @@ router.get(
           `live stream requested for channel '${context.params.channel}' with parameter player`,
         );
         context.render("player.ejs", {
-          stream: `http://localhost:${PORT}/cors/${data.data.stream}`,
-          proxy: `http://localhost:${PORT}/cors/${data.data.proxy}`,
+          stream: `http://${context.request.url.host}/cors/${data.data.stream}`,
+          proxy: `http://${context.request.url.host}/cors/${data.data.proxy}`,
           origin: (new URL(data.data.stream || "")).hostname,
         });
       } else {
@@ -511,7 +511,7 @@ router.get(
     if (context.params.playlist) {
       if (context.params.player) {
         context.render("player.ejs", {
-          stream: `http://localhost:${PORT}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`,
+          stream: `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`,
           proxy: null,
           origin: null,
         });

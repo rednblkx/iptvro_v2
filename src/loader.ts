@@ -48,21 +48,18 @@ function logger(
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            (message as Error).message
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
           }`,
         );
       } else {
         console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
           }`,
         );
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
         }`,
       );
     }
@@ -73,7 +70,7 @@ function logger(
         Deno.mkdir("logs").then(() => {
           Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${message} \n`, { append: true, create: true }).then(() => {
             // console.log("Log wrote on dir!");
-            
+
           })
         })
       } else console.error(err)
@@ -82,11 +79,10 @@ function logger(
   if ((message as Error).message) {
     return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${
-    typeof message == "object"
+  return `loader - ${id}: ${typeof message == "object"
       ? JSON.stringify(message).substring(0, 200)
       : message.substring(0, 200)
-  }`;
+    }`;
 }
 
 /**
@@ -124,10 +120,10 @@ export async function sanityCheck(): Promise<string[]> {
         try {
           const auth = await val.getAuth();
           console.log(`\n - Module '${val.MODULE_ID}' found`);
-          if((!auth.username || !auth.password) &&
+          if ((!auth.username || !auth.password) &&
             val.authReq) {
-              console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
-            }
+            console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
+          }
           !val.login &&
             logger(
               "sanityCheck",
@@ -151,9 +147,9 @@ export async function sanityCheck(): Promise<string[]> {
           console.log(`\n - Module '${val.MODULE_ID}' found`);
           if (error instanceof Deno.errors.NotFound) {
             logger("sanityCheck", "File empty or not found");
-              await val.initializeConfig(val.chList || {});
-              const ch = await val.getChannels();
-              await val.setConfig("chList", ch);
+            await val.initializeConfig(val.chList || {});
+            const ch = await val.getChannels();
+            await val.setConfig("chList", ch);
           } else {
             throw error;
           }
@@ -161,11 +157,12 @@ export async function sanityCheck(): Promise<string[]> {
         valid && console.log(`\t${val.MODULE_ID} - No issues found`);
 
         valid && valid_list.push(val.MODULE_ID);
-      } else {console.log(
-          ` - Module '${val.module || val}' failed sanity check\n\t${
-            val.error || `\0`
+      } else {
+        console.log(
+          ` - Module '${val.module || val}' failed sanity check\n\t${val.error || `\0`
           }`,
-        );}
+        );
+      }
     } catch (error) {
       // console.error(`${error?.message || error}`);
       logger("sanityCheck", error, true);
@@ -207,11 +204,12 @@ function m3u8Select(data: string | string[], baseUrl: string) {
     return parsedManifest.playlists.find((
       a: { attributes: { BANDWIDTH: number } },
     ) => a.attributes.BANDWIDTH === highestBandwidth).uri;
-  } else {return `${baseUrl}/${
-      parsedManifest.playlists.find((
-        a: { attributes: { BANDWIDTH: number } },
-      ) => a.attributes.BANDWIDTH === highestBandwidth).uri
-    }`;}
+  } else {
+    return `${baseUrl}/${parsedManifest.playlists.find((
+      a: { attributes: { BANDWIDTH: number } },
+    ) => a.attributes.BANDWIDTH === highestBandwidth).uri
+      }`;
+  }
 }
 
 /**
@@ -228,6 +226,7 @@ function m3uFixURL(
   m3u_arr.forEach(
     (el: string, index: number, array: string[]) => {
       if (!el.includes("http") && el.match('URI="(.*)"') != null) {
+        console.log(el);
         const match = el.match(/(.*)\.key/);
         if (match !== null) {
           array[index] = el.replace(
@@ -236,7 +235,7 @@ function m3uFixURL(
           );
         }
       }
-      if (el.match("(.*).ts") != null) {
+      if (el.match("(.*).ts") != null && !el.includes("http")) {
         array[index] = `${url}/${el}`;
       }
     },
@@ -272,9 +271,11 @@ export async function rewritePlaylist(
           q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
         return finalP;
-      } else {return Promise.resolve(
+      } else {
+        return Promise.resolve(
           m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""),
-        );}
+        );
+      }
     } else {
       logger("rewritePlaylist", `"${stream.stream}" is not a HLS playlist`);
       return Promise.resolve(stream);
@@ -321,13 +322,12 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
       if (
         (((new Date()).getTime() -
           (new Date(db.data[index].lastupdated)).getTime()) / (1000 * 3600)) >=
-          (cache_config[db.data[index].module] || 6)
+        (cache_config[db.data[index].module] || 6)
       ) {
         if (Deno.env.get("DEBUG") == ("true" || true)) {
           logger(
             "cacheCleanup",
-            `Found cached link for '${db.data[index].name}' module '${
-              db.data[index].module
+            `Found cached link for '${db.data[index].name}' module '${db.data[index].module
             }' older than ${(cache_config[db.data[index].module] ||
               6)} hours, removing!`,
           );
@@ -397,12 +397,10 @@ export async function searchChannel(
         } else {
           logger(
             "searchChannel",
-            `${
-              config.url_cache_enabled
-                ? `No cached link found for channel '${id}' in`
-                : "Cache not enabled for"
-            } module '${module.MODULE_ID}'${
-              config.url_cache_enabled ? `, trying to retrieve from module` : ""
+            `${config.url_cache_enabled
+              ? `No cached link found for channel '${id}' in`
+              : "Cache not enabled for"
+            } module '${module.MODULE_ID}'${config.url_cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
           const data = await module.liveChannels(
@@ -443,14 +441,12 @@ export async function searchChannel(
           } else {
             logger(
               "searchChannel",
-              `${
-                config.url_cache_enabled
-                  ? `No cached link found for channel '${id}' in`
-                  : "Cache not enabled for"
-              } module '${module.MODULE_ID}'${
-                config.url_cache_enabled
-                  ? `, trying to retrieve from module`
-                  : ""
+              `${config.url_cache_enabled
+                ? `No cached link found for channel '${id}' in`
+                : "Cache not enabled for"
+              } module '${module.MODULE_ID}'${config.url_cache_enabled
+                ? `, trying to retrieve from module`
+                : ""
               }`,
             );
             const data = await module.liveChannels(
@@ -465,12 +461,14 @@ export async function searchChannel(
               cache: config.url_cache_enabled,
             });
           }
-        } else {return Promise.reject(
+        } else {
+          return Promise.reject(
             logger(
               "searchChannel",
               `Module ${module_id} doesn't have channel '${id}'`,
             ),
-          );}
+          );
+        }
       }
     } catch (error) {
       return Promise.reject(
@@ -510,14 +508,12 @@ export async function searchChannel(
           } else {
             logger(
               "searchChannel",
-              `${
-                config.url_cache_enabled
-                  ? `No cached link found for channel '${id}' in`
-                  : "Cache not enabled for"
-              } module '${module.MODULE_ID}'${
-                config.url_cache_enabled
-                  ? `, trying to retrieve from module`
-                  : ""
+              `${config.url_cache_enabled
+                ? `No cached link found for channel '${id}' in`
+                : "Cache not enabled for"
+              } module '${module.MODULE_ID}'${config.url_cache_enabled
+                ? `, trying to retrieve from module`
+                : ""
               }`,
             );
             const data = await module.liveChannels(
@@ -567,13 +563,15 @@ export async function getVODlist(module_id: string, page?: number) {
         return Promise.resolve(
           module?.getVOD_List && await module.getVOD_List((await module.getAuth()).authTokens, page),
         );
-      } else {return Promise.reject(
+      } else {
+        return Promise.reject(
           logger(
             "getVODlist",
             `Module ${module_id} doesn't have VOD available`,
             true,
           ),
-        );}
+        );
+      }
     } catch (error) {
       return Promise.reject(logger("getVODlist", error, true));
     }
@@ -606,12 +604,14 @@ export async function getVOD(
           page,
         );
         return Promise.resolve(res);
-      } else {return Promise.reject(
+      } else {
+        return Promise.reject(
           logger(
             "getVOD",
             `Module ${module_id} doesn't have VOD enabled/implemented`,
           ),
-        );}
+        );
+      }
     } catch (error) {
       return Promise.reject(logger("getVOD", error, true));
     }
@@ -628,6 +628,7 @@ export async function getVOD_EP(
   module_id: string,
   show_id: string,
   epid: string,
+  playlist: boolean
 ): Promise<{ stream: string; cache: boolean }> {
   if (module_id) {
     try {
@@ -637,6 +638,10 @@ export async function getVOD_EP(
         const cache = await module.cacheFind(epid);
         const cache_enabled = (await module.getConfig()).url_cache_enabled;
         if (cache !== null && cache_enabled) {
+          if (playlist) {
+            const m3u8 = await rewritePlaylist(cache.data) as string
+            return Promise.resolve({stream: m3u8, cache: cache_enabled})
+          }
           return Promise.resolve({
             stream: cache.data.stream,
             cache: cache_enabled,
@@ -644,36 +649,32 @@ export async function getVOD_EP(
         } else {
           logger(
             "getVOD_EP",
-            `${
-              cache_enabled
-                ? `No cached link found for episode '${epid}' in`
-                : "Cache not enabled for"
-            } module '${module.MODULE_ID}'${
-              cache_enabled ? `, trying to retrieve from module` : ""
+            `${cache_enabled
+              ? `No cached link found for episode '${epid}' in`
+              : "Cache not enabled for"
+            } module '${module.MODULE_ID}'${cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
-          if (module.hasVOD) {
-            const res = module?.getVOD_EP && await module.getVOD_EP(
-              show_id,
-              epid,
-              (await module.getAuth()).authTokens,
-            );
-            await module.cacheFill(epid, { stream: res || "" });
-            return Promise.resolve({ stream: res || "", cache: cache_enabled });
+          const res = module?.getVOD_EP && await module.getVOD_EP(
+            show_id,
+            epid,
+            (await module.getAuth()).authTokens,
+          );
+          await module.cacheFill(epid, { stream: res || "" });
+          if (playlist) {
+            const m3u8 = await rewritePlaylist({stream: res}) as string
+            return Promise.resolve({stream: m3u8, cache: cache_enabled})
           }
-            return Promise.reject(
-              logger(
-                "getVOD",
-                `Module ${module_id} doesn't have VOD enabled/implemented`,
-              ),
-            );
+          return Promise.resolve({ stream: res || "", cache: cache_enabled });
         }
-      } else {return Promise.reject(
+      } else {
+        return Promise.reject(
           logger(
             "getVOD_EP",
             `Module ${module_id} doesn't have VOD enabled/implemented`,
           ),
-        );}
+        );
+      }
     } catch (error) {
       return Promise.reject(logger("getVOD_EP", error, true));
     }
@@ -698,9 +699,11 @@ export async function login(
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       return Promise.resolve(await module.login(username, password));
-    } else {return Promise.reject(
+    } else {
+      return Promise.reject(
         logger("login", "Username/Password not provided", true),
-      );}
+      );
+    }
   } catch (error) {
     return Promise.reject(logger("login", error, true));
   }

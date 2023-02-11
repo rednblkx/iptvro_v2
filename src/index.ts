@@ -100,33 +100,49 @@ function logger(
   if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
     if (isError) {
       if ((message as Error).message) {
-        console.log(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
+        console.error(
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            (message as Error).message
           }`,
         );
       } else {
-        console.log(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message) : message
+        console.error(
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
           }`,
         );
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message) : message
+        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+          typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
         }`,
       );
     }
+    Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+      // console.log("Log wrote on dir!");
+    }).catch(err => {
+      if (err instanceof Deno.errors.NotFound) {
+        Deno.mkdir("logs").then(() => {
+          Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+            // console.log("Log wrote on dir!");
+            
+          })
+        })
+      } else console.error(err)
+    })
   }
   if ((message as Error).message) {
     return `index - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${typeof message == "object"
+  return `loader - ${id}: ${
+    typeof message == "object"
       ? JSON.stringify(message).substring(0, 200)
       : (message as string).substring(0, 200)
-    }`;
+  }`;
 }
 
-// const RouteErrorHandling = async (ctx: RouterContext<string, RouteParams<string>, Record<string, any>>, next: () => Promise<unknown>) => {
+// const RouteErrorHandling = async (ctx: RouterContext<string, RouteParams<string>, Record<string, unknown>>, next: () => Promise<unknown>) => {
 //   const body: {status: string, data: unknown, error?: string} = {
 //     status: "",
 //     data: "",
@@ -140,9 +156,8 @@ function logger(
 //     ctx.response.body = body;
 //   }
 // }
-
 /* A simple API that returns the cache of a module. */
-router.get(`/:module(${valid_modules.join("|")})?/cache`, async (context) => {
+router.get(`/:module(${valid_modules.join("|") || "null"})?/cache`, async (context) => {
   type cache = {
     name: string;
     link: string;
@@ -291,45 +306,50 @@ router.get(
 
 /* A simple GET request that returns the live channels of a module. */
 router.get(
-  `/:module(${valid_modules.join("|")})/live/:playlist(index.m3u8)?`,
+  `/:module(${valid_modules.join("|") || "null"})/live/:playlist(index.m3u8)?`,
   async (context) => {
-      logger(
-        "live",
-        `live channels requested for module '${context.params.module}'`,
-      );
+    logger(
+      "live",
+      `live channels requested for module '${context.params.module}'`,
+    );
+    const mod: ModuleType =
+      new (await import(`./modules/${context.params.module}.ts`)).default();
+    if (context.params.playlist == "index.m3u8") {
+      const playlist = [];
+      playlist.push(`#EXTM3U`);
+      for (const channel in await mod.getChannels()) {
+        playlist.push(
+          `#EXTINF:-1,${
+            (channel.split("-")).map((a) => a[0].toUpperCase() + a.substring(1))
+              .join(" ")
+          }`,
+        );
+        playlist.push(`http://localhost:${PORT}/live/${channel}/index.m3u8`);
+      }
+      // playlist.push(`#EXT-X-ENDLIST`);
+      playlist.push("\n");
+      context.response.headers.set("Content-Type", "application/x-mpegURL");
+      context.response.body = playlist.join("\n");
+    } else {
       const mod: ModuleType =
         new (await import(`./modules/${context.params.module}.ts`)).default();
-      if (context.params.playlist == "index.m3u8") {
-        const playlist = [];
-        playlist.push(`#EXTM3U`);
-        for (const channel in await mod.getChannels()) {
-          playlist.push(
-            `#EXTINF:-1,${(channel.split("-")).map((a) =>
-              a[0].toUpperCase() + a.substring(1)
-            ).join(" ")
-            }`,
-          );
-          playlist.push(`http://localhost:${PORT}/live/${channel}/index.m3u8`);
-        }
-        // playlist.push(`#EXT-X-ENDLIST`);
-        playlist.push("\n");
-        context.response.headers.set("Content-Type", "application/x-mpegURL");
-        context.response.body = playlist.join("\n");
-      } else {
-        const mod: ModuleType =
-          new (await import(`./modules/${context.params.module}.ts`)).default();
-        const data = Object.keys((await mod.getConfig()).chList);
-        if (!data) {
-          throw "No data received from method!";
-        }
-        // res.json(body)
-        context.response.body = new Response("SUCCESS", context.params.module, data);
+      const data = Object.keys((await mod.getConfig()).chList);
+      if (!data) {
+        throw "No data received from method!";
       }
+      // res.json(body)
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        data,
+      );
     }
+  },
 );
 
 router.get(
-  `/:module(${valid_modules.join("|")
+  `/:module(${
+    valid_modules.join("|") || "null"
   })/live/:channel/:playlist(index.m3u8)?/:player(player)?`,
   async (context) => {
     if (context.params.playlist == "index.m3u8") {
@@ -428,18 +448,18 @@ router.get(
         );
       }
     }
-  }
+  },
 );
 
 /* A simple API endpoint that returns a list of VODs for a given module. */
-router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
+router.get(`/:module(${valid_modules.join("|") || "null"})/vod`, async (context) => {
   const query = helpers.getQuery(context);
   logger("vod", `VOD list requested from module '${context.params.module}'`);
   const list = await Loader.getVODlist(
     context.params.module,
     Number(query.page),
   );
-  if (list.length! > 0) {
+  if (!list?.data) {
     throw "No data received from method!";
   }
   context.response.body = new Response("SUCCESS", context.params.module, list);
@@ -447,58 +467,58 @@ router.get(`/:module(${valid_modules.join("|")})/vod`, async (context) => {
 
 /* A simple API endpoint that returns the episodes list for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|")})/vod/:show`,
+  `/:module(${valid_modules.join("|") || "null"})/vod/:show`,
   async (context) => {
-      logger(
-        "vod",
-        `VOD '${context.params.show}' requested from module '${context.params.module}'`,
-      );
-      const query = helpers.getQuery(context);
-      const data = await Loader.getVOD(
-        context.params.module,
-        context.params.show,
-        Number(query.page),
-      );
-      if (!data) {
-        throw "No data received from method!";
-      }
-      // res.json(body)
-      context.response.body = new Response(
-        "SUCCESS",
-        context.params.module,
-        data,
-      );
+    logger(
+      "vod",
+      `VOD '${context.params.show}' requested from module '${context.params.module}'`,
+    );
+    const query = helpers.getQuery(context);
+    const data = await Loader.getVOD(
+      context.params.module,
+      context.params.show,
+      Number(query.page),
+    );
+    if (!data) {
+      throw "No data received from method!";
     }
+    // res.json(body)
+    context.response.body = new Response(
+      "SUCCESS",
+      context.params.module,
+      data,
+    );
+  },
 );
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|")})/vod/:show/:epid`,
+  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid`,
   async (context) => {
-      logger(
-        "vod",
-        `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`,
-      );
-      const data = await Loader.getVOD_EP(
-        context.params.module,
-        context.params.show,
-        context.params.epid,
-      );
-      if (!data) {
-        throw "No data received from method!";
-      }
-      // res.json(body)
-      context.response.body = new Response(
-        "SUCCESS",
-        context.params.module,
-        data.stream,
-        data.cache,
-      );
+    logger(
+      "vod",
+      `VOD '${context.params.show}' episode '${context.params.epid}' requested from module '${context.params.module}'`,
+    );
+    const data = await Loader.getVOD_EP(
+      context.params.module,
+      context.params.show,
+      context.params.epid,
+    );
+    if (!data) {
+      throw "No data received from method!";
+    }
+    // res.json(body)
+    context.response.body = new Response(
+      "SUCCESS",
+      context.params.module,
+      data.stream,
+      data.cache,
+    );
   },
 );
 
 /* A login endpoint for the API. It is using the module login function to get the authTokens. */
-router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
+router.post(`/:module(${valid_modules.join("|") || "null"})/login`, async (context) => {
   let authTokens = [];
   logger("login", `login request for module '${context.params.module}'`);
   const mod: ModuleType =
@@ -508,9 +528,10 @@ router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
 
   logger(
     "login",
-    `'${context.params.module}' login attempt with username ${result.username
-      ? result.username + " from request"
-      : config.username + " from file (request empty)"
+    `'${context.params.module}' login attempt with username ${
+      result.username
+        ? result.username + " from request"
+        : config.username + " from file (request empty)"
     }`,
   );
   authTokens = await Loader.login(
@@ -545,7 +566,7 @@ router.post(`/:module(${valid_modules.join("|")})/login`, async (context) => {
 
 /* A route that will flush the cache of a module. */
 router.get(
-  `/:module(${valid_modules.join("|")})?/clearcache`,
+  `/:module(${valid_modules.join("|") || "null"})?/clearcache`,
   async (context) => {
     if (context.params.module) {
       logger(
@@ -577,7 +598,7 @@ router.get(
 
 /* A route that updates the channel list for a module. */
 router.get(
-  `/:module(${valid_modules.join("|")})?/updatechannels`,
+  `/:module(${valid_modules.join("|") || "null"})?/updatechannels`,
   async (context) => {
     if (context.params.module) {
       logger(
@@ -629,13 +650,14 @@ router.get(
 );
 
 /* A simple API endpoint that returns the module's configuration. */
-router.get(`/:module(${valid_modules.join("|")})`, async (context) => {
+router.get(`/:module(${valid_modules.join("|") || "null"})`, async (context) => {
   const mod: ModuleType =
     new (await import(`./modules/${context.params.module}.ts`)).default();
   context.response.body = new Response("SUCCESS", context.params.module, {
     hasLive: mod.hasLive,
     hasVOD: mod.hasVOD,
     chList: (await mod.getConfig()).chList,
+    authReq: mod.authReq
   });
 });
 

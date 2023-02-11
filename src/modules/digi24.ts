@@ -1,8 +1,8 @@
 import axios from "https://deno.land/x/axiod/mod.ts";
-import ModuleClass from "../moduleClass.ts";
+import ModuleClass, { ModuleType } from "../moduleClass.ts";
 
 /* A class that extends the ModuleClass class. */
-export default class ModuleInstance extends ModuleClass {
+export default class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
     super("digi24", false, true, false, {
@@ -13,12 +13,24 @@ export default class ModuleInstance extends ModuleClass {
       "digisport4": "digisport4",
     });
   }
+getChannels(): Promise<Record<string,string>> {
+return Promise.reject(this.logger("getChannels", "Method not implemented", true))
+}
+getVOD_List(authTokens: string[],page?: number|undefined): Promise<{ data: unknown[]; pagination?: { current_page: number; total_pages: number; per_page: number; }|undefined; }> {
+return Promise.reject(this.logger("getVOD_List", "Method not implemented", true))
+}
+getVOD(show: string,authTokens: string[],page?: number|undefined): Promise<Record<string,unknown>|Record<string,unknown>[]> {
+return Promise.reject(this.logger("getVOD", "Method not implemented", true))
+}
+getVOD_EP(show: string,epid: string,authTokens: string[]): Promise<string> {
+return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
+}
 
   /**
-   * It logs in to the service and returns the access token.
-   * @param {string} username - your username
-   * @param {string} password - string - the password you use to login to the app
-   * @returns The access token
+   * It logs in the user.
+   * @param {string} _username - The username of the user
+   * @param {string} _password - string - The password to be used for the login
+   * @returns An array of strings
    */
   login(_username: string, _password: string): Promise<string[]> {
     try {
@@ -71,11 +83,12 @@ export default class ModuleInstance extends ModuleClass {
       );
       key.status === 200 && this.logger("liveChannels", "Got token");
       const stream = await axios.get(
-        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&is=4&ns=${id}&pe=site&s=site&sn=${
+        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&drm=1&is=4&ns=${id}&pe=site&s=site&sn=${
           id.includes("sport") ? "digisport.ro" : "digi24.ro"
         }&p=browser&pd=linux`,
       );
-      return Promise.resolve({ stream: stream.data.file });
+      this.logger("liveChannels", stream.data)
+      return Promise.resolve({ stream: stream.data.file,  });
     } catch (error) {
       return Promise.reject(
         this.logger(

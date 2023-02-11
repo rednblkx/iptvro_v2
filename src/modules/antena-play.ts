@@ -1,38 +1,25 @@
-import ModuleClass, { IVOD, IVODData } from "../moduleClass.ts";
+import ModuleClass, { IVOD, IVODData, ModuleType } from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
-import * as queryString from "https://deno.land/x/querystring@v1.0.2/mod.js";
+import { stringify } from "https://deno.land/x/querystring@v1.0.2/mod.js";
 import {
   IChannels,
   IVODEpisodes,
   IVODEpisodeStream,
   IVODList,
 } from "./types/antena-play.d.ts";
-// var Module = new Class('antena', true, true,)
 
-/**
- * `VOD_config` is an object with a required property `authTokens` which is an array of strings, and
- * optional properties `year`, `season`, `month`, and `showfilters` which are all strings.
- * @property {string[]} authTokens - An array of strings that are the auth tokens for the VODs you want
- * to download.
- * @property {string} year - The year you want to get the VODs from.
- * @property {string} season - The season number you want to get the episodes for.
- * @property {string} month - The month of the year you want to get the VODs for.
- * @property {string} showfilters - This is a string that is used to filter the shows that are
- * returned.
- */
-
-class ModuleInstance extends ModuleClass {
+class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* Creating a new instance of the class Antena. */
     super("antena-play", true, true, true);
   }
+
   /**
-   * It logs in to the antenaplay.ro website and returns the authTokens required to access the live
-   * stream.
-   * @param {string} username - string - Your AntenaPlay account username
-   * @param {string} password - string - Your AntenaPlay account password
-   * @returns The authTokens
+   * It takes a username and password, and returns a promise that resolves to an array of two strings
+   * @param {string} username - The username you use to login to antenaplay.ro
+   * @param {string} password - string - The password for the account
+   * @returns The auth_token.data.data.token
    */
   async login(username: string, password: string): Promise<string[]> {
     if (!username || !password) {
@@ -44,7 +31,7 @@ class ModuleInstance extends ModuleClass {
         { data?: { token: string }; error?: string }
       >(
         "https://restapi.antenaplay.ro/v1/auth/login",
-        queryString.stringify({ email: username, password }),
+        stringify({ email: username, password }),
         {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -73,18 +60,18 @@ class ModuleInstance extends ModuleClass {
     }
   }
   /**
-   * It gets the HTML of the live channel, checks if the cookies are older than 6 hours, if they are,
-   * it updates them, then it gets the stream URL from the HTML and returns it
-   * @param {string} channel - the channel name, for example: antena1
-   * @param {string[]} authTokens - the authTokens you get from the login function
-   * @param {string} lastupdated - the last time the cookies were updated
-   * @returns The stream URL
+   * It gets the live stream URL for a channel
+   * @param {string} channel - The channel ID
+   * @param {string[]} authTokens - An array of 2 strings, the first one is the access token, the
+   * second one is the device id.
+   * @param {string} _lastupdated - This is the last time the authTokens were updated
+   * @returns A promise that resolves to an object with a stream property.
    */
   async liveChannels(
     channel: string,
     authTokens: string[],
-    _lastupdated: string,
-  ): Promise<{ stream: string; proxy?: string }> {
+    _authLastUpdate: Date,
+  ): Promise<{ stream: string; drm?: { url: string, headers?: {name: string, value: string}[]} }> {
     type IStreamResponse = {
       data: {
         link: string;
@@ -125,7 +112,7 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
-      this.logger("liveChannel", channel_stream.data);
+      this.logger("liveChannels", channel_stream.data);
 
       return Promise.resolve({ stream: channel_stream.data.data.link });
     } catch (error) {
@@ -133,10 +120,10 @@ class ModuleInstance extends ModuleClass {
     }
   }
   /**
-   * It gets the channels from antenaplay.ro/live
-   * @returns An object with all the channels
+   * It gets the auth tokens, then uses them to get a list of channels, then returns a list of channels
+   * @returns A list of channels
    */
-  async getChannels(): Promise<Record<string, unknown>> {
+  async getChannels(): Promise<Record<string, string>> {
     try {
       const authTokens = (await this.getAuth()).authTokens;
       if (!authTokens[0]) {
@@ -153,9 +140,10 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
-      const channels_list: { [k: string]: number } = {};
+      this.logger("getChannels", channels.data)
+      const channels_list: { [k: string]: string } = {};
       channels.data.data.forEach((l) => {
-        channels_list[l.slug] = l.id;
+        channels_list[l.slug] = String(l.id);
       });
       return channels_list;
     } catch (error) {
@@ -164,13 +152,18 @@ class ModuleInstance extends ModuleClass {
     }
   }
   /**
-   * It gets the list of shows from the website.
-   * @param {string[]} authTokens - string[] - The authTokens that are used to authenticate the user.
-   * @returns An array of objects containing the name, link and img of the shows
+   * It gets the list of VODs from the AntenaPlay API.
+   * @param {string[]} authTokens - string[]: The authTokens that you get from the login function.
+   * @param {number} [page] - The page number of the VOD list.
+   * @returns An object with the following structure:
    */
-  async getVOD_List(authTokens: string[], page?: number): Promise<IVOD> {
+  async getVOD_List(authTokens: string[], page?: number): Promise<{data: unknown[], pagination?: {
+    current_page: number;
+    total_pages: number;
+    per_page: number;
+  }}> {
     try {
-      if (!authTokens || typeof authTokens !== "object") {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw new Error(`Cookies Missing/Invalid`)
         //get config
         const config = await this.getAuth();
@@ -229,18 +222,38 @@ class ModuleInstance extends ModuleClass {
     }
   }
   /**
-   * It gets the VOD list of a show.
-   * @param {string} show - The show you want to get the VOD from.
-   * @param {VOD_config} config - {
-   * @returns An array of objects containing the name, link and image of the episodes.
+   * It gets the VOD list for a given show
+   * @param {string} show - The show ID.
+   * @param {string[]} authTokens - The authTokens you get from the login function.
+   * @param {number} page - number - the page number you want to get
+   * @returns An object with the following structure:
+   * ```
+   * {
+   *   data: [
+   *     {
+   *       name: string;
+   *       img: string;
+   *       link: string;
+   *     }
+   *   ];
+   *   pagination: {
+   *     current_page: number;
+   *     per_page: number;
+   *     total_pages: number;
+   *   };
+   * }
    */
   async getVOD(
     show: string,
     authTokens: string[],
     page: number,
-  ): Promise<IVOD> {
+  ): Promise<{data: unknown[], pagination?: {
+    current_page: number;
+    total_pages: number;
+    per_page: number;
+  }}> {
     try {
-      if (!authTokens || typeof authTokens !== "object") {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`
         //get auth
         const auth = await this.getAuth();
@@ -300,10 +313,11 @@ class ModuleInstance extends ModuleClass {
   }
 
   /**
-   * It gets the video URL for a specific episode of a show.
-   * @param {string} show - The show's name, as it appears in the URL.
-   * @param {string} epid - The episode's ID.
-   * @param {string[]} authTokens - The authTokens are the cookies that you get after logging in.
+   * It gets the VOD episode stream url.
+   * @param {string} show - The show name
+   * @param {string} epid - The episode ID, which you can get from the getVOD_SHOW function.
+   * @param {string[]} authTokens - This is an array of 2 strings, the first one is the access token,
+   * the second one is the device id.
    * @returns The URL of the video
    */
   async getVOD_EP(
@@ -315,7 +329,7 @@ class ModuleInstance extends ModuleClass {
       if (!show || !epid) {
         throw `Params Missing`;
       }
-      if (!authTokens || typeof authTokens !== "object") {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`
         //get config
         const config = await this.getAuth();
@@ -331,7 +345,7 @@ class ModuleInstance extends ModuleClass {
       }
       const episode_id = await axios.post<IVODEpisodeStream>(
         "https://restapi.antenaplay.ro/v1/videos/play",
-        queryString.stringify({
+        stringify({
           device_id: authTokens[1],
           device_name: "Kodeative",
           device_type: "iPhone",

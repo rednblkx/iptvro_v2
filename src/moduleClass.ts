@@ -10,12 +10,12 @@ import moment from "npm:moment";
  * lastupdated properties.
  * @property config - This is the configuration object for the plugin.
  */
-export type AuthConfig = {
+export type ModuleConfig = {
   auth: {
     username: string;
     password: string;
     authTokens: string[];
-    lastupdated: Date;
+    lastupdated: Date | null;
   };
   config: {
     [k: string]: unknown;
@@ -42,19 +42,39 @@ type cache = {
   lastupdated: Date;
 };
 
+type FunctionsList = 
+  | "login"
+  | "liveChannels"
+  | "getChannels"
+  | "getVOD_List"
+  | "getVOD"
+  | "getVOD_EP"
+  | "initializeConfig"
+  | "setAuth"
+  | "setConfig"
+  | "getConfig"
+  | "getAuth"
+  | "cacheFind"
+  | "cacheFill"
+  | "flushCache"
+
 /* Extending the ModuleFunctions class with the ModuleType interface. */
 export interface ModuleType extends ModuleFunctions {
   login(username: string, password: string): Promise<string[]>;
   liveChannels(
     id: string,
     authTokens: string[],
-    authLastUpdate: Date,
-  ): Promise<{ stream: string; proxy?: string }>;
+    authLastUpdate: Date | null,
+  ): Promise<{ stream: string; drm?: { url: string, headers?: {name: string, value: string}[]} }>;
   getChannels(): Promise<Record<string, string>>;
   getVOD_List(
     authTokens: string[],
     page?: number,
-  ): Promise<Record<string, unknown>[]>;
+  ): Promise<{data: unknown[], pagination?: {
+    current_page: number;
+    total_pages: number;
+    per_page: number;
+  }}>;
   getVOD(
     show: string,
     authTokens: string[],
@@ -65,7 +85,7 @@ export interface ModuleType extends ModuleFunctions {
 
 export interface IVOD {
   data: IVODData[];
-  pagination: {
+  pagination?: {
     current_page: number;
     total_pages: number;
     per_page: number;
@@ -86,9 +106,9 @@ class ModuleFunctions {
   hasVOD: boolean;
   chList: { [k: string]: string } | null;
   qualitiesList: string[] | null;
-  debug: boolean;
   authReq: boolean;
-  db: Low<AuthConfig>;
+  private debug: boolean;
+  private db: Low<ModuleConfig>;
 
   /**
    * The constructor of the class.
@@ -116,57 +136,68 @@ class ModuleFunctions {
     this.chList = chList || null;
     this.qualitiesList = qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
-    const adapter = new JSONFile<AuthConfig>(
+    const adapter = new JSONFile<ModuleConfig>(
       `${Deno.cwd()}/configs/${this.MODULE_ID}.json`,
     );
     this.db = new Low(adapter);
   }
 
   /**
-   * The function takes in three parameters, the first two are required and the third is optional.
-   * The function returns a string or an error
-   * @param {string} id - This is the id of the module that is calling the logger.
-   * @param {string} message - The message to be logged.
-   * @param {boolean} [isError] - boolean - If true, the message will be returned as an Error object.
-   * @returns A string or an error.
+   * This function logs a message to the console if the environment variable DEBUG is set to true
+   * @param {FunctionsList} id - The function name that is being logged.
+   * @param {unknown} message - The message to be logged.
+   * @param {boolean} [isError] - If the message is an error, set this to true.
+   * @returns A string
    */
   logger(
-    id: string,
-    message: string | Error | Record<string, unknown>,
+    id: FunctionsList,
+    message: unknown,
     isError?: boolean,
   ): string {
     if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
       if (isError) {
         if ((message as Error).message) {
-          console.log(
+          console.error(
             `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
               (message as Error).message
             }`,
           );
         } else {
-          console.log(
+          console.error(
             `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-              typeof message == "object" ? JSON.stringify(message) : message
+              typeof message == "object" ? JSON.stringify(message).substring(0, 200) + "..." : message
             }`,
           );
         }
       } else {
         console.log(
           `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-            typeof message == "object" ? JSON.stringify(message) : message
+            typeof message == "object" ? JSON.stringify(message).substring(0, 200) + "..." : message
           }`,
         );
       }
+      Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${message} \n`, { append: true, create: true }).then(() => {
+        // console.log("Log wrote on dir!");
+      }).catch(err => {
+        if (err instanceof Deno.errors.NotFound) {
+          Deno.mkdir("logs").then(() => {
+            Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${message} \n`, { append: true, create: true }).then(() => {
+              // console.log("Log wrote on dir!");
+              
+            })
+          })
+        } else console.error(err)
+      })
     }
     if ((message as Error).message) {
       return `${this.MODULE_ID} - ${id}: ${
-        ((message as Error).message).substring(0, 200)
+        ((message as Error).message).substring(0, 200) + "..."
       }`;
     }
     return `${this.MODULE_ID} - ${id}: ${
       typeof message == "object"
-        ? JSON.stringify(message).substring(0, 200)
-        : message.substring(0, 200)
+        ? JSON.stringify(message).substring(0, 200) + "..."
+        : (message as string).substring(0, 200)
     }`;
   }
 
@@ -181,7 +212,7 @@ class ModuleFunctions {
       await Deno.mkdir(`${Deno.cwd()}/configs`);
     } catch (error) {
       if (error instanceof Deno.errors.AlreadyExists) {
-        this.logger("moduleClass", "configs dir already exists");
+        this.logger("initializeConfig", "configs dir already exists");
       } else throw error;
     }
     const config = {
@@ -189,11 +220,11 @@ class ModuleFunctions {
         "username": "",
         "password": "",
         "authTokens": [],
-        "lastupdated": new Date(),
+        "lastupdated": null,
       },
       "config": {
         "url_cache_enabled": true,
-        "url_update_interval": 6,
+        "url_update_interval": 4,
         "auth_update_interval": 6,
         "chList": chList || {},
       },
@@ -212,18 +243,18 @@ class ModuleFunctions {
       await this.db.write();
 
       this.logger("initializeConfig", "Config file created");
+      return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
     }
 
-    return Promise.resolve();
   }
 
   /**
    * > Reads the JSON file and returns the auth object
    * @returns The auth object from the JSON file
    */
-  async getAuth(): Promise<AuthConfig["auth"]> {
+  async getAuth(): Promise<ModuleConfig["auth"]> {
     // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
     // const db = new Low(adapter)
 
@@ -231,7 +262,7 @@ class ModuleFunctions {
     await this.db.read();
 
     if (!this.db.data) {
-      throw "getAuth - Config file is not valid";
+      throw new Deno.errors.NotFound("File empty or does not exist");
     } else {
       return this.db.data?.auth;
     }
@@ -247,14 +278,14 @@ class ModuleFunctions {
       username: string;
       password: string;
       authTokens: string[];
-      lastupdated: Date;
+      lastupdated: Date | null;
     },
-  ): Promise<AuthConfig["auth"]> {
+  ): Promise<ModuleConfig["auth"]> {
     try {
       await this.db.read();
 
       if (!this.db.data) {
-        throw "setAuth - Config file is not valid";
+        throw new Deno.errors.NotFound("File empty or does not exist");
       } else {
         this.db.data.auth = auth;
         await this.db.write();
@@ -270,13 +301,13 @@ class ModuleFunctions {
    * It reads the JSON file, checks if it's valid, and returns the config object
    * @returns The config object from the JSON file
    */
-  async getConfig(): Promise<AuthConfig["config"]> {
+  async getConfig(): Promise<ModuleConfig["config"]> {
     // const adapter = new JSONFile<AuthConfig>(`${Deno.cwd()}/configs/${this.MODULE_ID}.json`)
     // const db = new Low(adapter)
     await this.db.read();
 
     if (!this.db.data) {
-      throw "getConfig - Config file is not valid";
+      throw new Deno.errors.NotFound("File empty or does not exist");
     } else {
       return this.db.data.config;
     }
@@ -285,7 +316,7 @@ class ModuleFunctions {
   /**
    * It updates the config file for the module.
    * @param {string} key - string - the key of the config value you want to change
-   * @param {any} value - any - this is the value you want to set the key to.
+   * @param {unknown} value - unknown - this is the value you want to set the key to.
    * @returns A promise that resolves when the config file has been updated.
    */
   async setConfig(key: string, value: Record<string, unknown> | string) {
@@ -293,7 +324,7 @@ class ModuleFunctions {
     // const db = new Low(adapter)
     await this.db.read();
     if (!this.db.data) {
-      throw "setConfig - Config file is not valid";
+      throw new Deno.errors.NotFound("File empty or does not exist");
     } else {
       this.db.data.config[key] = value;
       await this.db.write();
@@ -341,9 +372,7 @@ class ModuleFunctions {
         } else return null;
       } else return null;
     } catch (error) {
-      console.error(
-        `cacheFind| ${error.message || error.toString().substring(0, 200)}`,
-      );
+      this.logger("cacheFind", error, true)
     }
     return null;
   }
@@ -382,7 +411,7 @@ class ModuleFunctions {
     } catch (error) {
       this.logger(
         "cacheFill",
-        `${error.message || error.toString().substring(0, 200)}`,
+        error,
         true,
       );
       return Promise.reject(error);
@@ -406,9 +435,7 @@ class ModuleFunctions {
     } catch (error) {
       this.logger(
         "flushCache",
-        `Error flushing cache for module '${this.MODULE_ID}': ${
-          error.message || error.toString().substring(0, 200)
-        }`,
+        error,
         true,
       );
       return Promise.reject(error);

@@ -3,7 +3,7 @@ import { extname } from "https://deno.land/std@0.172.0/path/mod.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import { Parser } from "npm:m3u8-parser";
-import axios from "https://deno.land/x/axiod/mod.ts";
+import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 
 /**
  * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
@@ -47,25 +47,37 @@ function logger(
   if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
     if (isError) {
       if ((message as Error).message) {
-        console.log(
+        console.error(
           `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
             (message as Error).message
           }`,
         );
       } else {
-        console.log(
+        console.error(
           `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            typeof message == "object" ? JSON.stringify(message) : message
+            typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
           }`,
         );
       }
     } else {
       console.log(
         `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object" ? JSON.stringify(message) : message
+          typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
         }`,
       );
     }
+    Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${message} \n`, { append: true, create: true }).then(() => {
+      // console.log("Log wrote on dir!");
+    }).catch(err => {
+      if (err instanceof Deno.errors.NotFound) {
+        Deno.mkdir("logs").then(() => {
+          Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${message} \n`, { append: true, create: true }).then(() => {
+            // console.log("Log wrote on dir!");
+            
+          })
+        })
+      } else console.error(err)
+    })
   }
   if ((message as Error).message) {
     return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
@@ -110,56 +122,38 @@ export async function sanityCheck(): Promise<string[]> {
       if (val instanceof ModuleFunctions && val.MODULE_ID) {
         let valid = true;
         try {
-          console.log(`\n - Module '${val.MODULE_ID}' found`);
           const auth = await val.getAuth();
-          ((!auth.username || !auth.password) &&
-            val.authReq) &&
-            console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
+          console.log(`\n - Module '${val.MODULE_ID}' found`);
+          if((!auth.username || !auth.password) &&
+            val.authReq) {
+              console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
+            }
           !val.login &&
-            val.logger(
+            logger(
               "sanityCheck",
               `\t${val.MODULE_ID} - WARNING login method not implemented`,
             );
           if (val.hasLive && !val.liveChannels) {
-            val.logger(
+            logger(
               "sanityCheck",
               `\t${val.MODULE_ID} - WARNING hasLive is enabled but liveChannels method not implemented`,
             );
             valid = false;
           }
           if (val.hasVOD && !val.getVOD) {
-            val.logger(
+            logger(
               "sanityCheck",
               `\t${val.MODULE_ID} - WARNING hasVOD is enabled but getVOD method not implemented`,
             );
             valid = false;
           }
         } catch (error) {
+          console.log(`\n - Module '${val.MODULE_ID}' found`);
           if (error instanceof Deno.errors.NotFound) {
-            if (val.chList) {
-              await val.initializeConfig(val.chList);
-              console.log(`\n - Module '${val.MODULE_ID}' found`);
-              console.log(
-                `\t${val.MODULE_ID} - Config file created!`,
-              );
-            } else if (val.getChannels?.constructor.name === "AsyncFunction") {
-              console.log(`\n - Module '${val.MODULE_ID}' found`);
-              await val.initializeConfig();
-              console.log(
-                `\t${val.MODULE_ID} - Config file created!`,
-              );
+            logger("sanityCheck", "File empty or not found");
+              await val.initializeConfig(val.chList || {});
               const ch = await val.getChannels();
               await val.setConfig("chList", ch);
-            } else {
-              await val.initializeConfig();
-              console.log(` - Module '${val.MODULE_ID}' found`);
-              console.log(
-                `\t${val.MODULE_ID} - initialised - Config file created!`,
-              );
-              console.log(
-                `\t${val.MODULE_ID} - Warning - getChannels failed, unable to update list!`,
-              );
-            }
           } else {
             throw error;
           }
@@ -571,9 +565,14 @@ export async function getVODlist(module_id: string, page?: number) {
         .default();
       if (module.hasVOD) {
         return Promise.resolve(
-          await module.getVOD_List((await module.getAuth()).authTokens, page),
+          module?.getVOD_List && await module.getVOD_List((await module.getAuth()).authTokens, page),
         );
-      } else {return Promise.reject(logger("getVODlist", `Module ${module_id} doesn't have VOD available`, true),
+      } else {return Promise.reject(
+          logger(
+            "getVODlist",
+            `Module ${module_id} doesn't have VOD available`,
+            true,
+          ),
         );}
     } catch (error) {
       return Promise.reject(logger("getVODlist", error, true));
@@ -601,7 +600,7 @@ export async function getVOD(
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
-        const res = await module.getVOD(
+        const res = module?.getVOD && await module.getVOD(
           show_id,
           (await module.getAuth()).authTokens,
           page,
@@ -653,13 +652,21 @@ export async function getVOD_EP(
               cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
-          const res = await module.getVOD_EP(
-            show_id,
-            epid,
-            (await module.getAuth()).authTokens,
-          );
-          await module.cacheFill(epid, { stream: res });
-          return Promise.resolve({ stream: res, cache: cache_enabled });
+          if (module.hasVOD) {
+            const res = module?.getVOD_EP && await module.getVOD_EP(
+              show_id,
+              epid,
+              (await module.getAuth()).authTokens,
+            );
+            await module.cacheFill(epid, { stream: res || "" });
+            return Promise.resolve({ stream: res || "", cache: cache_enabled });
+          }
+            return Promise.reject(
+              logger(
+                "getVOD",
+                `Module ${module_id} doesn't have VOD enabled/implemented`,
+              ),
+            );
         }
       } else {return Promise.reject(
           logger(

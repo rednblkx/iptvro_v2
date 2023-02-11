@@ -493,7 +493,7 @@ router.get(
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid`,
+  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid/:playlist(index.m3u8)?/:player?`,
   async (context) => {
     logger(
       "vod",
@@ -503,17 +503,30 @@ router.get(
       context.params.module,
       context.params.show,
       context.params.epid,
+      context.params.playlist ? true : false
     );
     if (!data) {
       throw "No data received from method!";
     }
-    // res.json(body)
-    context.response.body = new Response(
-      "SUCCESS",
-      context.params.module,
-      data.stream,
-      data.cache,
-    );
+    if (context.params.playlist) {
+      if (context.params.player) {
+        context.render("player.ejs", {
+          stream: `http://localhost:${PORT}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`,
+          proxy: null,
+          origin: null,
+        });
+      } else {
+        context.response.headers.set("Content-Type", "application/x-mpegURL")
+        context.response.body = data.stream
+      }
+    } else {
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        data.stream,
+        data.cache,
+      );
+    }
   },
 );
 

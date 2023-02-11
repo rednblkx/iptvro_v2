@@ -1,18 +1,25 @@
-import ModuleClass from "../moduleClass.ts";
+import ModuleClass, { ModuleType } from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 // import new Md5().update from 'blueimp-new Md5().update';
-import { Md5 } from "https://deno.land/std@0.119.0/hash/md5.ts";
+import { Md5 } from "https://deno.land/std@0.160.0/hash/md5.ts";
 
-// var Module = new Class('digi', true, false)
-
-class ModuleInstance extends ModuleClass {
+class ModuleInstance extends ModuleClass implements ModuleType {
   /**
    * A constructor function for the Digi class.
    */
   constructor() {
     /* Calling the constructor of the parent class, which is ModuleClass. */
     super("digi-online", true, true, false);
+  }
+  getVOD_List(authTokens: string[], page?: number | undefined): Promise<{ data: unknown[]; pagination?: { current_page: number; total_pages: number; per_page: number; } | undefined; }> {
+    return Promise.reject(this.logger("getVOD_List", "Method not implemented", true))
+  }
+  getVOD(show: string, authTokens: string[], page?: number | undefined): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+    return Promise.reject(this.logger("getVOD", "Method not implemented", true))
+  }
+  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string> {
+    return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
   }
 
   /**
@@ -37,12 +44,10 @@ class ModuleInstance extends ModuleClass {
    * @returns An object with two properties, id and hash.
    */
   private generateId(username: string, password: string, uhash: string) {
-    const deviceStr = `Kodeative_iptvro_${
-      BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()
-    }`;
-    const deviceId = `${deviceStr}_${
-      this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))
-    }`;
+    const deviceStr = `Kodeative_iptvro_${BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()
+      }`;
+    const deviceId = `${deviceStr}_${this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))
+      }`;
     const md5hash = new Md5().update(
       `${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`,
     ).toString();
@@ -95,8 +100,7 @@ class ModuleInstance extends ModuleClass {
         };
       };
       const login_res = await axios.get<login>(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${
-          encodeURIComponent(username)
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${encodeURIComponent(username)
         }`,
         {
           headers: {
@@ -118,8 +122,7 @@ class ModuleInstance extends ModuleClass {
       const id = this.generateId(username, pwdHash, userHash);
 
       const register = await axios.get<device_register>(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${
-          encodeURIComponent(username)
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${encodeURIComponent(username)
         }&o=REL_12`,
         {
           headers: {
@@ -156,17 +159,16 @@ class ModuleInstance extends ModuleClass {
     id: string,
     authTokens: string[],
     _authLastUpdate: Date,
-  ): Promise<{ stream: string; proxy?: string }> {
+  ): Promise<{ stream: string; drm?: { url: string, headers?: { name: string, value: string }[] } }> {
     try {
-      if (!(authTokens.length > 0)) {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         const auth = await this.getAuth();
         this.logger("liveChannels", "No tokens, trying login");
         authTokens = await this.login(auth.username, auth.password);
       }
       this.logger("liveChannels", "getting the stream");
       const play = await axios.get(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${
-          authTokens[0]
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${authTokens[0]
         }&sn=ro.rcsrds.digionline&s=app&quality=all`,
         {
           headers: {
@@ -175,6 +177,7 @@ class ModuleInstance extends ModuleClass {
           },
         },
       );
+      this.logger("liveChannels", play.data)
       play.data.stream?.abr && this.logger("liveChannels", "got the stream");
       if (play.data.error !== "") {
         return Promise.reject(
@@ -187,7 +190,7 @@ class ModuleInstance extends ModuleClass {
       }
       return Promise.resolve({
         stream: play.data.stream.abr,
-        proxy: play.data.stream.proxy || undefined,
+        drm: { url: play.data.stream.proxy || undefined },
       });
     } catch (error) {
       this.logger("liveChannels", `Error from provider: ${error}`, true);
@@ -199,7 +202,7 @@ class ModuleInstance extends ModuleClass {
    * It gets a list of channels from the API and returns a promise with a list of channels
    * @returns A promise that resolves to an object containing the channel name and id.
    */
-  async getChannels(): Promise<Record<string, unknown>> {
+  async getChannels(): Promise<Record<string, string>> {
     try {
       const channels = await axios.get(
         "https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php",

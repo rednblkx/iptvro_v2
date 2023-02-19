@@ -1,24 +1,18 @@
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
-import ModuleClass, { ModuleType } from "../moduleClass.ts";
+import ModuleClass, { IVODData, ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
 import * as mod from "https://deno.land/std@0.91.0/encoding/base64.ts";
 import {
   crypto,
   toHashString,
 } from "https://deno.land/std@0.170.0/crypto/mod.ts";
-import { LoginResponse, LiveStreamResponse, LicenseRequestHeader, ChannelsList, VODList } from "./types/pro-plus.d.ts"
+import { LoginResponse, LiveStreamResponse, ChannelsList, VODList, IVODEpisodes, IEpisode } from "./types/pro-plus.d.ts"
+import moment from "https://deno.land/x/momentjs@2.29.1-deno/mod.ts";
 
 /* A class that extends the Class class. */
 class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
     super("pro-plus", true, false, true);
-  }
-
-  getVOD(show: string, authTokens: string[], page?: number | undefined): Promise<Record<string, unknown> | Record<string, unknown>[]> {
-    return Promise.reject(this.logger("getVOD", "Method not implemented", true))
-  }
-  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string> {
-    return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
   }
 
   /**
@@ -89,12 +83,21 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     id: string,
     authTokens: string[],
     _authLastUpdate: Date,
-  ): Promise<{ stream: string; drm?: { url: string, headers?: LicenseRequestHeader[] } }> {
+  ): Promise<StreamResponse> {
     try {
-      if (!authTokens) {
-        const auth = await this.getAuth();
-        this.logger("liveChannels", "No tokens, trying login");
-        authTokens = await this.login(auth.username, auth.password);
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
+        this.logger("liveChannels", "authTokens not provided, trying login");
+        //get config
+        const config = await this.getAuth();
+        //get authTokens
+        authTokens = await this.login(config.username, config.password);
+        //set authTokens
+        this.setAuth({
+          username: config.username,
+          password: config.password,
+          authTokens: authTokens,
+          lastupdated: new Date(),
+        });
       }
       const headers = {
         "Authorization": `Bearer ${authTokens[0]}`,
@@ -183,13 +186,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     }
   }
 
-  async getVOD_List(authTokens: string[],page?: number|undefined): Promise<{ data: unknown[]; pagination?: { current_page: number; total_pages: number; per_page: number; }|undefined; }> {
+  async getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
     try {
-      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
-        const auth = await this.getAuth();
-        this.logger("getVOD", "No tokens, trying login");
-        authTokens = await this.login(auth.username, auth.password);
-      }
       const vod_res = await axios.get<VODList>("https://apiprotvplus.cms.protvplus.ro/api/v2/overview", {
         headers: {
           "Accept":
@@ -209,18 +207,126 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         }
       })
       this.logger("getVOD_List", vod_res.data);
-      let data: { name: string, img: string, link: string }[] = [];
+      const data: IVODData[] = [];
       vod_res.data.sections.forEach(obj => {
-        // obj.
-        data = obj.content.map(ep => {
-          return { name: ep.content.title, link: `/${this.MODULE_ID}/vod/${ep.content.id}`, img: ep.content.image }
+        // data.push({ name: obj.name, link: `/${this.MODULE_ID}/vod/${obj.id}`, img: "" })
+        obj.content.forEach(ep => {
+          ep.content.type === "tvshow" && data.push({ name: ep.content.title, link: `/${this.MODULE_ID}/vod/${ep.content.id}`, img: ep.content.image.replace("{WIDTH}x{HEIGHT}", "1920x1080") })
         })
       })
-      return Promise.resolve({data});
+      return Promise.resolve({ data });
     } catch (error) {
       return Promise.reject(
         this.logger(
           "getVOD_List", error, true
+        )
+      );
+    }
+  }
+  async getVOD(show: string, authTokens: string[], options?: Record<string, unknown>): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+    try {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
+        this.logger("liveChannels", "authTokens not provided, trying login");
+        //get config
+        const config = await this.getAuth();
+        //get authTokens
+        authTokens = await this.login(config.username, config.password);
+        //set authTokens
+        this.setAuth({
+          username: config.username,
+          password: config.password,
+          authTokens: authTokens,
+          lastupdated: new Date(),
+        });
+      }
+      const vod_res = await axios.get<IVODEpisodes>(`https://apivoyo.cms.protvplus.ro/api/v2/tvshow/${show}`, {
+        headers: {
+          "Authorization": `Bearer ${authTokens[0]}`,
+          "Accept":
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+          "Content-Type": "application/json",
+          "X-Api-Key": "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
+          "X-Device-Id": authTokens[1],
+          "User-Agent": "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+          "X-AppBuildNumber": "2180",
+          "X-Version": "1.15.0",
+          "X-DeviceName": "Moto G7 Power",
+          "X-DeviceModel": "moto g(7) power",
+          "X-DeviceManufacturer": "motorola",
+          "X-DeviceOSVersion": "32",
+          "X-DeviceOS": "Android",
+          "X-DeviceType": "mobile"
+        }
+      })
+      this.logger("getVOD_List", vod_res.data);
+
+      const data: IVODData[] = [];
+
+      vod_res.data.sections[0].content.forEach(obj => {
+        data.push({ name: obj.title, link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`, date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY").format() ,img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080") })
+      })
+
+      return Promise.resolve({ data });
+    } catch (error) {
+      return Promise.reject(
+        this.logger(
+          "getVOD", error, true
+        )
+      );
+    }
+  }
+  async getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<StreamResponse> {
+    try {
+      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
+        this.logger("liveChannels", "authTokens not provided, trying login");
+        //get config
+        const config = await this.getAuth();
+        //get authTokens
+        authTokens = await this.login(config.username, config.password);
+        //set authTokens
+        this.setAuth({
+          username: config.username,
+          password: config.password,
+          authTokens: authTokens,
+          lastupdated: new Date(),
+        });
+      }
+      const headers = {
+        "Authorization": `Bearer ${authTokens[0]}`,
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+        "Content-Type": "application/json",
+        "X-Api-Key": "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
+        "X-Device-Id": authTokens[1],
+        "User-Agent": "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+        "X-AppBuildNumber": "2180",
+        "X-Version": "1.15.0",
+        "X-DeviceName": "Moto G7 Power",
+        "X-DeviceModel": "moto g(7) power",
+        "X-DeviceManufacturer": "motorola",
+        "X-DeviceOSVersion": "32",
+        "X-DeviceOS": "Android",
+        "X-DeviceType": "mobile"
+      }
+      const server_time = await axios.get<{ localTime: string, encoded: string }>("https://apiprotvplus.cms.protvplus.ro/api/v2/server/time", {
+        headers
+      })
+      this.logger("liveChannels", server_time);
+      const enc_string = new TextDecoder().decode(mod.decode("ZGtkZjM1ZzYhIHtjb250ZW50fXxwbGF5c3xuZzhyNWUzMSF8e3NlcnZlclRpbWV9ISNpM2R0JjQzQA==")).replace("{content}", epid).replace("{serverTime}", server_time.data.localTime)
+      const hash = await crypto.subtle.digest(
+        "MD5",
+        new TextEncoder().encode(enc_string),
+      );
+      const vod_res = await axios.get<IEpisode>(`https://apiprotvplus.cms.protvplus.ro/api/v2/content/${epid}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${toHashString(hash)}`, {
+        headers
+      })
+      this.logger("getVOD_EP", vod_res.data);
+
+      return Promise.resolve({stream: vod_res.data.url})
+    } catch (error) {
+      return Promise.reject(
+        this.logger(
+          "getVOD_EP", error, true
         )
       );
     }

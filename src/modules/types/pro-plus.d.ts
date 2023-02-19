@@ -230,3 +230,151 @@ interface Content3 {
   ageRestriction: number
   isFavorite: boolean
 }
+
+export interface IVODEpisodes {
+  tvshow: Tvshow
+  productionInfo: any
+  headline: Headline
+  seasons: any
+  sections: Section[]
+  alike: any
+  rentedInfo: any
+}
+
+interface Tvshow {
+  genres: any[]
+  languages: any
+  subtitles: any
+  properties: any
+  description: string
+  id: string
+  type: string
+  title: string
+  image: string
+  releaseDateLabel: string
+  labels: any[]
+  distributionMethod: string
+  geoRestriction: any
+  ageRestriction: number
+  isFavorite: boolean
+}
+
+interface Headline {
+  content: Content
+  stream: Stream
+  productionInfo: ProductionInfo
+}
+
+interface Stream {
+  isLive: boolean
+  length: number
+}
+
+interface ProductionInfo {
+  originCountries: any[]
+  directors: any[]
+  writers: any[]
+  cast: any[]
+}
+
+interface Section {
+  id: string
+  name: string
+  pages: number
+  content: Content2[]
+}
+
+interface Content2 {
+  stream: Stream2
+  id: string
+  type: string
+  title: string
+  image: string
+  releaseDateLabel: string
+  labels: any[]
+  distributionMethod: string
+  geoRestriction: any
+  ageRestriction: number
+  isFavorite: boolean
+}
+
+interface Stream2 {
+  isLive: boolean
+  length: number
+}
+
+
+export interface IEpisode {
+  url: string
+  streamProfiles: StreamProfile[]
+  alternativeAudioProfiles: any[]
+  videoType: string
+  watchedTime: number
+  content: Content
+  ads: Ads
+  drm: Drm
+  subtitles: any[]
+  properties: Property[]
+  playlist: any[]
+  tracking: Tracking
+  allowCasting: boolean
+  timeshiftMode: string
+  autoPlayControl: AutoPlayControl
+  autoPlayNext: AutoPlayNext
+  nextVideoMode: string
+  productPlacement: ProductPlacement
+  isLive: boolean
+  length: number
+}
+
+interface Ads {
+  playlist: Playlist
+}
+
+interface Playlist {
+  type: string
+  data: string
+}
+
+interface Property {
+  name: string
+  value: string
+}
+
+interface Tracking {
+  productId: string
+  product: string
+}
+
+interface NextVideoOfferPosition {
+  type: string
+  value: number
+}
+
+interface AutoPlayNext {
+  genres: any[]
+  languages: any
+  subtitles: any
+  properties: any
+  description: string
+  id: string
+  type: string
+  title: string
+  image: string
+  releaseDateLabel: string
+  labels: any[]
+  distributionMethod: string
+  geoRestriction: any
+  ageRestriction: number
+  isFavorite: boolean
+}
+
+interface ProductPlacement {
+  isEnabled: boolean
+  startShowDelay: number
+  midrollShowDelay: number
+  endShowOffset: number
+  displayTime: number
+  minShowInterval: number
+  location: string
+}

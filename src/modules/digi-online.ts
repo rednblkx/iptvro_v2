@@ -1,4 +1,8 @@
-import ModuleClass, { ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
+import ModuleClass, {
+  ModuleType,
+  StreamResponse,
+  VODListResponse,
+} from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 // import new Md5().update from 'blueimp-new Md5().update';
@@ -12,14 +16,31 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     /* Calling the constructor of the parent class, which is ModuleClass. */
     super("digi-online", true, true, false);
   }
-  getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
-    return Promise.reject(this.logger("getVOD_List", "Method not implemented", true))
+  getVOD_List(
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<VODListResponse> {
+    return Promise.reject(
+      this.logger("getVOD_List", "Method not implemented", true),
+    );
   }
-  getVOD(show: string, authTokens: string[], options?: Record<string, unknown>): Promise<Record<string, unknown> | Record<string, unknown>[]> {
-    return Promise.reject(this.logger("getVOD", "Method not implemented", true))
+  getVOD(
+    show: string,
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+    return Promise.reject(
+      this.logger("getVOD", "Method not implemented", true),
+    );
   }
-  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<StreamResponse> {
-    return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
+  getVOD_EP(
+    show: string,
+    epid: string,
+    authTokens: string[],
+  ): Promise<StreamResponse> {
+    return Promise.reject(
+      this.logger("getVOD_EP", "Method not implemented", true),
+    );
   }
 
   /**
@@ -44,10 +65,12 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * @returns An object with two properties, id and hash.
    */
   private generateId(username: string, password: string, uhash: string) {
-    const deviceStr = `Kodeative_iptvro_${BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()
-      }`;
-    const deviceId = `${deviceStr}_${this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))
-      }`;
+    const deviceStr = `Kodeative_iptvro_${
+      BigInt(parseInt((new Date().getTime() / 1000).toString())).valueOf()
+    }`;
+    const deviceId = `${deviceStr}_${
+      this.uuidGen(8).substring(0, (128 - deviceStr.length) + (-1))
+    }`;
     const md5hash = new Md5().update(
       `${username}${password}${deviceId}KodeativeiptvroREL_12${uhash}`,
     ).toString();
@@ -100,7 +123,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         };
       };
       const login_res = await axios.get<login>(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${encodeURIComponent(username)
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/user.php?pass=${pwdHash}&action=registerUser&user=${
+          encodeURIComponent(username)
         }`,
         {
           headers: {
@@ -122,7 +146,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       const id = this.generateId(username, pwdHash, userHash);
 
       const register = await axios.get<device_register>(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${encodeURIComponent(username)
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/devices.php?c=${id.hash}&pass=${pwdHash}&dmo=iptvro&action=registerDevice&i=${id.id}&dma=Kodeative&user=${
+          encodeURIComponent(username)
         }&o=REL_12`,
         {
           headers: {
@@ -168,7 +193,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       }
       this.logger("liveChannels", "getting the stream");
       const play = await axios.get(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${authTokens[0]
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${
+          authTokens[0]
         }&sn=ro.rcsrds.digionline&s=app&quality=all`,
         {
           headers: {
@@ -177,7 +203,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         },
       );
-      this.logger("liveChannels", play.data)
+      this.logger("liveChannels", play.data);
       play.data.stream?.abr && this.logger("liveChannels", "got the stream");
       if (play.data.error !== "") {
         return Promise.reject(

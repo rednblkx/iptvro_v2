@@ -1,4 +1,10 @@
-import ModuleClass, { IVOD, IVODData, ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
+import ModuleClass, {
+  IVOD,
+  IVODData,
+  ModuleType,
+  StreamResponse,
+  VODListResponse,
+} from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 import { stringify } from "https://deno.land/x/querystring@v1.0.2/mod.js";
@@ -140,7 +146,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         },
       );
-      this.logger("getChannels", channels.data)
+      this.logger("getChannels", channels.data);
       const channels_list: { [k: string]: string } = {};
       channels.data.data.forEach((l) => {
         channels_list[l.slug] = String(l.id);
@@ -157,7 +163,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * @param {number} [page] - The page number of the VOD list.
    * @returns An object with the following structure:
    */
-  async getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
+  async getVOD_List(
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<VODListResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw new Error(`Cookies Missing/Invalid`)
@@ -244,11 +253,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     show: string,
     authTokens: string[],
     options?: Record<string, unknown>,
-  ): Promise<{data: unknown[], pagination?: {
-    current_page: number;
-    total_pages: number;
-    per_page: number;
-  }}> {
+  ): Promise<{
+    data: unknown[];
+    pagination?: {
+      current_page: number;
+      total_pages: number;
+      per_page: number;
+    };
+  }> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`
@@ -360,7 +372,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         },
       );
-      return Promise.resolve({stream: episode_id.data.data.url});
+      return Promise.resolve({ stream: episode_id.data.data.url });
     } catch (error) {
       return Promise.reject(this.logger("getVOD_EP", error, true));
     }

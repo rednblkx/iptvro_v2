@@ -4,8 +4,7 @@ import ModuleClass, {
   VODListResponse,
 } from "../moduleClass.ts";
 
-import axios from "https://deno.land/x/axiod/mod.ts";
-// import new Md5().update from 'blueimp-new Md5().update';
+import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { Md5 } from "https://deno.land/std@0.160.0/hash/md5.ts";
 
 class ModuleInstance extends ModuleClass implements ModuleType {
@@ -17,26 +16,26 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     super("digi-online", true, true, false);
   }
   getVOD_List(
-    authTokens: string[],
-    options?: Record<string, unknown>,
+    _authTokens: string[],
+    _options?: Record<string, unknown>,
   ): Promise<VODListResponse> {
     return Promise.reject(
       this.logger("getVOD_List", "Method not implemented", true),
     );
   }
   getVOD(
-    show: string,
-    authTokens: string[],
-    options?: Record<string, unknown>,
+    _show: string,
+    _authTokens: string[],
+    _options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
     return Promise.reject(
       this.logger("getVOD", "Method not implemented", true),
     );
   }
   getVOD_EP(
-    show: string,
-    epid: string,
-    authTokens: string[],
+    _show: string,
+    _epid: string,
+    _authTokens: string[],
   ): Promise<StreamResponse> {
     return Promise.reject(
       this.logger("getVOD_EP", "Method not implemented", true),

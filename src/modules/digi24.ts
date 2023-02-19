@@ -1,4 +1,4 @@
-import axios from "https://deno.land/x/axiod/mod.ts";
+import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import ModuleClass, {
   ModuleType,
   StreamResponse,
@@ -23,26 +23,26 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
     );
   }
   getVOD_List(
-    authTokens: string[],
-    options?: Record<string, unknown>,
+    _authTokens: string[],
+    _options?: Record<string, unknown>,
   ): Promise<VODListResponse> {
     return Promise.reject(
       this.logger("getVOD_List", "Method not implemented", true),
     );
   }
   getVOD(
-    show: string,
-    authTokens: string[],
-    options?: Record<string, unknown>,
+    _show: string,
+    _authTokens: string[],
+    _options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
     return Promise.reject(
       this.logger("getVOD", "Method not implemented", true),
     );
   }
   getVOD_EP(
-    show: string,
-    epid: string,
-    authTokens: string[],
+    _show: string,
+    _epid: string,
+    _authTokens: string[],
   ): Promise<StreamResponse> {
     return Promise.reject(
       this.logger("getVOD_EP", "Method not implemented", true),
@@ -72,13 +72,13 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
   /**
    * It gets the live stream of a channel.
    * @param {string} id - the channel id, you can get it from the channel list
-   * @param {string[]} authTokens - The tokens you get from the login function.
+   * @param {string[]} _authTokens - The tokens you get from the login function.
    * @param {Date} authLastUpdate - Date - The date when the auth tokens were last updated.
    * @returns The stream url
    */
   async liveChannels(
     id: string,
-    authTokens: string[],
+    _authTokens: string[],
     _authLastUpdate: Date,
   ): Promise<StreamResponse> {
     try {

@@ -4,7 +4,7 @@ export interface IVODList {
   browseAll: string;
   headline: Headline;
   sections: Section[];
-  liveTvs: any;
+  liveTvs: unknown;
 }
 
 interface Category {
@@ -24,7 +24,7 @@ interface Headline {
   content: Content;
   heroImage: string;
   mainTitle: string;
-  season: any;
+  season: unknown;
   playButton: PlayButton;
   stream: Stream;
   mainIsFavorite: boolean;
@@ -34,23 +34,23 @@ interface Content {
   genres: Genre[];
   languages: string[];
   subtitles: string[];
-  properties: any;
+  properties: unknown;
   description: string;
   isFavorite: boolean;
   parentShowId: string;
   parentShowTitle: string;
   origTitle: string;
   teaserText1: string;
-  webUrl: any;
+  webUrl: unknown;
   id: string;
   type: string;
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any;
+  labels: unknown;
   distributionMethod: string;
   geoRestriction: GeoRestriction;
-  ageRestriction: any;
+  ageRestriction: unknown;
   typeLabel: string;
 }
 
@@ -85,17 +85,17 @@ interface Section {
   type: string;
   template: string;
   content?: Content2[];
-  watching: any;
-  rented: any;
+  watching: unknown;
+  rented: unknown;
   live?: Live[];
   contentFilters?: ContentFilters;
-  coming_soon: any;
+  coming_soon: unknown;
 }
 
 interface Content2 {
   id: string;
   content: Content3;
-  recommendation: any;
+  recommendation: unknown;
   teaserText1?: string;
   teaserText2?: string;
 }
@@ -109,8 +109,8 @@ interface Content3 {
   labels?: Label[];
   distributionMethod: string;
   geoRestriction?: GeoRestriction;
-  ageRestriction: any;
-  typeLabel: any;
+  ageRestriction: unknown;
+  typeLabel: unknown;
 }
 
 interface Label {
@@ -122,8 +122,8 @@ interface Label {
 interface Style {
   backgroundColor: string;
   fontColor: string;
-  borderColor: any;
-  position: any;
+  borderColor: unknown;
+  position: unknown;
 }
 
 interface Live {
@@ -143,11 +143,11 @@ interface CurrentlyPlaying {
   title: string;
   image: string;
   releaseDateLabel?: string;
-  labels?: any[];
+  labels?: unknown[];
   distributionMethod: string;
   geoRestriction?: GeoRestriction;
-  ageRestriction: any;
-  typeLabel: any;
+  ageRestriction: unknown;
+  typeLabel: unknown;
 }
 
 interface Timeslot {
@@ -170,11 +170,11 @@ interface NextShow {
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any[];
+  labels: unknown[];
   distributionMethod: string;
   geoRestriction?: GeoRestriction;
-  ageRestriction: any;
-  typeLabel: any;
+  ageRestriction: unknown;
+  typeLabel: unknown;
 }
 
 interface ContentFilters {
@@ -185,7 +185,7 @@ interface ContentFilters {
 }
 
 export interface IVODListFilter {
-  resetFilters: any[];
+  resetFilters: unknown[];
   title: string;
   countPerPage: number;
   items: Item[];
@@ -198,19 +198,19 @@ interface Item {
   type: string;
   title: string;
   image: string;
-  releaseDateLabel: any;
+  releaseDateLabel: string;
   labels?: Label[];
   distributionMethod: string;
   geoRestriction?: GeoRestriction;
-  ageRestriction: any;
-  typeLabel: any;
+  ageRestriction: unknown;
+  typeLabel: unknown;
 }
 
 interface Style {
   backgroundColor: string;
   fontColor: string;
-  borderColor: any;
-  position: any;
+  borderColor: unknown;
+  position: unknown;
 }
 
 interface AvailableListingModifier {
@@ -234,18 +234,18 @@ export interface IVODEpisodes {
   seasons: Season[];
   sections: Section[];
   alike: Alike[];
-  trailers: any;
+  trailers: unknown;
   subPages: SubPage[];
-  rentedInfo: any;
+  rentedInfo: unknown;
   downloadInfo: DownloadInfo;
   defaultSorting: string;
 }
 
 interface Tvshow {
   genres: Genre[];
-  languages: any;
+  languages: unknown;
   subtitles: string[];
-  properties: any;
+  properties: unknown;
   description: string;
   isFavorite: boolean;
   parentShowId: string;
@@ -257,12 +257,12 @@ interface Tvshow {
   type: string;
   title: string;
   image: string;
-  releaseDateLabel: any;
+  releaseDateLabel: unknown;
   labels: Label[];
   distributionMethod: string;
   geoRestriction: GeoRestriction;
   ageRestriction: number;
-  typeLabel: any;
+  typeLabel: unknown;
 }
 
 interface Genre {
@@ -276,18 +276,18 @@ interface GeoRestriction {
 }
 
 interface ProductionInfo {
-  originCountries: any[];
-  directors: any[];
-  cast: any[];
+  originCountries: unknown[];
+  directors: unknown[];
+  cast: unknown[];
 }
 
 interface Headline {
   content: Content;
   stream: Stream;
   productionInfo: ProductionInfo2;
-  previewStream: any;
+  previewStream: unknown;
   playButton: PlayButton;
-  trailerButton: any;
+  trailerButton: unknown;
 }
 
 interface Genre2 {
@@ -332,9 +332,9 @@ interface SubtitlesControl {
 }
 
 interface ProductionInfo2 {
-  originCountries: any[];
-  directors: any[];
-  cast: any[];
+  originCountries: unknown[];
+  directors: unknown[];
+  cast: unknown[];
 }
 
 interface PlayButton {
@@ -342,7 +342,7 @@ interface PlayButton {
   description: string;
   descriptionSecondary: string;
   progress: number;
-  progressFormatted: any;
+  progressFormatted: unknown;
   id: string;
   type: string;
 }
@@ -367,11 +367,11 @@ interface Content2 {
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any;
+  labels: unknown;
   distributionMethod: string;
   geoRestriction: GeoRestriction3;
-  ageRestriction: any;
-  typeLabel: any;
+  ageRestriction: unknown;
+  typeLabel: unknown;
 }
 
 interface Stream2 {
@@ -390,16 +390,16 @@ interface GeoRestriction3 {
 
 interface Alike {
   genres: Genre3[];
-  languages: any;
-  subtitles: any;
-  properties: any;
+  languages: unknown;
+  subtitles: unknown;
+  properties: unknown;
   description: string;
   isFavorite: boolean;
-  parentShowId: any;
-  parentShowTitle: any;
+  parentShowId: unknown;
+  parentShowTitle: unknown;
   origTitle: string;
   teaserText1: string;
-  webUrl: any;
+  webUrl: unknown;
   id: string;
   type: string;
   title: string;
@@ -409,7 +409,7 @@ interface Alike {
   distributionMethod: string;
   geoRestriction?: GeoRestriction4;
   ageRestriction?: number;
-  typeLabel: any;
+  typeLabel: unknown;
 }
 
 interface Genre3 {
@@ -426,8 +426,8 @@ interface Label2 {
 interface Style {
   backgroundColor: string;
   fontColor: string;
-  borderColor: any;
-  position: any;
+  borderColor: unknown;
+  position: unknown;
 }
 
 interface GeoRestriction4 {
@@ -445,5 +445,5 @@ interface SubPage {
 interface DownloadInfo {
   isDownloadable: boolean;
   downloadableInterval: number;
-  offlinePlaybackDuration: any;
+  offlinePlaybackDuration: unknown;
 }

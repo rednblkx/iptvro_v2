@@ -241,8 +241,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   async getVOD_List(
-    authTokens: string[],
-    options?: Record<string, unknown>,
+    _authTokens: string[],
+    _options?: Record<string, unknown>,
   ): Promise<VODListResponse> {
     try {
       const vod_res = await axios.get<VODList>(
@@ -295,7 +295,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   async getVOD(
     show: string,
     authTokens: string[],
-    options?: Record<string, unknown>,
+    _options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
@@ -362,7 +362,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     }
   }
   async getVOD_EP(
-    show: string,
+    _show: string,
     epid: string,
     authTokens: string[],
   ): Promise<StreamResponse> {

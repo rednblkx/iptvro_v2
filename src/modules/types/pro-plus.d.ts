@@ -232,28 +232,28 @@ interface Content3 {
 
 export interface IVODEpisodes {
   tvshow: Tvshow;
-  productionInfo: any;
+  productionInfo: unknown;
   headline: Headline;
-  seasons: any;
+  seasons: unknown;
   sections: Section[];
-  alike: any;
-  rentedInfo: any;
+  alike: unknown;
+  rentedInfo: unknown;
 }
 
 interface Tvshow {
-  genres: any[];
-  languages: any;
-  subtitles: any;
-  properties: any;
+  genres: unknown[];
+  languages: unknown;
+  subtitles: unknown;
+  properties: unknown;
   description: string;
   id: string;
   type: string;
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any[];
+  labels: unknown[];
   distributionMethod: string;
-  geoRestriction: any;
+  geoRestriction: unknown;
   ageRestriction: number;
   isFavorite: boolean;
 }
@@ -270,10 +270,10 @@ interface Stream {
 }
 
 interface ProductionInfo {
-  originCountries: any[];
-  directors: any[];
-  writers: any[];
-  cast: any[];
+  originCountries: unknown[];
+  directors: unknown[];
+  writers: unknown[];
+  cast: unknown[];
 }
 
 interface Section {
@@ -290,9 +290,9 @@ interface Content2 {
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any[];
+  labels: unknown[];
   distributionMethod: string;
-  geoRestriction: any;
+  geoRestriction: unknown;
   ageRestriction: number;
   isFavorite: boolean;
 }
@@ -305,15 +305,15 @@ interface Stream2 {
 export interface IEpisode {
   url: string;
   streamProfiles: StreamProfile[];
-  alternativeAudioProfiles: any[];
+  alternativeAudioProfiles: unknown[];
   videoType: string;
   watchedTime: number;
   content: Content;
   ads: Ads;
   drm: Drm;
-  subtitles: any[];
+  subtitles: unknown[];
   properties: Property[];
-  playlist: any[];
+  playlist: unknown[];
   tracking: Tracking;
   allowCasting: boolean;
   timeshiftMode: string;
@@ -350,19 +350,19 @@ interface NextVideoOfferPosition {
 }
 
 interface AutoPlayNext {
-  genres: any[];
-  languages: any;
-  subtitles: any;
-  properties: any;
+  genres: unknown[];
+  languages: unknown;
+  subtitles: unknown;
+  properties: unknown;
   description: string;
   id: string;
   type: string;
   title: string;
   image: string;
   releaseDateLabel: string;
-  labels: any[];
+  labels: unknown[];
   distributionMethod: string;
-  geoRestriction: any;
+  geoRestriction: unknown;
   ageRestriction: number;
   isFavorite: boolean;
 }

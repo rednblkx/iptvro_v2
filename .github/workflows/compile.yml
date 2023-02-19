@@ -1,4 +1,4 @@
-name: NodeJS Typescript compile
+name: Deno
 
 on:
   push:
@@ -11,17 +11,15 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [16.x]
-
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: tsc
+      - name: Setup Deno
+        # You may pin to the exact commit or the version.
+        # uses: denoland/setup-deno@9db7f66e8e16b5699a514448ce994936c63f0d54
+        uses: denoland/setup-deno@v1.1.1
+      - name: Check Linting
+        run: deno lint
+      - name: Check formatting
+        run: deno fmt --check
 
 

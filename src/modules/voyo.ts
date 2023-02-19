@@ -199,7 +199,12 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     try {
       const authTokens = (await this.getAuth()).authTokens;
       if (!authTokens[0]) {
-        throw "No tokens, cannot update channels list";
+        this.logger(
+          "getChannels",
+          "No tokens, cannot update channels list",
+          true,
+        );
+        return Promise.resolve({});
       }
       const channels = await axios.get<ChannelsList>(
         "https://apivoyo.cms.protvplus.ro/api/v1/overview?category=livetv",

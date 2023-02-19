@@ -159,9 +159,9 @@ export async function sanityCheck(): Promise<string[]> {
             val.authReq
           ) {
             console.log(
-              `\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`,
+              `\t${val.MODULE_ID} - Username/Passsword required but not set`,
             );
-            throw `${val.MODULE_ID} - Username/Passsword required but not set`;
+            // throw `${val.MODULE_ID} - Username/Passsword required but not set`;
           }
           !val.login &&
             logger(
@@ -193,9 +193,9 @@ export async function sanityCheck(): Promise<string[]> {
               val.authReq
             ) {
               console.log(
-                `\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`,
+                `\t${val.MODULE_ID} - Username/Passsword required but not set`,
               );
-              throw `${val.MODULE_ID} - Username/Passsword required but not set`;
+              // throw `${val.MODULE_ID} - Username/Passsword required but not set`;
             }
             if (!val.chList) {
               const ch = await val.getChannels();
@@ -205,7 +205,7 @@ export async function sanityCheck(): Promise<string[]> {
             throw error;
           }
         }
-        valid && console.log(`\t${val.MODULE_ID} - No issues found`);
+        // valid && console.log(`\t${val.MODULE_ID} - No issues found`);
 
         valid && valid_list.push(val.MODULE_ID);
       } else {
@@ -538,6 +538,7 @@ export async function searchChannel(
     );
     for (const module of modules) {
       try {
+        if (!module.hasLive) continue;
         logger(
           "searchChannel",
           `Searching for channel '${id}' in module '${module.MODULE_ID}'`,

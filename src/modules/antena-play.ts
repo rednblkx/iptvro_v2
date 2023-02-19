@@ -1,4 +1,4 @@
-import ModuleClass, { IVOD, IVODData, ModuleType } from "../moduleClass.ts";
+import ModuleClass, { IVOD, IVODData, ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 import { stringify } from "https://deno.land/x/querystring@v1.0.2/mod.js";
@@ -71,7 +71,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     channel: string,
     authTokens: string[],
     _authLastUpdate: Date,
-  ): Promise<{ stream: string; drm?: { url: string, headers?: {name: string, value: string}[]} }> {
+  ): Promise<StreamResponse> {
     type IStreamResponse = {
       data: {
         link: string;
@@ -157,11 +157,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * @param {number} [page] - The page number of the VOD list.
    * @returns An object with the following structure:
    */
-  async getVOD_List(authTokens: string[], page?: number): Promise<{data: unknown[], pagination?: {
-    current_page: number;
-    total_pages: number;
-    per_page: number;
-  }}> {
+  async getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw new Error(`Cookies Missing/Invalid`)
@@ -179,7 +175,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       }
       const shows = await axios.get<IVODList>(
         `https://restapi.antenaplay.ro/v1/shows?_per_page=20&_sort=last_video_date%3Adesc&active=Y&_page=${
-          page || 1
+          options?.page || 1
         }`,
         {
           headers: {
@@ -196,6 +192,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         list.push(
           {
             name: l.show_name,
+            date: l.last_video_date,
             img: l.main_image,
             link: `/${this.MODULE_ID}/vod/${l.id}`,
           },
@@ -246,7 +243,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   async getVOD(
     show: string,
     authTokens: string[],
-    page: number,
+    options?: Record<string, unknown>,
   ): Promise<{data: unknown[], pagination?: {
     current_page: number;
     total_pages: number;
@@ -269,7 +266,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       }
       const episodes = await axios.get<IVODEpisodes>(
         `https://restapi.antenaplay.ro/v1/videos?_page=${
-          page || 1
+          options?.page || 1
         }&_per_page=10&_sort=publish_date%3Adesc&active=Y&show_id=${show}`,
         {
           headers: {
@@ -286,6 +283,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         list.push(
           {
             name: l.video_title,
+            date: l.publish_date,
             img: l.video_thumbnail,
             link: `/${this.MODULE_ID}/vod/${show}/${l.id}`,
           },
@@ -324,7 +322,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     show: string,
     epid: string,
     authTokens: string[],
-  ): Promise<string> {
+  ): Promise<StreamResponse> {
     try {
       if (!show || !epid) {
         throw `Params Missing`;
@@ -362,7 +360,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         },
       );
-      return Promise.resolve(episode_id.data.data.url);
+      return Promise.resolve({stream: episode_id.data.data.url});
     } catch (error) {
       return Promise.reject(this.logger("getVOD_EP", error, true));
     }

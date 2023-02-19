@@ -1,4 +1,4 @@
-import ModuleClass, { ModuleType } from "../moduleClass.ts";
+import ModuleClass, { ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
 
 import axios from "https://deno.land/x/axiod/mod.ts";
 // import new Md5().update from 'blueimp-new Md5().update';
@@ -12,13 +12,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     /* Calling the constructor of the parent class, which is ModuleClass. */
     super("digi-online", true, true, false);
   }
-  getVOD_List(authTokens: string[], page?: number | undefined): Promise<{ data: unknown[]; pagination?: { current_page: number; total_pages: number; per_page: number; } | undefined; }> {
+  getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
     return Promise.reject(this.logger("getVOD_List", "Method not implemented", true))
   }
-  getVOD(show: string, authTokens: string[], page?: number | undefined): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+  getVOD(show: string, authTokens: string[], options?: Record<string, unknown>): Promise<Record<string, unknown> | Record<string, unknown>[]> {
     return Promise.reject(this.logger("getVOD", "Method not implemented", true))
   }
-  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<string> {
+  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<StreamResponse> {
     return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
   }
 
@@ -159,7 +159,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     id: string,
     authTokens: string[],
     _authLastUpdate: Date,
-  ): Promise<{ stream: string; drm?: { url: string, headers?: { name: string, value: string }[] } }> {
+  ): Promise<StreamResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         const auth = await this.getAuth();

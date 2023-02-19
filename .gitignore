@@ -8,3 +8,6 @@ test*
 **/*.js.map
 **/*.js
 logs
+*.pem
+*.key
+*.crt

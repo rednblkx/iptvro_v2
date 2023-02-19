@@ -175,7 +175,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         stream: live_channel.data.url,
         drm: {
           url: live_channel.data.drm.licenseUrl,
-          headers: live_channel.data.drm.licenseRequestHeaders,
+          headers: live_channel.data.drm.licenseRequestHeaders.reduce(
+            (acc, { name, value }) => ({ ...acc, [name]: value }),
+            {},
+          ),
         },
       });
     } catch (error) {
@@ -540,7 +543,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         stream: vod_res.data.url,
         drm: {
           url: vod_res.data.drm.licenseUrl,
-          headers: vod_res.data.drm.licenseRequestHeaders,
+          headers: vod_res.data.drm.licenseRequestHeaders.reduce(
+            (acc, { name, value }) => ({ ...acc, [name]: value }),
+            {},
+          ),
         },
         subtitles: vod_res.data.subtitles,
       });

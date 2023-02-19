@@ -1,4 +1,8 @@
-import { default as ModuleFunctions, ModuleType } from "./moduleClass.ts";
+import {
+  default as ModuleFunctions,
+  ModuleType,
+  StreamResponse,
+} from "./moduleClass.ts";
 import { extname } from "https://deno.land/std@0.172.0/path/mod.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
@@ -16,7 +20,7 @@ import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
  */
 type cache = {
   name: string;
-  data: { stream: string; proxy?: string };
+  data: StreamResponse;
   module: string;
   lastupdated: Date;
 };
@@ -298,12 +302,9 @@ function m3uFixURL(
  * @returns A string of the playlist
  */
 export async function rewritePlaylist(
-  stream: { stream: string; proxy?: string },
+  stream: StreamResponse,
 ): Promise<
-  string | {
-    stream: string;
-    proxy?: string;
-  }
+  string | StreamResponse
 > {
   try {
     const initData = (await axios.get(stream.stream)).data;
@@ -690,7 +691,7 @@ export async function getVOD_EP(
   show_id: string,
   epid: string,
   playlist: boolean,
-): Promise<{ data: Record<string, unknown> | string; cache: boolean }> {
+): Promise<{ data: StreamResponse | string; cache: boolean }> {
   if (module_id) {
     try {
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))

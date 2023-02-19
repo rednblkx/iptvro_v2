@@ -12,12 +12,16 @@ import {
 
 import * as Loader from "./loader.ts";
 
-import { ModuleType } from "./moduleClass.ts";
+import { ModuleType, StreamResponse } from "./moduleClass.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 
-const app = new Application();
+/* The below code is setting the port to 3000 if the environment variable PORT is not set. */
+export const PORT = Number(Deno.env.get("PORT")) || 3000;
+const debug = Deno.env.get("DEBUG")?.toLowerCase();
+
+const app = new Application({ logErrors: Boolean(debug) });
 const router = new Router();
 
 app.use(
@@ -44,10 +48,6 @@ app.use(async (ctx, next: () => Promise<unknown>) => {
 
 app.use(router.routes());
 app.use(router.allowedMethods());
-
-/* The below code is setting the port to 3000 if the environment variable PORT is not set. */
-export const PORT = Number(Deno.env.get("PORT")) || 3000;
-const debug = Deno.env.get("DEBUG")?.toLowerCase();
 
 /* Checking if the modules are valid. */
 export const valid_modules = await Loader.sanityCheck();
@@ -101,25 +101,22 @@ function logger(
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            (message as Error).message
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
           }`,
         );
       } else {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            typeof message == "object"
-              ? JSON.stringify(message).substring(0, 200)
-              : message
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object"
+            ? JSON.stringify(message).substring(0, 200)
+            : message
           }`,
         );
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object"
-            ? JSON.stringify(message).substring(0, 200)
-            : message
+        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object"
+          ? JSON.stringify(message).substring(0, 200)
+          : message
         }`,
       );
     }
@@ -129,8 +126,7 @@ function logger(
     Deno.writeTextFile(
       `logs/log${date}.txt`,
       typeof message == "object"
-        ? `${new Date().toLocaleString()} | index - ${
-          JSON.stringify(message, null, 2)
+        ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)
         }\n`
         : `${new Date().toLocaleString()} | index - ${message} \n`,
       { append: true, create: true },
@@ -142,8 +138,7 @@ function logger(
           Deno.writeTextFile(
             `logs/log${date}.txt`,
             typeof message == "object"
-              ? `${new Date().toLocaleString()} | index - ${
-                JSON.stringify(message, null, 2)
+              ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)
               }\n`
               : `${new Date().toLocaleString()} | index - ${message} \n`,
             { append: true, create: true },
@@ -157,11 +152,10 @@ function logger(
   if ((message as Error).message) {
     return `index - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${
-    typeof message == "object"
+  return `loader - ${id}: ${typeof message == "object"
       ? JSON.stringify(message).substring(0, 200)
       : (message as string).substring(0, 200)
-  }`;
+    }`;
 }
 
 // const RouteErrorHandling = async (ctx: RouterContext<string, RouteParams<string>, Record<string, unknown>>, next: () => Promise<unknown>) => {
@@ -240,10 +234,7 @@ router.get(
         "",
         valid_modules,
       );
-      const data = await Loader.rewritePlaylist(stream.data) as {
-        stream: string;
-        proxy?: string;
-      };
+      const data = await Loader.rewritePlaylist(stream.data) as StreamResponse;
       if (context.params.player == "player") {
         logger(
           "live",
@@ -260,15 +251,16 @@ router.get(
           //   logger("live", `redirected to '${redir}' from '${data.stream}'`);
           // }
           context.render("player.ejs", {
-            stream: `http://${context.request.url.host}/cors/${data.stream}`,
-            proxy: data.proxy,
-            origin: (new URL(data.stream)).hostname,
+            stream: `//${context.request.url.host}/cors/${data.stream}`,
+            proxy: `//${context.request.url.host}/cors/${data.drm?.url}`,
+            headers: data.drm?.headers || null,
           });
         } else {
           context.render("player.ejs", {
             stream:
-              `http://${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
+              `//${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
             proxy: "",
+            headers: data.drm?.headers || null,
           });
         }
       } else {
@@ -313,9 +305,9 @@ router.get(
           );
         }
         context.render("player.ejs", {
-          stream: `http://${context.request.url.host}/cors/${redir}`,
-          proxy: data.data.proxy,
-          origin: (new URL(redir || "")).hostname,
+          stream: `//${context.request.url.host}/cors/${redir}`,
+          proxy: data.data.drm?.url,
+          headers: data.data.drm?.headers || null,
         });
       } else {
         context.response.body = new Response(
@@ -344,12 +336,11 @@ router.get(
       playlist.push(`#EXTM3U`);
       for (const channel in await mod.getChannels()) {
         playlist.push(
-          `#EXTINF:-1,${
-            (channel.split("-")).map((a) => a[0].toUpperCase() + a.substring(1))
-              .join(" ")
+          `#EXTINF:-1,${(channel.split("-")).map((a) => a[0].toUpperCase() + a.substring(1))
+            .join(" ")
           }`,
         );
-        playlist.push(`http://localhost:${PORT}/live/${channel}/index.m3u8`);
+        playlist.push(`//localhost:${PORT}/live/${channel}/index.m3u8`);
       }
       // playlist.push(`#EXT-X-ENDLIST`);
       playlist.push("\n");
@@ -373,8 +364,7 @@ router.get(
 );
 
 router.get(
-  `/:module(${
-    valid_modules.join("|") || "null"
+  `/:module(${valid_modules.join("|") || "null"
   })/live/:channel/:playlist(index.m3u8)?/:player(player)?`,
   async (context) => {
     if (context.params.playlist == "index.m3u8") {
@@ -387,10 +377,7 @@ router.get(
         context.params.module,
         valid_modules,
       );
-      const data = await Loader.rewritePlaylist(stream.data) as {
-        stream: string;
-        proxy?: string;
-      };
+      const data = await Loader.rewritePlaylist(stream.data) as StreamResponse;
       if (context.params.player == "player") {
         logger(
           "live",
@@ -408,15 +395,16 @@ router.get(
           //   );
           // }
           context.render("player.ejs", {
-            stream: `http://${context.request.url.host}/cors/${data.stream}`,
-            proxy: data.proxy,
-            origin: (new URL(data.stream)).hostname,
+            stream: `//${context.request.url.host}/cors/${data.stream}`,
+            proxy: data.drm?.url,
+            headers: data.drm?.headers || null,
           });
         } else {
           context.render("player.ejs", {
             stream:
-              `http://${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
+              `//${context.request.url.host}/live/${context.params.channel}/index.m3u8`,
             proxy: "",
+            headers: null,
           });
         }
       } else {
@@ -460,9 +448,9 @@ router.get(
           `live stream requested for channel '${context.params.channel}' with parameter player`,
         );
         context.render("player.ejs", {
-          stream: `http://${context.request.url.host}/cors/${data.data.stream}`,
-          proxy: `http://${context.request.url.host}/cors/${data.data.proxy}`,
-          origin: (new URL(data.data.stream || "")).hostname,
+          stream: `//${context.request.url.host}/cors/${data.data.stream}`,
+          proxy: `//${context.request.url.host}/cors/${data.data.drm?.url}`,
+          headers: data.data.drm?.headers || null,
         });
       } else {
         context.response.body = new Response(
@@ -525,8 +513,7 @@ router.get(
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${
-    valid_modules.join("|") || "null"
+  `/:module(${valid_modules.join("|") || "null"
   })/vod/:show/:epid/:playlist?/:player?`,
   async (context) => {
     logger(
@@ -546,10 +533,10 @@ router.get(
       if (context.params.player) {
         context.render("player.ejs", {
           stream: typeof data.data === "string"
-            ? `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`
+            ? `//${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`
             : (data.data as Record<string, unknown>).stream,
-          proxy: null,
-          origin: null,
+          proxy: (data.data as StreamResponse).drm?.url,
+          headers: (data.data as StreamResponse).drm?.headers,
         });
       } else {
         context.response.headers.set("Content-Type", "application/x-mpegURL");
@@ -586,10 +573,9 @@ router.post(
 
     logger(
       "login",
-      `'${context.params.module}' login attempt with username ${
-        result.username
-          ? result.username + " from request"
-          : config.username + " from file (request empty)"
+      `'${context.params.module}' login attempt with username ${result.username
+        ? result.username + " from request"
+        : config.username + " from file (request empty)"
       }`,
     );
     authTokens = await Loader.login(
@@ -799,10 +785,10 @@ app.use((context) => {
   context.response.body = body;
 });
 
-// createServer(8080, "/cors/", "", "");
-
 app.addEventListener("listen", () => {
   logger("oak", `Listening on localhost:${PORT}`);
 });
 
-await app.listen({ port: PORT });
+await app.listen({
+  port: PORT
+});

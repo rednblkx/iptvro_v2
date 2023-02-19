@@ -61,7 +61,7 @@ type FunctionsList =
 export type StreamResponse = {
   [k: string]: unknown;
   stream: string;
-  drm?: { url: string; headers?: { name: string; value: string }[] };
+  drm?: { url: string; headers?: { [k: string]: string } };
 };
 export type VODListResponse = {
   data: unknown[];

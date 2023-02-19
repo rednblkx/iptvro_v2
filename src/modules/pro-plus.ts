@@ -176,7 +176,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         stream: live_channel.data.url,
         drm: {
           url: live_channel.data.drm.licenseUrl,
-          headers: live_channel.data.drm.licenseRequestHeaders,
+          headers: live_channel.data.drm.licenseRequestHeaders.reduce(
+            (acc, { name, value }) => ({ ...acc, [name]: value }),
+            {},
+          ),
         },
       });
     } catch (error) {

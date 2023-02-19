@@ -1,6 +1,6 @@
 <html>
   <head>
-    <link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet">
+    <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet" />
   </head>
   <body>
     <div>
@@ -9,10 +9,8 @@
         <source src="<%- stream %>" autoplay>
       </video-js>
       
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/7.21.1/video.min.js"></script>
-      <script src="https://unpkg.com/browse/@videojs/http-streaming@2.6.0/dist/videojs-http-streaming.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-eme@4.0.1/dist/videojs-contrib-eme.min.js"></script>
-      
+      <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-eme@5.0.1/dist/videojs-contrib-eme.js"></script>
       <script>
         var player = videojs('video_1', {
           liveui: true,
@@ -20,7 +18,8 @@
           eme: {
             keySystems: {
               'com.widevine.alpha': '<%- proxy %>'
-              }
+              },
+            emeHeaders: <%- JSON.stringify(headers) %>
           }
         }
       });

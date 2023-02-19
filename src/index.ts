@@ -119,12 +119,14 @@ function logger(
         }`,
       );
     }
-    Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+    const nowDate = new Date(); 
+    const date = nowDate.getFullYear()+'-'+(nowDate.getMonth()+1)+'-'+nowDate.getDate(); 
+    Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
       // console.log("Log wrote on dir!");
     }).catch(err => {
       if (err instanceof Deno.errors.NotFound) {
         Deno.mkdir("logs").then(() => {
-          Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+          Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
             // console.log("Log wrote on dir!");
             
           })
@@ -457,7 +459,7 @@ router.get(`/:module(${valid_modules.join("|") || "null"})/vod`, async (context)
   logger("vod", `VOD list requested from module '${context.params.module}'`);
   const list = await Loader.getVODlist(
     context.params.module,
-    Number(query.page),
+    {...query},
   );
   if (!list?.data) {
     throw "No data received from method!";
@@ -477,7 +479,7 @@ router.get(
     const data = await Loader.getVOD(
       context.params.module,
       context.params.show,
-      Number(query.page),
+      query,
     );
     if (!data) {
       throw "No data received from method!";
@@ -493,7 +495,7 @@ router.get(
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid/:playlist(index.m3u8)?/:player?`,
+  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid/:playlist?/:player?`,
   async (context) => {
     logger(
       "vod",
@@ -511,19 +513,24 @@ router.get(
     if (context.params.playlist) {
       if (context.params.player) {
         context.render("player.ejs", {
-          stream: `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`,
+          stream: typeof data.data === "string" ? `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`: (data.data as Record<string, unknown>).stream,
           proxy: null,
           origin: null,
         });
       } else {
         context.response.headers.set("Content-Type", "application/x-mpegURL")
-        context.response.body = data.stream
+        context.response.body = typeof data.data === "string" ? data.data : new Response(
+          "SUCCESS",
+          context.params.module,
+          data.data,
+          data.cache,
+        );
       }
     } else {
       context.response.body = new Response(
         "SUCCESS",
         context.params.module,
-        data.stream,
+        data.data,
         data.cache,
       );
     }

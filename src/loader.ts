@@ -63,12 +63,16 @@ function logger(
         }`,
       );
     }
-    Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${message} \n`, { append: true, create: true }).then(() => {
+    const nowDate = new Date();
+    const date = nowDate.getFullYear() + '-' + (nowDate.getMonth() + 1) + '-' + nowDate.getDate();
+    Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${id} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${id} ${message} \n`, { append: true, create: true }).then(() => {
       // console.log("Log wrote on dir!");
     }).catch(err => {
       if (err instanceof Deno.errors.NotFound) {
+        console.log(err);
+
         Deno.mkdir("logs").then(() => {
-          Deno.writeTextFile("logs/log.txt", typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${message} \n`, { append: true, create: true }).then(() => {
+          Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${id} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${id} - ${message} \n`, { append: true, create: true }).then(() => {
             // console.log("Log wrote on dir!");
 
           })
@@ -80,8 +84,8 @@ function logger(
     return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
   return `loader - ${id}: ${typeof message == "object"
-      ? JSON.stringify(message).substring(0, 200)
-      : message.substring(0, 200)
+    ? JSON.stringify(message).substring(0, 200)
+    : message.substring(0, 200)
     }`;
 }
 
@@ -122,7 +126,8 @@ export async function sanityCheck(): Promise<string[]> {
           console.log(`\n - Module '${val.MODULE_ID}' found`);
           if ((!auth.username || !auth.password) &&
             val.authReq) {
-            console.log(`\t${val.MODULE_ID} - INFO - No Username/Password set`);
+              console.log(`\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`);
+              throw `${val.MODULE_ID} - Username/Passsword required but not set`
           }
           !val.login &&
             logger(
@@ -144,12 +149,20 @@ export async function sanityCheck(): Promise<string[]> {
             valid = false;
           }
         } catch (error) {
-          console.log(`\n - Module '${val.MODULE_ID}' found`);
           if (error instanceof Deno.errors.NotFound) {
+            console.log(`\n - Module '${val.MODULE_ID}' found`);
             logger("sanityCheck", "File empty or not found");
             await val.initializeConfig(val.chList || {});
-            const ch = await val.getChannels();
-            await val.setConfig("chList", ch);
+            const auth = await val.getAuth();
+            if ((!auth.username || !auth.password) &&
+              val.authReq) {
+              console.log(`\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`);
+              throw `${val.MODULE_ID} - Username/Passsword required but not set`
+            }
+            if (!val.chList) {
+              const ch = await val.getChannels();
+              await val.setConfig("chList", ch);
+            }
           } else {
             throw error;
           }
@@ -554,14 +567,14 @@ export async function searchChannel(
  * @param {string} module_id - The module id of the module you want to get the VOD list from.
  * @returns A promise that resolves to an array of VOD objects
  */
-export async function getVODlist(module_id: string, page?: number) {
+export async function getVODlist(module_id: string, options?: Record<string, unknown>) {
   if (module_id) {
     try {
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
         return Promise.resolve(
-          module?.getVOD_List && await module.getVOD_List((await module.getAuth()).authTokens, page),
+          module?.getVOD_List && await module.getVOD_List((await module.getAuth()).authTokens, options),
         );
       } else {
         return Promise.reject(
@@ -577,21 +590,19 @@ export async function getVODlist(module_id: string, page?: number) {
     }
   } else return Promise.reject(logger("getVODlist", "Module ID not provided"));
 }
+
 /**
- * It gets the VOD of a show from a module
- * @param {string} module_id - The module id of the module you want to use.
- * @param {string} show_id - The show id of the show you want to get the VOD for
- * @param {string} [year] - The year of the VOD you want to get.
- * @param {string} [month] - The month of the year you want to get the VOD for.
- * @param {string} [season] - The season number of the show
- * @param {boolean} [showfilters] - boolean - If true, the module will return a list of filters that
- * can be used to filter the VOD.
- * @returns A promise that resolves to an VOD link
+ * It imports the module, checks if it has VOD enabled, and if it does, it calls the getVOD function
+ * from the module
+ * @param {string} module_id - The ID of the module you want to use.
+ * @param {string} show_id - The ID of the show you want to get the VOD for.
+ * @param [options] - {
+ * @returns A promise that resolves to a VOD object or rejects with an error.
  */
 export async function getVOD(
   module_id: string,
   show_id: string,
-  page?: number,
+  options?: Record<string, unknown>,
 ) {
   if (module_id) {
     try {
@@ -601,7 +612,7 @@ export async function getVOD(
         const res = module?.getVOD && await module.getVOD(
           show_id,
           (await module.getAuth()).authTokens,
-          page,
+          options,
         );
         return Promise.resolve(res);
       } else {
@@ -629,7 +640,7 @@ export async function getVOD_EP(
   show_id: string,
   epid: string,
   playlist: boolean
-): Promise<{ stream: string; cache: boolean }> {
+): Promise<{ data: Record<string, unknown> | string; cache: boolean }> {
   if (module_id) {
     try {
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
@@ -640,10 +651,10 @@ export async function getVOD_EP(
         if (cache !== null && cache_enabled) {
           if (playlist) {
             const m3u8 = await rewritePlaylist(cache.data) as string
-            return Promise.resolve({stream: m3u8, cache: cache_enabled})
+            return Promise.resolve({ data: m3u8, cache: cache_enabled })
           }
           return Promise.resolve({
-            stream: cache.data.stream,
+            data: cache.data,
             cache: cache_enabled,
           });
         } else {
@@ -655,17 +666,17 @@ export async function getVOD_EP(
             } module '${module.MODULE_ID}'${cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
-          const res = module?.getVOD_EP && await module.getVOD_EP(
+          const res = await module.getVOD_EP(
             show_id,
             epid,
             (await module.getAuth()).authTokens,
           );
-          await module.cacheFill(epid, { stream: res || "" });
+          await module.cacheFill(epid, { ...res || {} });
           if (playlist) {
-            const m3u8 = await rewritePlaylist({stream: res}) as string
-            return Promise.resolve({stream: m3u8, cache: cache_enabled})
+            const m3u8 = await rewritePlaylist({ ...res }) as string
+            return Promise.resolve({ data: m3u8, cache: cache_enabled })
           }
-          return Promise.resolve({ stream: res || "", cache: cache_enabled });
+          return Promise.resolve({ data: res || {}, cache: cache_enabled });
         }
       } else {
         return Promise.reject(

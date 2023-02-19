@@ -108,31 +108,51 @@ function logger(
       } else {
         console.error(
           `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+            typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200)
+              : message
           }`,
         );
       }
     } else {
       console.log(
         `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+          typeof message == "object"
+            ? JSON.stringify(message).substring(0, 200)
+            : message
         }`,
       );
     }
-    const nowDate = new Date(); 
-    const date = nowDate.getFullYear()+'-'+(nowDate.getMonth()+1)+'-'+nowDate.getDate(); 
-    Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+    const nowDate = new Date();
+    const date = nowDate.getFullYear() + "-" + (nowDate.getMonth() + 1) + "-" +
+      nowDate.getDate();
+    Deno.writeTextFile(
+      `logs/log${date}.txt`,
+      typeof message == "object"
+        ? `${new Date().toLocaleString()} | index - ${
+          JSON.stringify(message, null, 2)
+        }\n`
+        : `${new Date().toLocaleString()} | index - ${message} \n`,
+      { append: true, create: true },
+    ).then(() => {
       // console.log("Log wrote on dir!");
-    }).catch(err => {
+    }).catch((err) => {
       if (err instanceof Deno.errors.NotFound) {
         Deno.mkdir("logs").then(() => {
-          Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | index - ${message} \n`, { append: true, create: true }).then(() => {
+          Deno.writeTextFile(
+            `logs/log${date}.txt`,
+            typeof message == "object"
+              ? `${new Date().toLocaleString()} | index - ${
+                JSON.stringify(message, null, 2)
+              }\n`
+              : `${new Date().toLocaleString()} | index - ${message} \n`,
+            { append: true, create: true },
+          ).then(() => {
             // console.log("Log wrote on dir!");
-            
-          })
-        })
-      } else console.error(err)
-    })
+          });
+        });
+      } else console.error(err);
+    });
   }
   if ((message as Error).message) {
     return `index - ${id}: ${((message as Error).message).substring(0, 200)}`;
@@ -159,49 +179,52 @@ function logger(
 //   }
 // }
 /* A simple API that returns the cache of a module. */
-router.get(`/:module(${valid_modules.join("|") || "null"})?/cache`, async (context) => {
-  type cache = {
-    name: string;
-    link: string;
-    module: string;
-    lastupdated: Date;
-  };
-  const query = helpers.getQuery(context);
-  const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
-  const db = new Low(adapter);
-  await db.read();
-  if (context.params.module) {
-    logger(
-      "cache",
-      query.id
-        ? `cache requested for id '${query.id}' on module '${context.params.module}'`
-        : `cache requested for module ${context.params.module}`,
-    );
-    const cacheAll = db.data &&
-      db.data.filter((a) =>
+router.get(
+  `/:module(${valid_modules.join("|") || "null"})?/cache`,
+  async (context) => {
+    type cache = {
+      name: string;
+      link: string;
+      module: string;
+      lastupdated: Date;
+    };
+    const query = helpers.getQuery(context);
+    const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
+    const db = new Low(adapter);
+    await db.read();
+    if (context.params.module) {
+      logger(
+        "cache",
         query.id
-          ? a.name === query.id && a.module === context.params.module
-          : a.module === context.params.module
+          ? `cache requested for id '${query.id}' on module '${context.params.module}'`
+          : `cache requested for module ${context.params.module}`,
       );
-    logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
-    context.response.body = new Response(
-      "SUCCESS",
-      context.params.module,
-      cacheAll,
-    );
-  } else {
-    logger("cache", `cache requested for all modules`);
-    const cacheid = query.id
-      ? db.data?.find((a) => a.name === query.id)
-      : db.data;
-    logger("cache", `cacheid: ${JSON.stringify(cacheid)}`);
-    context.response.body = new Response(
-      "SUCCESS",
-      context.params.module,
-      cacheid || null,
-    );
-  }
-});
+      const cacheAll = db.data &&
+        db.data.filter((a) =>
+          query.id
+            ? a.name === query.id && a.module === context.params.module
+            : a.module === context.params.module
+        );
+      logger("cache", `cacheAll: ${JSON.stringify(cacheAll)}`);
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        cacheAll,
+      );
+    } else {
+      logger("cache", `cache requested for all modules`);
+      const cacheid = query.id
+        ? db.data?.find((a) => a.name === query.id)
+        : db.data;
+      logger("cache", `cacheid: ${JSON.stringify(cacheid)}`);
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        cacheid || null,
+      );
+    }
+  },
+);
 
 /* A simple API that returns a stream URL for a given channel. */
 router.get(
@@ -454,18 +477,25 @@ router.get(
 );
 
 /* A simple API endpoint that returns a list of VODs for a given module. */
-router.get(`/:module(${valid_modules.join("|") || "null"})/vod`, async (context) => {
-  const query = helpers.getQuery(context);
-  logger("vod", `VOD list requested from module '${context.params.module}'`);
-  const list = await Loader.getVODlist(
-    context.params.module,
-    {...query},
-  );
-  if (!list?.data) {
-    throw "No data received from method!";
-  }
-  context.response.body = new Response("SUCCESS", context.params.module, list);
-});
+router.get(
+  `/:module(${valid_modules.join("|") || "null"})/vod`,
+  async (context) => {
+    const query = helpers.getQuery(context);
+    logger("vod", `VOD list requested from module '${context.params.module}'`);
+    const list = await Loader.getVODlist(
+      context.params.module,
+      { ...query },
+    );
+    if (!list?.data) {
+      throw "No data received from method!";
+    }
+    context.response.body = new Response(
+      "SUCCESS",
+      context.params.module,
+      list,
+    );
+  },
+);
 
 /* A simple API endpoint that returns the episodes list for the VOD requested. */
 router.get(
@@ -495,7 +525,9 @@ router.get(
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|") || "null"})/vod/:show/:epid/:playlist?/:player?`,
+  `/:module(${
+    valid_modules.join("|") || "null"
+  })/vod/:show/:epid/:playlist?/:player?`,
   async (context) => {
     logger(
       "vod",
@@ -505,7 +537,7 @@ router.get(
       context.params.module,
       context.params.show,
       context.params.epid,
-      context.params.playlist ? true : false
+      context.params.playlist ? true : false,
     );
     if (!data) {
       throw "No data received from method!";
@@ -513,18 +545,22 @@ router.get(
     if (context.params.playlist) {
       if (context.params.player) {
         context.render("player.ejs", {
-          stream: typeof data.data === "string" ? `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`: (data.data as Record<string, unknown>).stream,
+          stream: typeof data.data === "string"
+            ? `http://${context.request.url.host}/${context.params.module}/vod/${context.params.show}/${context.params.epid}/index.m3u8`
+            : (data.data as Record<string, unknown>).stream,
           proxy: null,
           origin: null,
         });
       } else {
-        context.response.headers.set("Content-Type", "application/x-mpegURL")
-        context.response.body = typeof data.data === "string" ? data.data : new Response(
-          "SUCCESS",
-          context.params.module,
-          data.data,
-          data.cache,
-        );
+        context.response.headers.set("Content-Type", "application/x-mpegURL");
+        context.response.body = typeof data.data === "string"
+          ? data.data
+          : new Response(
+            "SUCCESS",
+            context.params.module,
+            data.data,
+            data.cache,
+          );
       }
     } else {
       context.response.body = new Response(
@@ -538,51 +574,54 @@ router.get(
 );
 
 /* A login endpoint for the API. It is using the module login function to get the authTokens. */
-router.post(`/:module(${valid_modules.join("|") || "null"})/login`, async (context) => {
-  let authTokens = [];
-  logger("login", `login request for module '${context.params.module}'`);
-  const mod: ModuleType =
-    new (await import(`./modules/${context.params.module}.ts`)).default();
-  const config = await mod.getAuth();
-  const result = await (context.request.body({ type: "json" })).value;
+router.post(
+  `/:module(${valid_modules.join("|") || "null"})/login`,
+  async (context) => {
+    let authTokens = [];
+    logger("login", `login request for module '${context.params.module}'`);
+    const mod: ModuleType =
+      new (await import(`./modules/${context.params.module}.ts`)).default();
+    const config = await mod.getAuth();
+    const result = await (context.request.body({ type: "json" })).value;
 
-  logger(
-    "login",
-    `'${context.params.module}' login attempt with username ${
-      result.username
-        ? result.username + " from request"
-        : config.username + " from file (request empty)"
-    }`,
-  );
-  authTokens = await Loader.login(
-    context.params.module,
-    result.username || config.username,
-    result.password || config.password,
-  );
-  if (authTokens) {
     logger(
       "login",
-      `'${context.params.module}' login success, got authTokens: ${authTokens}`,
+      `'${context.params.module}' login attempt with username ${
+        result.username
+          ? result.username + " from request"
+          : config.username + " from file (request empty)"
+      }`,
     );
-    config.authTokens = authTokens;
-    config.lastupdated = new Date();
-    await mod.setAuth(config);
-    context.response.body = new Response(
-      "SUCCESS",
+    authTokens = await Loader.login(
       context.params.module,
-      authTokens,
+      result.username || config.username,
+      result.password || config.password,
     );
-  } else {
-    context.response.status = 400;
-    context.response.body = new Response(
-      "ERROR",
-      context.params.module,
-      null,
-      undefined,
-      `Authentication failed for module '${context.params.module}'`,
-    );
-  }
-});
+    if (authTokens) {
+      logger(
+        "login",
+        `'${context.params.module}' login success, got authTokens: ${authTokens}`,
+      );
+      config.authTokens = authTokens;
+      config.lastupdated = new Date();
+      await mod.setAuth(config);
+      context.response.body = new Response(
+        "SUCCESS",
+        context.params.module,
+        authTokens,
+      );
+    } else {
+      context.response.status = 400;
+      context.response.body = new Response(
+        "ERROR",
+        context.params.module,
+        null,
+        undefined,
+        `Authentication failed for module '${context.params.module}'`,
+      );
+    }
+  },
+);
 
 /* A route that will flush the cache of a module. */
 router.get(
@@ -670,16 +709,19 @@ router.get(
 );
 
 /* A simple API endpoint that returns the module's configuration. */
-router.get(`/:module(${valid_modules.join("|") || "null"})`, async (context) => {
-  const mod: ModuleType =
-    new (await import(`./modules/${context.params.module}.ts`)).default();
-  context.response.body = new Response("SUCCESS", context.params.module, {
-    hasLive: mod.hasLive,
-    hasVOD: mod.hasVOD,
-    chList: (await mod.getConfig()).chList,
-    authReq: mod.authReq
-  });
-});
+router.get(
+  `/:module(${valid_modules.join("|") || "null"})`,
+  async (context) => {
+    const mod: ModuleType =
+      new (await import(`./modules/${context.params.module}.ts`)).default();
+    context.response.body = new Response("SUCCESS", context.params.module, {
+      hasLive: mod.hasLive,
+      hasVOD: mod.hasVOD,
+      chList: (await mod.getConfig()).chList,
+      authReq: mod.authReq,
+    });
+  },
+);
 
 /**
  * Checks whether cors proxy server should serve the url

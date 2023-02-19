@@ -56,16 +56,21 @@ type FunctionsList =
   | "getAuth"
   | "cacheFind"
   | "cacheFill"
-  | "flushCache"
+  | "flushCache";
 
-export type StreamResponse = { [k: string]: unknown, stream: string; drm?: { url: string, headers?: { name: string, value: string }[] } }
+export type StreamResponse = {
+  [k: string]: unknown;
+  stream: string;
+  drm?: { url: string; headers?: { name: string; value: string }[] };
+};
 export type VODListResponse = {
-  data: unknown[], pagination?: {
+  data: unknown[];
+  pagination?: {
     current_page: number;
     total_pages: number;
     per_page: number;
-  }
-}
+  };
+};
 /* Extending the ModuleFunctions class with the ModuleType interface. */
 export interface ModuleType extends ModuleFunctions {
   login(username: string, password: string): Promise<string[]>;
@@ -84,7 +89,11 @@ export interface ModuleType extends ModuleFunctions {
     authTokens: string[],
     options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | Record<string, unknown>[]>;
-  getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<StreamResponse>;
+  getVOD_EP(
+    show: string,
+    epid: string,
+    authTokens: string[],
+  ): Promise<StreamResponse>;
 }
 
 export interface IVOD {
@@ -163,44 +172,73 @@ class ModuleFunctions {
       if (isError) {
         if ((message as Error).message) {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              (message as Error).message
             }`,
           );
         } else {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) + "..." : message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              typeof message == "object"
+                ? JSON.stringify(message).substring(0, 200) + "..."
+                : message
             }`,
           );
         }
       } else {
         console.log(
-          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) + "..." : message
+          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+            typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200) + "..."
+              : message
           }`,
         );
       }
       const nowDate = new Date();
-      const date = nowDate.getFullYear() + '-' + (nowDate.getMonth() + 1) + '-' + nowDate.getDate();
-      Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${message} \n`, { append: true, create: true }).then(() => {
+      const date = nowDate.getFullYear() + "-" + (nowDate.getMonth() + 1) +
+        "-" + nowDate.getDate();
+      Deno.writeTextFile(
+        `logs/log${date}.txt`,
+        typeof message == "object"
+          ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
+            JSON.stringify(message, null, 2)
+          }\n`
+          : `${
+            new Date().toLocaleString()
+          } | ${this.MODULE_ID} - ${message} \n`,
+        { append: true, create: true },
+      ).then(() => {
         // console.log("Log wrote on dir!");
-      }).catch(err => {
+      }).catch((err) => {
         if (err instanceof Deno.errors.NotFound) {
           Deno.mkdir("logs").then(() => {
-            Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${message} \n`, { append: true, create: true }).then(() => {
+            Deno.writeTextFile(
+              `logs/log${date}.txt`,
+              typeof message == "object"
+                ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
+                  JSON.stringify(message, null, 2)
+                }\n`
+                : `${
+                  new Date().toLocaleString()
+                } | ${this.MODULE_ID} - ${message} \n`,
+              { append: true, create: true },
+            ).then(() => {
               // console.log("Log wrote on dir!");
-
-            })
-          })
-        } else console.error(err)
-      })
+            });
+          });
+        } else console.error(err);
+      });
     }
     if ((message as Error).message) {
-      return `${this.MODULE_ID} - ${id}: ${((message as Error).message).substring(0, 200) + "..."
-        }`;
+      return `${this.MODULE_ID} - ${id}: ${
+        ((message as Error).message).substring(0, 200) + "..."
+      }`;
     }
-    return `${this.MODULE_ID} - ${id}: ${typeof message == "object"
+    return `${this.MODULE_ID} - ${id}: ${
+      typeof message == "object"
         ? JSON.stringify(message).substring(0, 200) + "..."
         : (message as string).substring(0, 200)
-      }`;
+    }`;
   }
 
   /**
@@ -249,7 +287,6 @@ class ModuleFunctions {
     } catch (error) {
       return Promise.reject(error);
     }
-
   }
 
   /**
@@ -365,7 +402,8 @@ class ModuleFunctions {
           if (Deno.env.get("DEBUG") == ("true" || true)) {
             this.logger(
               "cacheFind",
-              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()
+              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${
+                moment(cache.lastupdated).fromNow()
               }`,
             );
           }
@@ -373,7 +411,7 @@ class ModuleFunctions {
         } else return null;
       } else return null;
     } catch (error) {
-      this.logger("cacheFind", error, true)
+      this.logger("cacheFind", error, true);
     }
     return null;
   }

@@ -1,5 +1,9 @@
 import axios from "https://deno.land/x/axiod/mod.ts";
-import ModuleClass, { ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
+import ModuleClass, {
+  ModuleType,
+  StreamResponse,
+  VODListResponse,
+} from "../moduleClass.ts";
 
 /* A class that extends the ModuleClass class. */
 export default class ModuleInstance extends ModuleClass implements ModuleType {
@@ -13,18 +17,37 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
       "digisport4": "digisport4",
     });
   }
-getChannels(): Promise<Record<string,string>> {
-return Promise.reject(this.logger("getChannels", "Method not implemented", true))
-}
-getVOD_List(authTokens: string[],options?: Record<string, unknown>): Promise<VODListResponse> {
-return Promise.reject(this.logger("getVOD_List", "Method not implemented", true))
-}
-getVOD(show: string,authTokens: string[],options?: Record<string, unknown>): Promise<Record<string,unknown>|Record<string,unknown>[]> {
-return Promise.reject(this.logger("getVOD", "Method not implemented", true))
-}
-getVOD_EP(show: string,epid: string,authTokens: string[]): Promise<StreamResponse> {
-return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
-}
+  getChannels(): Promise<Record<string, string>> {
+    return Promise.reject(
+      this.logger("getChannels", "Method not implemented", true),
+    );
+  }
+  getVOD_List(
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<VODListResponse> {
+    return Promise.reject(
+      this.logger("getVOD_List", "Method not implemented", true),
+    );
+  }
+  getVOD(
+    show: string,
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+    return Promise.reject(
+      this.logger("getVOD", "Method not implemented", true),
+    );
+  }
+  getVOD_EP(
+    show: string,
+    epid: string,
+    authTokens: string[],
+  ): Promise<StreamResponse> {
+    return Promise.reject(
+      this.logger("getVOD_EP", "Method not implemented", true),
+    );
+  }
 
   /**
    * It logs in the user.
@@ -78,12 +101,17 @@ return Promise.reject(this.logger("getVOD_EP", "Method not implemented", true))
       );
       key.status === 200 && this.logger("liveChannels", "Got token");
       const stream = await axios.get(
-        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&drm=${id === "digi24" ? 0 : 1}&is=4&ns=${id}&pe=site&s=site&sn=${
+        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&drm=${
+          id === "digi24" ? 0 : 1
+        }&is=4&ns=${id}&pe=site&s=site&sn=${
           id.includes("sport") ? "digisport.ro" : "digi24.ro"
         }&p=browser&pd=linux`,
       );
-      this.logger("liveChannels", stream.data)
-      return Promise.resolve({ stream: stream.data.file, drm: {url: stream.data.proxy}});
+      this.logger("liveChannels", stream.data);
+      return Promise.resolve({
+        stream: stream.data.file,
+        drm: { url: stream.data.proxy },
+      });
     } catch (error) {
       return Promise.reject(
         this.logger(

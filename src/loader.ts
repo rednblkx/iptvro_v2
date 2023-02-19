@@ -48,45 +48,71 @@ function logger(
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            (message as Error).message
           }`,
         );
       } else {
         console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200)
+              : message
           }`,
         );
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object" ? JSON.stringify(message).substring(0, 200) : message
+        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+          typeof message == "object"
+            ? JSON.stringify(message).substring(0, 200)
+            : message
         }`,
       );
     }
     const nowDate = new Date();
-    const date = nowDate.getFullYear() + '-' + (nowDate.getMonth() + 1) + '-' + nowDate.getDate();
-    Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${id} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${id} ${message} \n`, { append: true, create: true }).then(() => {
+    const date = nowDate.getFullYear() + "-" + (nowDate.getMonth() + 1) + "-" +
+      nowDate.getDate();
+    Deno.writeTextFile(
+      `logs/log${date}.txt`,
+      typeof message == "object"
+        ? `${new Date().toLocaleString()} | loader - ${id} - ${
+          JSON.stringify(message, null, 2)
+        }\n`
+        : `${new Date().toLocaleString()} | loader - ${id} ${message} \n`,
+      { append: true, create: true },
+    ).then(() => {
       // console.log("Log wrote on dir!");
-    }).catch(err => {
+    }).catch((err) => {
       if (err instanceof Deno.errors.NotFound) {
         console.log(err);
 
         Deno.mkdir("logs").then(() => {
-          Deno.writeTextFile(`logs/log${date}.txt`, typeof message == "object" ? `${new Date().toLocaleString()} | loader - ${id} - ${JSON.stringify(message, null, 2)}\n` : `${new Date().toLocaleString()} | loader - ${id} - ${message} \n`, { append: true, create: true }).then(() => {
+          Deno.writeTextFile(
+            `logs/log${date}.txt`,
+            typeof message == "object"
+              ? `${new Date().toLocaleString()} | loader - ${id} - ${
+                JSON.stringify(message, null, 2)
+              }\n`
+              : `${
+                new Date().toLocaleString()
+              } | loader - ${id} - ${message} \n`,
+            { append: true, create: true },
+          ).then(() => {
             // console.log("Log wrote on dir!");
-
-          })
-        })
-      } else console.error(err)
-    })
+          });
+        });
+      } else console.error(err);
+    });
   }
   if ((message as Error).message) {
     return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${typeof message == "object"
-    ? JSON.stringify(message).substring(0, 200)
-    : message.substring(0, 200)
-    }`;
+  return `loader - ${id}: ${
+    typeof message == "object"
+      ? JSON.stringify(message).substring(0, 200)
+      : message.substring(0, 200)
+  }`;
 }
 
 /**
@@ -124,10 +150,14 @@ export async function sanityCheck(): Promise<string[]> {
         try {
           const auth = await val.getAuth();
           console.log(`\n - Module '${val.MODULE_ID}' found`);
-          if ((!auth.username || !auth.password) &&
-            val.authReq) {
-              console.log(`\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`);
-              throw `${val.MODULE_ID} - Username/Passsword required but not set`
+          if (
+            (!auth.username || !auth.password) &&
+            val.authReq
+          ) {
+            console.log(
+              `\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`,
+            );
+            throw `${val.MODULE_ID} - Username/Passsword required but not set`;
           }
           !val.login &&
             logger(
@@ -154,10 +184,14 @@ export async function sanityCheck(): Promise<string[]> {
             logger("sanityCheck", "File empty or not found");
             await val.initializeConfig(val.chList || {});
             const auth = await val.getAuth();
-            if ((!auth.username || !auth.password) &&
-              val.authReq) {
-              console.log(`\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`);
-              throw `${val.MODULE_ID} - Username/Passsword required but not set`
+            if (
+              (!auth.username || !auth.password) &&
+              val.authReq
+            ) {
+              console.log(
+                `\t${val.MODULE_ID} - ERROR - Username/Passsword required but not set`,
+              );
+              throw `${val.MODULE_ID} - Username/Passsword required but not set`;
             }
             if (!val.chList) {
               const ch = await val.getChannels();
@@ -172,7 +206,8 @@ export async function sanityCheck(): Promise<string[]> {
         valid && valid_list.push(val.MODULE_ID);
       } else {
         console.log(
-          ` - Module '${val.module || val}' failed sanity check\n\t${val.error || `\0`
+          ` - Module '${val.module || val}' failed sanity check\n\t${
+            val.error || `\0`
           }`,
         );
       }
@@ -218,10 +253,11 @@ function m3u8Select(data: string | string[], baseUrl: string) {
       a: { attributes: { BANDWIDTH: number } },
     ) => a.attributes.BANDWIDTH === highestBandwidth).uri;
   } else {
-    return `${baseUrl}/${parsedManifest.playlists.find((
-      a: { attributes: { BANDWIDTH: number } },
-    ) => a.attributes.BANDWIDTH === highestBandwidth).uri
-      }`;
+    return `${baseUrl}/${
+      parsedManifest.playlists.find((
+        a: { attributes: { BANDWIDTH: number } },
+      ) => a.attributes.BANDWIDTH === highestBandwidth).uri
+    }`;
   }
 }
 
@@ -335,12 +371,13 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
       if (
         (((new Date()).getTime() -
           (new Date(db.data[index].lastupdated)).getTime()) / (1000 * 3600)) >=
-        (cache_config[db.data[index].module] || 6)
+          (cache_config[db.data[index].module] || 6)
       ) {
         if (Deno.env.get("DEBUG") == ("true" || true)) {
           logger(
             "cacheCleanup",
-            `Found cached link for '${db.data[index].name}' module '${db.data[index].module
+            `Found cached link for '${db.data[index].name}' module '${
+              db.data[index].module
             }' older than ${(cache_config[db.data[index].module] ||
               6)} hours, removing!`,
           );
@@ -410,10 +447,12 @@ export async function searchChannel(
         } else {
           logger(
             "searchChannel",
-            `${config.url_cache_enabled
-              ? `No cached link found for channel '${id}' in`
-              : "Cache not enabled for"
-            } module '${module.MODULE_ID}'${config.url_cache_enabled ? `, trying to retrieve from module` : ""
+            `${
+              config.url_cache_enabled
+                ? `No cached link found for channel '${id}' in`
+                : "Cache not enabled for"
+            } module '${module.MODULE_ID}'${
+              config.url_cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
           const data = await module.liveChannels(
@@ -454,12 +493,14 @@ export async function searchChannel(
           } else {
             logger(
               "searchChannel",
-              `${config.url_cache_enabled
-                ? `No cached link found for channel '${id}' in`
-                : "Cache not enabled for"
-              } module '${module.MODULE_ID}'${config.url_cache_enabled
-                ? `, trying to retrieve from module`
-                : ""
+              `${
+                config.url_cache_enabled
+                  ? `No cached link found for channel '${id}' in`
+                  : "Cache not enabled for"
+              } module '${module.MODULE_ID}'${
+                config.url_cache_enabled
+                  ? `, trying to retrieve from module`
+                  : ""
               }`,
             );
             const data = await module.liveChannels(
@@ -521,12 +562,14 @@ export async function searchChannel(
           } else {
             logger(
               "searchChannel",
-              `${config.url_cache_enabled
-                ? `No cached link found for channel '${id}' in`
-                : "Cache not enabled for"
-              } module '${module.MODULE_ID}'${config.url_cache_enabled
-                ? `, trying to retrieve from module`
-                : ""
+              `${
+                config.url_cache_enabled
+                  ? `No cached link found for channel '${id}' in`
+                  : "Cache not enabled for"
+              } module '${module.MODULE_ID}'${
+                config.url_cache_enabled
+                  ? `, trying to retrieve from module`
+                  : ""
               }`,
             );
             const data = await module.liveChannels(
@@ -567,14 +610,21 @@ export async function searchChannel(
  * @param {string} module_id - The module id of the module you want to get the VOD list from.
  * @returns A promise that resolves to an array of VOD objects
  */
-export async function getVODlist(module_id: string, options?: Record<string, unknown>) {
+export async function getVODlist(
+  module_id: string,
+  options?: Record<string, unknown>,
+) {
   if (module_id) {
     try {
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
         return Promise.resolve(
-          module?.getVOD_List && await module.getVOD_List((await module.getAuth()).authTokens, options),
+          module?.getVOD_List &&
+            await module.getVOD_List(
+              (await module.getAuth()).authTokens,
+              options,
+            ),
         );
       } else {
         return Promise.reject(
@@ -639,7 +689,7 @@ export async function getVOD_EP(
   module_id: string,
   show_id: string,
   epid: string,
-  playlist: boolean
+  playlist: boolean,
 ): Promise<{ data: Record<string, unknown> | string; cache: boolean }> {
   if (module_id) {
     try {
@@ -650,8 +700,8 @@ export async function getVOD_EP(
         const cache_enabled = (await module.getConfig()).url_cache_enabled;
         if (cache !== null && cache_enabled) {
           if (playlist) {
-            const m3u8 = await rewritePlaylist(cache.data) as string
-            return Promise.resolve({ data: m3u8, cache: cache_enabled })
+            const m3u8 = await rewritePlaylist(cache.data) as string;
+            return Promise.resolve({ data: m3u8, cache: cache_enabled });
           }
           return Promise.resolve({
             data: cache.data,
@@ -660,10 +710,12 @@ export async function getVOD_EP(
         } else {
           logger(
             "getVOD_EP",
-            `${cache_enabled
-              ? `No cached link found for episode '${epid}' in`
-              : "Cache not enabled for"
-            } module '${module.MODULE_ID}'${cache_enabled ? `, trying to retrieve from module` : ""
+            `${
+              cache_enabled
+                ? `No cached link found for episode '${epid}' in`
+                : "Cache not enabled for"
+            } module '${module.MODULE_ID}'${
+              cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
           const res = await module.getVOD_EP(
@@ -673,8 +725,8 @@ export async function getVOD_EP(
           );
           await module.cacheFill(epid, { ...res || {} });
           if (playlist) {
-            const m3u8 = await rewritePlaylist({ ...res }) as string
-            return Promise.resolve({ data: m3u8, cache: cache_enabled })
+            const m3u8 = await rewritePlaylist({ ...res }) as string;
+            return Promise.resolve({ data: m3u8, cache: cache_enabled });
           }
           return Promise.resolve({ data: res || {}, cache: cache_enabled });
         }

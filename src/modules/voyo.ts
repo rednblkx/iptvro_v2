@@ -1,13 +1,25 @@
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
-import ModuleClass, { IVOD, IVODData, ModuleType, StreamResponse, VODListResponse } from "../moduleClass.ts";
+import ModuleClass, {
+  IVOD,
+  IVODData,
+  ModuleType,
+  StreamResponse,
+  VODListResponse,
+} from "../moduleClass.ts";
 import * as mod from "https://deno.land/std@0.91.0/encoding/base64.ts";
 import {
   crypto,
   toHashString,
 } from "https://deno.land/std@0.170.0/crypto/mod.ts";
-import { LoginResponse, LiveStreamResponse, LicenseRequestHeader, ChannelsList, IEpisode } from "./types/pro-plus.d.ts"
+import {
+  ChannelsList,
+  IEpisode,
+  LicenseRequestHeader,
+  LiveStreamResponse,
+  LoginResponse,
+} from "./types/pro-plus.d.ts";
 import moment from "https://deno.land/x/momentjs@2.29.1-deno/mod.ts";
-import { IVODList, IVODListFilter, IVODEpisodes } from "./types/voyo.d.ts";
+import { IVODEpisodes, IVODList, IVODListFilter } from "./types/voyo.d.ts";
 
 /* A class that extends the Class class. */
 class ModuleInstance extends ModuleClass implements ModuleType {
@@ -28,15 +40,19 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   async login(username: string, password: string): Promise<string[]> {
     try {
       const uuid = crypto.randomUUID();
-      const login_res = await axios.post<LoginResponse & { message: string, code: string }>(
-        "https://apivoyo.cms.protvplus.ro/api/v1/auth-sessions", { username, password },
+      const login_res = await axios.post<
+        LoginResponse & { message: string; code: string }
+      >(
+        "https://apivoyo.cms.protvplus.ro/api/v1/auth-sessions",
+        { username, password },
         {
           headers: {
             "Accept":
               "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
             "Content-Type": "application/json",
             "X-Device-Id": uuid,
-            "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+            "User-Agent":
+              "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
             "X-AppBuildNumber": "2295",
             "X-Version": "5.18.5",
             "X-DeviceName": "IPTV_RO",
@@ -44,12 +60,12 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             "X-DeviceManufacturer": "motorola",
             "X-DeviceOSVersion": "32",
             "X-DeviceOS": "Android",
-            "X-DeviceType": "mobile"
+            "X-DeviceType": "mobile",
           },
-          responseType: "json"
+          responseType: "json",
         },
       );
-      this.logger("login", login_res.data)
+      this.logger("login", login_res.data);
       if (login_res.data.credentials?.accessToken) {
         this.setAuth({
           username,
@@ -61,12 +77,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           [login_res.data.credentials.accessToken, uuid],
         );
       } else if (login_res.data.message) {
-        throw `Error from provider: ${login_res.data.message}`
+        throw `Error from provider: ${login_res.data.message}`;
       }
       return Promise.resolve([]);
     } catch (error) {
       return Promise.reject(this.logger(
-        "login", error, true
+        "login",
+        error,
+        true,
       ));
     }
   }
@@ -105,7 +123,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "Content-Type": "application/json",
         "X-Device-Id": authTokens[1],
-        "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+        "User-Agent":
+          "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
         "X-AppBuildNumber": "2295",
         "X-Version": "5.18.5",
         "X-DeviceName": "IPTV_RO",
@@ -113,37 +132,58 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         "X-DeviceManufacturer": "motorola",
         "X-DeviceOSVersion": "32",
         "X-DeviceOS": "Android",
-        "X-DeviceType": "mobile"
+        "X-DeviceType": "mobile",
       };
-      const server_time = await axios.get<{ localTime: string, encoded: string }>("https://apivoyo.cms.protvplus.ro/api/v1/server/time", {
-        headers
-      })
+      const server_time = await axios.get<
+        { localTime: string; encoded: string }
+      >("https://apivoyo.cms.protvplus.ro/api/v1/server/time", {
+        headers,
+      });
       this.logger("liveChannels", server_time);
-      const enc_string = new TextDecoder().decode(mod.decode("ZGtkZjM1ZzYhIHtjb250ZW50fXxwbGF5c3xuZzhyNWUzMSF8e3NlcnZlclRpbWV9ISNpM2R0JjQzQA==")).replace("{content}", id).replace("{serverTime}", server_time.data.localTime)
+      const enc_string = new TextDecoder().decode(
+        mod.decode(
+          "ZGtkZjM1ZzYhIHtjb250ZW50fXxwbGF5c3xuZzhyNWUzMSF8e3NlcnZlclRpbWV9ISNpM2R0JjQzQA==",
+        ),
+      ).replace("{content}", id).replace(
+        "{serverTime}",
+        server_time.data.localTime,
+      );
       const hash = await crypto.subtle.digest(
         "MD5",
         new TextEncoder().encode(enc_string),
       );
-      const live_channel = await axios.post<LiveStreamResponse & { message?: string, code?: string }>(
-        `https://apivoyo.cms.protvplus.ro/api/v1/content/${id}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${toHashString(hash)}`,
+      const live_channel = await axios.post<
+        LiveStreamResponse & { message?: string; code?: string }
+      >(
+        `https://apivoyo.cms.protvplus.ro/api/v1/content/${id}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${
+          toHashString(hash)
+        }`,
         "",
         {
-          headers
+          headers,
         },
       );
-      this.logger("liveChannels", live_channel)
+      this.logger("liveChannels", live_channel);
       if (live_channel.data.message) {
-        return Promise.reject(this.logger("liveChannels", live_channel.data.message, true))
+        return Promise.reject(
+          this.logger("liveChannels", live_channel.data.message, true),
+        );
       }
       if (live_channel.data.videoType === "hls") {
-        return Promise.resolve({ stream: live_channel.data.url })
+        return Promise.resolve({ stream: live_channel.data.url });
       }
-      return Promise.resolve({ stream: live_channel.data.url, drm: { url: live_channel.data.drm.licenseUrl, headers: live_channel.data.drm.licenseRequestHeaders } })
+      return Promise.resolve({
+        stream: live_channel.data.url,
+        drm: {
+          url: live_channel.data.drm.licenseUrl,
+          headers: live_channel.data.drm.licenseRequestHeaders,
+        },
+      });
     } catch (error) {
       return Promise.reject(this.logger(
         "liveChannels",
         error,
-        true
+        true,
       ));
     }
   }
@@ -159,40 +199,54 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       if (!authTokens[0]) {
         throw "No tokens, cannot update channels list";
       }
-      const channels = await axios.get<ChannelsList>("https://apivoyo.cms.protvplus.ro/api/v1/overview?category=livetv", {
-        headers: {
-          "Authorization": `Bearer ${authTokens[0]}`,
-          "Accept":
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-          "Content-Type": "application/json",
-          "X-Device-Id": authTokens[1],
-          "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
-          "X-AppBuildNumber": "2295",
-          "X-Version": "5.18.5",
-          "X-DeviceName": "IPTV_RO",
-          "X-DeviceModel": "moto g(7) power",
-          "X-DeviceManufacturer": "motorola",
-          "X-DeviceOSVersion": "32",
-          "X-DeviceOS": "Android",
-          "X-DeviceType": "mobile"
-        }
-      })
+      const channels = await axios.get<ChannelsList>(
+        "https://apivoyo.cms.protvplus.ro/api/v1/overview?category=livetv",
+        {
+          headers: {
+            "Authorization": `Bearer ${authTokens[0]}`,
+            "Accept":
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "Content-Type": "application/json",
+            "X-Device-Id": authTokens[1],
+            "User-Agent":
+              "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+            "X-AppBuildNumber": "2295",
+            "X-Version": "5.18.5",
+            "X-DeviceName": "IPTV_RO",
+            "X-DeviceModel": "moto g(7) power",
+            "X-DeviceManufacturer": "motorola",
+            "X-DeviceOSVersion": "32",
+            "X-DeviceOS": "Android",
+            "X-DeviceType": "mobile",
+          },
+        },
+      );
       this.logger("getChannels", channels.data);
       const list: { [k: string]: string } = {};
-      channels.data.liveTvs.forEach(obj => {
-        list[obj.name.normalize('NFKD').replace(/[^\w]/g, ' ').trim().replaceAll(" ", "-").replace("--", "-").toLowerCase()] = obj.id;
-      })
-      return Promise.resolve(list)
+      channels.data.liveTvs.forEach((obj) => {
+        list[
+          obj.name.normalize("NFKD").replace(/[^\w]/g, " ").trim().replaceAll(
+            " ",
+            "-",
+          ).replace("--", "-").toLowerCase()
+        ] = obj.id;
+      });
+      return Promise.resolve(list);
     } catch (error) {
       return Promise.reject(
         this.logger(
-          "getChannels", error, true
-        )
+          "getChannels",
+          error,
+          true,
+        ),
       );
     }
   }
 
-  async getVOD_List(authTokens: string[], options?: Record<string, unknown>): Promise<VODListResponse> {
+  async getVOD_List(
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<VODListResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         this.logger("liveChannels", "authTokens not provided, trying login");
@@ -214,7 +268,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "Content-Type": "application/json",
         "X-Device-Id": authTokens[1],
-        "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+        "User-Agent":
+          "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
         "X-AppBuildNumber": "2295",
         "X-Version": "5.18.5",
         "X-DeviceName": "IPTV_RO",
@@ -222,13 +277,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         "X-DeviceManufacturer": "motorola",
         "X-DeviceOSVersion": "32",
         "X-DeviceOS": "Android",
-        "X-DeviceType": "mobile"
-      }
+        "X-DeviceType": "mobile",
+      };
 
       if (Object.keys(options || {}).length !== 0) {
-        const vod_res = await axios.get<IVODListFilter>(`https://apivoyo.cms.protvplus.ro/api/v1/content/filter?page=${options?.page || 1}&category=${options?.category || 2}`, {
-          headers
-        })
+        const vod_res = await axios.get<IVODListFilter>(
+          `https://apivoyo.cms.protvplus.ro/api/v1/content/filter?page=${
+            options?.page || 1
+          }&category=${options?.category || 2}`,
+          {
+            headers,
+          },
+        );
         this.logger("getVOD_List", vod_res.data);
         const list: IVODData[] = [];
         vod_res.data.items.forEach((l) => {
@@ -245,19 +305,38 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         const result: IVOD = {
           data: list,
           pagination: {
-            current_page: Number(vod_res.data.availableListingModifiers.find(obj => obj.name === "currentpage")?.options[0].value),
-            per_page: Number(vod_res.data.availableListingModifiers.find(obj => obj.name === "pagesize")?.options[0].value),
-            total_pages: Number(vod_res.data.availableListingModifiers.find(obj => obj.name === "page")?.options?.at(-1)?.value),
+            current_page: Number(
+              vod_res.data.availableListingModifiers.find((obj) =>
+                obj.name === "currentpage"
+              )?.options[0].value,
+            ),
+            per_page: Number(
+              vod_res.data.availableListingModifiers.find((obj) =>
+                obj.name === "pagesize"
+              )?.options[0].value,
+            ),
+            total_pages: Number(
+              vod_res.data.availableListingModifiers.find((obj) =>
+                obj.name === "page"
+              )?.options?.at(-1)?.value,
+            ),
           },
         };
         return Promise.resolve(result);
       }
-      const vod_res = await axios.get<IVODList>(`https://apivoyo.cms.protvplus.ro/api/v1/overview`, {
-        headers
-      })
+      const vod_res = await axios.get<IVODList>(
+        `https://apivoyo.cms.protvplus.ro/api/v1/overview`,
+        {
+          headers,
+        },
+      );
       this.logger("getVOD_List", vod_res.data);
-      const data: IVODData[] = vod_res.data.categories.map(obj => {
-        return { name: obj.category.name, link: `/${this.MODULE_ID}/vod?category=${obj.category.id}`, img: "" }
+      const data: IVODData[] = vod_res.data.categories.map((obj) => {
+        return {
+          name: obj.category.name,
+          link: `/${this.MODULE_ID}/vod?category=${obj.category.id}`,
+          img: "",
+        };
       });
       // vod_res.data.sections.forEach(obj => {
       //   // data.push({ name: obj.name, link: `/${this.MODULE_ID}/vod/${obj.id}`, img: "" })
@@ -270,12 +349,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     } catch (error) {
       return Promise.reject(
         this.logger(
-          "getVOD_List", error, true
-        )
+          "getVOD_List",
+          error,
+          true,
+        ),
       );
     }
   }
-  async getVOD(show: string, authTokens: string[], options?: Record<string, unknown>): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+  async getVOD(
+    show: string,
+    authTokens: string[],
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         this.logger("liveChannels", "authTokens not provided, trying login");
@@ -292,14 +377,57 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         });
       }
       if (Object.keys(options || {}).length !== 0) {
-        const vod_res = await axios.get<IVODEpisodes>(`https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}${options?.season ? `?season=${options?.season}` : ''}`, {
+        const vod_res = await axios.get<IVODEpisodes>(
+          `https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}${
+            options?.season ? `?season=${options?.season}` : ""
+          }`,
+          {
+            headers: {
+              "Authorization": `Bearer ${authTokens[0]}`,
+              "Accept":
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+              "Content-Type": "application/json",
+              "X-Device-Id": authTokens[1],
+              "User-Agent":
+                "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+              "X-AppBuildNumber": "2295",
+              "X-Version": "5.18.5",
+              "X-DeviceName": "IPTV_RO",
+              "X-DeviceModel": "moto g(7) power",
+              "X-DeviceManufacturer": "motorola",
+              "X-DeviceOSVersion": "32",
+              "X-DeviceOS": "Android",
+              "X-DeviceType": "mobile",
+            },
+          },
+        );
+        this.logger("getVOD_List", vod_res.data);
+
+        const data: IVODData[] = [];
+
+        vod_res.data.sections[0].content?.forEach((obj) => {
+          data.push({
+            name: obj.title,
+            link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
+            date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY")
+              .format(),
+            img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
+          });
+        });
+
+        return Promise.resolve({ data });
+      }
+      const vod_res = await axios.get<IVODEpisodes>(
+        `https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}`,
+        {
           headers: {
             "Authorization": `Bearer ${authTokens[0]}`,
             "Accept":
               "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
             "Content-Type": "application/json",
             "X-Device-Id": authTokens[1],
-            "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+            "User-Agent":
+              "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
             "X-AppBuildNumber": "2295",
             "X-Version": "5.18.5",
             "X-DeviceName": "IPTV_RO",
@@ -307,62 +435,50 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             "X-DeviceManufacturer": "motorola",
             "X-DeviceOSVersion": "32",
             "X-DeviceOS": "Android",
-            "X-DeviceType": "mobile"
-          }
-        })
-        this.logger("getVOD_List", vod_res.data);
-  
-        const data: IVODData[] = [];
-  
-        vod_res.data.sections[0].content?.forEach(obj => {
-          data.push({ name: obj.title, link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`, date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY").format(), img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080") })
-        })
-  
-        return Promise.resolve({ data });
-      }
-      const vod_res = await axios.get<IVODEpisodes>(`https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}`, {
-        headers: {
-          "Authorization": `Bearer ${authTokens[0]}`,
-          "Accept":
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-          "Content-Type": "application/json",
-          "X-Device-Id": authTokens[1],
-          "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
-          "X-AppBuildNumber": "2295",
-          "X-Version": "5.18.5",
-          "X-DeviceName": "IPTV_RO",
-          "X-DeviceModel": "moto g(7) power",
-          "X-DeviceManufacturer": "motorola",
-          "X-DeviceOSVersion": "32",
-          "X-DeviceOS": "Android",
-          "X-DeviceType": "mobile"
-        }
-      })
+            "X-DeviceType": "mobile",
+          },
+        },
+      );
       this.logger("getVOD_List", vod_res.data);
 
       const data: IVODData[] = [];
-  
+
       if (vod_res.data.seasons.length > 0) {
-        vod_res.data.seasons.forEach(obj => {
-          data.push({ name: obj.name, link: `/${this.MODULE_ID}/vod/${show}?season=${obj.id}`, img: "" })
-        })
+        vod_res.data.seasons.forEach((obj) => {
+          data.push({
+            name: obj.name,
+            link: `/${this.MODULE_ID}/vod/${show}?season=${obj.id}`,
+            img: "",
+          });
+        });
       } else {
-        vod_res.data.sections[0].content?.forEach(obj => {
-          data.push({ name: obj.title, link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`, date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY").format(), img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080") })
-        })
+        vod_res.data.sections[0].content?.forEach((obj) => {
+          data.push({
+            name: obj.title,
+            link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
+            date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY")
+              .format(),
+            img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
+          });
+        });
       }
 
       return Promise.resolve({ data });
-
     } catch (error) {
       return Promise.reject(
         this.logger(
-          "getVOD", error, true
-        )
+          "getVOD",
+          error,
+          true,
+        ),
       );
     }
   }
-  async getVOD_EP(show: string, epid: string, authTokens: string[]): Promise<StreamResponse> {
+  async getVOD_EP(
+    show: string,
+    epid: string,
+    authTokens: string[],
+  ): Promise<StreamResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         this.logger("liveChannels", "authTokens not provided, trying login");
@@ -380,7 +496,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       }
       const headers = {
         "Authorization": `Bearer ${authTokens[0]}`,
-        "User-Agent": "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
+        "User-Agent":
+          "Voyo/5.18.5 (net.cme.voyo.ro; build:2295; Android 12; Model:moto g(7) power) okhttp/4.9.1",
         "X-Device-Id": authTokens[1],
         "X-AppBuildNumber": "2295",
         "X-Version": "5.18.5",
@@ -389,34 +506,56 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         "X-DeviceManufacturer": "motorola",
         "X-DeviceOSVersion": "32",
         "X-DeviceOS": "Android",
-        "X-DeviceType": "mobile"
-      }
-      const server_time = await axios.get<{ localTime: string, encoded: string }>("https://apivoyo.cms.protvplus.ro/api/v1/server/time", {
-        headers
-      })
+        "X-DeviceType": "mobile",
+      };
+      const server_time = await axios.get<
+        { localTime: string; encoded: string }
+      >("https://apivoyo.cms.protvplus.ro/api/v1/server/time", {
+        headers,
+      });
       this.logger("liveChannels", server_time);
-      const enc_string = new TextDecoder().decode(mod.decode("ZGtkZjM1ZzYhIHtjb250ZW50fXxwbGF5c3xuZzhyNWUzMSF8e3NlcnZlclRpbWV9ISNpM2R0JjQzQA==")).replace("{content}", epid).replace("{serverTime}", server_time.data.localTime)
+      const enc_string = new TextDecoder().decode(
+        mod.decode(
+          "ZGtkZjM1ZzYhIHtjb250ZW50fXxwbGF5c3xuZzhyNWUzMSF8e3NlcnZlclRpbWV9ISNpM2R0JjQzQA==",
+        ),
+      ).replace("{content}", epid).replace(
+        "{serverTime}",
+        server_time.data.localTime,
+      );
       const hash = await crypto.subtle.digest(
         "MD5",
         new TextEncoder().encode(enc_string),
       );
-      const vod_res = await axios.post<IEpisode>(`https://apivoyo.cms.protvplus.ro/api/v1/content/${epid}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${toHashString(hash)}`, "", {
-        headers
-      })
+      const vod_res = await axios.post<IEpisode>(
+        `https://apivoyo.cms.protvplus.ro/api/v1/content/${epid}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${
+          toHashString(hash)
+        }`,
+        "",
+        {
+          headers,
+        },
+      );
       this.logger("getVOD_EP", vod_res.data);
 
-      return Promise.resolve({ stream: vod_res.data.url, drm: { url: vod_res.data.drm.licenseUrl, headers: vod_res.data.drm.licenseRequestHeaders }, subtitles: vod_res.data.subtitles })
+      return Promise.resolve({
+        stream: vod_res.data.url,
+        drm: {
+          url: vod_res.data.drm.licenseUrl,
+          headers: vod_res.data.drm.licenseRequestHeaders,
+        },
+        subtitles: vod_res.data.subtitles,
+      });
     } catch (error) {
       return Promise.reject(
         this.logger(
-          "getVOD_EP", error, true
-        )
+          "getVOD_EP",
+          error,
+          true,
+        ),
       );
     }
   }
 }
-
-
 
 /* It exports the class so it can be used in other files. */
 export default ModuleInstance;

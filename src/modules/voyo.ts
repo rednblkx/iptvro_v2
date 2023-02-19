@@ -14,7 +14,6 @@ import {
 import {
   ChannelsList,
   IEpisode,
-  LicenseRequestHeader,
   LiveStreamResponse,
   LoginResponse,
 } from "./types/pro-plus.d.ts";
@@ -475,7 +474,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     }
   }
   async getVOD_EP(
-    show: string,
+    _show: string,
     epid: string,
     authTokens: string[],
   ): Promise<StreamResponse> {

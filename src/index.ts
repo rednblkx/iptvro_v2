@@ -48,14 +48,16 @@ app.use(async (ctx, next: () => Promise<unknown>) => {
 
 app.use(async (ctx, next) => {
   if (valid_modules.includes(ctx.request.url.pathname.slice(1))) {
-    const module: ModuleType = new (await import(`./modules/${ctx.request.url.pathname.slice(1)}.ts`)).default();
+    const module: ModuleType =
+      new (await import(`./modules/${ctx.request.url.pathname.slice(1)}.ts`))
+        .default();
     const auth = await module.getAuth();
     if ((!auth.username || !auth.password) && module.authReq) {
-      throw "Username/Password not set but required"
+      throw "Username/Password not set but required";
     }
   }
-  await next()
-})
+  await next();
+});
 
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -719,9 +721,9 @@ router.get(
 router.get(
   `/modules`,
   (ctx) => {
-    ctx.response.body = new Response("SUCCESS", undefined, valid_modules)
-  }
-)
+    ctx.response.body = new Response("SUCCESS", undefined, valid_modules);
+  },
+);
 
 /**
  * Checks whether cors proxy server should serve the url

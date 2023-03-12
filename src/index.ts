@@ -46,6 +46,17 @@ app.use(async (ctx, next: () => Promise<unknown>) => {
   }
 });
 
+app.use(async (ctx, next) => {
+  if (valid_modules.includes(ctx.request.url.pathname.slice(1))) {
+    const module: ModuleType = new (await import(`./modules/${ctx.request.url.pathname.slice(1)}.ts`)).default();
+    const auth = await module.getAuth();
+    if ((!auth.username || !auth.password) && module.authReq) {
+      throw "Username/Password not set but required"
+    }
+  }
+  await next()
+})
+
 app.use(router.routes());
 app.use(router.allowedMethods());
 
@@ -64,14 +75,14 @@ if (debug === "true") {
 
 class Response {
   status: "SUCCESS" | "ERROR";
-  module: string | null;
+  module: string | undefined;
   data: string | Record<string, unknown> | unknown[] | null;
   cache?: boolean;
   error?: string;
 
   constructor(
     status: "SUCCESS" | "ERROR",
-    module: string | null,
+    module: string | undefined,
     data: string | Record<string, unknown> | unknown[] | null,
     cache?: boolean,
     error?: string,
@@ -164,20 +175,6 @@ function logger(
   }`;
 }
 
-// const RouteErrorHandling = async (ctx: RouterContext<string, RouteParams<string>, Record<string, unknown>>, next: () => Promise<unknown>) => {
-//   const body: {status: string, data: unknown, error?: string} = {
-//     status: "",
-//     data: "",
-//   };
-//   try {
-//     await next()
-//   } catch (error) {
-//     body.status = "ERROR";
-//     body.error = error.message || error.toString().substring(0, 200);
-//     ctx.response.status = 500;
-//     ctx.response.body = body;
-//   }
-// }
 /* A simple API that returns the cache of a module. */
 router.get(
   `/:module(${valid_modules.join("|") || "null"})?/cache`,
@@ -646,7 +643,7 @@ router.get(
       for (const module of modules) {
         data[module.MODULE_ID] = await module.flushCache();
       }
-      context.response.body = new Response("SUCCESS", null, data);
+      context.response.body = new Response("SUCCESS", undefined, data);
     }
   },
 );
@@ -696,7 +693,7 @@ router.get(
       if (updated.length > 0) {
         context.response.body = new Response(
           "SUCCESS",
-          null,
+          undefined,
           `Channel list updated for modules '${updated.join(",")}'`,
         );
       } else throw "Channel list could not be updated for all modules";
@@ -718,6 +715,13 @@ router.get(
     });
   },
 );
+
+router.get(
+  `/modules`,
+  (ctx) => {
+    ctx.response.body = new Response("SUCCESS", undefined, valid_modules)
+  }
+)
 
 /**
  * Checks whether cors proxy server should serve the url

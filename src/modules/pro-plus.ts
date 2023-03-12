@@ -278,6 +278,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         obj.content.forEach((ep) => {
           ep.content.type === "tvshow" &&
             data.push({
+              id: ep.content.id,
               name: ep.content.title,
               link: `/${this.MODULE_ID}/vod/${ep.content.id}`,
               img: ep.content.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
@@ -345,6 +346,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
 
       vod_res.data.sections[0].content.forEach((obj) => {
         data.push({
+          id: obj.id,
           name: obj.title,
           link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
           date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY")

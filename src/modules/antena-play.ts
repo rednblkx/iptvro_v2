@@ -205,6 +205,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       shows.data.data.forEach((l) => {
         list.push(
           {
+            id: l.id.toString(),
             name: l.show_name,
             date: l.last_video_date,
             img: l.main_image,
@@ -299,6 +300,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       episodes.data.data.forEach((l) => {
         list.push(
           {
+            id: l.id.toString(),
             name: l.video_title,
             date: l.publish_date,
             img: l.video_thumbnail,

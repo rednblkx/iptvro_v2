@@ -301,6 +301,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         vod_res.data.items.forEach((l) => {
           list.push(
             {
+              id: l.id,
               name: l.title,
               date: l.releaseDateLabel,
               img: l.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
@@ -340,6 +341,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       this.logger("getVOD_List", vod_res.data);
       const data: IVODData[] = vod_res.data.categories.map((obj) => {
         return {
+          id: obj.category.id,
           name: obj.category.name,
           link: `/${this.MODULE_ID}/vod?category=${obj.category.id}`,
           img: "",
@@ -414,6 +416,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
 
         vod_res.data.sections[0].content?.forEach((obj) => {
           data.push({
+            id: obj.id,
             name: obj.title,
             link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
             date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY")
@@ -453,6 +456,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       if (vod_res.data.seasons.length > 0) {
         vod_res.data.seasons.forEach((obj) => {
           data.push({
+            id: obj.id,
             name: obj.name,
             link: `/${this.MODULE_ID}/vod/${show}?season=${obj.id}`,
             img: "",
@@ -461,6 +465,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       } else {
         vod_res.data.sections[0].content?.forEach((obj) => {
           data.push({
+            id: obj.id,
             name: obj.title,
             link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
             date: moment(obj.releaseDateLabel.replaceAll(" ", ""), "DD.MM.YYYY")

@@ -106,6 +106,7 @@ export interface IVOD {
 }
 
 export interface IVODData {
+  id: string;
   name: string;
   date?: Date | string;
   link: string;

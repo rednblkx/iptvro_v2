@@ -1,7 +1,7 @@
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import moment from "npm:moment";
-const __dirname = new URL('.', import.meta.url).pathname;
+const __dirname = new URL(".", import.meta.url).pathname;
 
 /**
  * The AuthConfig type is an object with two properties: auth and config. The auth property is an

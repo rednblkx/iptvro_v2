@@ -8,7 +8,7 @@ import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import { Parser } from "npm:m3u8-parser";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
-const __dirname = new URL('.', import.meta.url).pathname;
+const __dirname = new URL(".", import.meta.url).pathname;
 
 /**
  * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:

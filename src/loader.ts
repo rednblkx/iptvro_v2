@@ -8,6 +8,7 @@ import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import { Parser } from "npm:m3u8-parser";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
+const __dirname = new URL('.', import.meta.url).pathname;
 
 /**
  * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
@@ -128,7 +129,7 @@ function logger(
  */
 export async function sanityCheck(): Promise<string[]> {
   const files_list: string[] = [];
-  for await (const file of Deno.readDir(`${Deno.cwd()}/src/modules`)) {
+  for await (const file of Deno.readDir(`${__dirname}/modules`)) {
     if (file.isFile && extname(file.name) === ".ts") {
       files_list.push(file.name);
     }
@@ -351,7 +352,7 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
       new (await import(`./modules/${val}.ts`)).default()
     ),
   );
-  const adapter = new JSONFile<cache[]>(`${Deno.cwd()}/cache.json`);
+  const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
   const db = new Low(adapter);
   await db.read();
 

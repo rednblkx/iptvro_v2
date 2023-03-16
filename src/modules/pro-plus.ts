@@ -53,7 +53,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
               "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
             "X-Device-Id": uuid,
             "User-Agent":
-              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
             "X-AppBuildNumber": "2180",
             "X-Version": "1.15.0",
             "X-DeviceName": "Moto G7 Power",
@@ -127,7 +127,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
         "X-Device-Id": authTokens[1],
         "User-Agent":
-          "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+          "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
         "X-AppBuildNumber": "2180",
         "X-Version": "1.15.0",
         "X-DeviceName": "Moto G7 Power",
@@ -209,7 +209,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
               "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
             "X-Device-Id": crypto.randomUUID(),
             "User-Agent":
-              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
             "X-AppBuildNumber": "2180",
             "X-Version": "1.15.0",
             "X-DeviceName": "Moto G7 Power",
@@ -259,7 +259,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
               "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
             "X-Device-Id": crypto.randomUUID(),
             "User-Agent":
-              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
             "X-AppBuildNumber": "2180",
             "X-Version": "1.15.0",
             "X-DeviceName": "Moto G7 Power",
@@ -317,7 +317,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         });
       }
       const vod_res = await axios.get<IVODEpisodes>(
-        `https://apivoyo.cms.protvplus.ro/api/v2/tvshow/${show}`,
+        `https://apiprotvplus.cms.protvplus.ro/api/v2/tvshow/${show}`,
         {
           headers: {
             "Authorization": `Bearer ${authTokens[0]}`,
@@ -328,7 +328,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
               "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
             "X-Device-Id": authTokens[1],
             "User-Agent":
-              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+              "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
             "X-AppBuildNumber": "2180",
             "X-Version": "1.15.0",
             "X-DeviceName": "Moto G7 Power",
@@ -395,7 +395,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           "e09ea8e36e2726d04104d06216da2d3d9bc6c36d6aa200b6e14f68137c832a8369f268e89324fdc9",
         "X-Device-Id": authTokens[1],
         "User-Agent":
-          "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1",
+          "PRO TV PLUS/1.15.0 (com.protvromania; build:2180; Android 12; Model:moto g(7) power okhttp/4.9.1)",
         "X-AppBuildNumber": "2180",
         "X-Version": "1.15.0",
         "X-DeviceName": "Moto G7 Power",

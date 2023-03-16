@@ -114,22 +114,25 @@ function logger(
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            (message as Error).message
           }`,
         );
       } else {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object"
-            ? JSON.stringify(message).substring(0, 200)
-            : message
+          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+            typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200)
+              : message
           }`,
         );
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object"
-          ? JSON.stringify(message).substring(0, 200)
-          : message
+        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+          typeof message == "object"
+            ? JSON.stringify(message).substring(0, 200)
+            : message
         }`,
       );
     }
@@ -139,7 +142,8 @@ function logger(
     Deno.writeTextFile(
       `logs/log${date}.txt`,
       typeof message == "object"
-        ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)
+        ? `${new Date().toLocaleString()} | index - ${
+          JSON.stringify(message, null, 2)
         }\n`
         : `${new Date().toLocaleString()} | index - ${message} \n`,
       { append: true, create: true },
@@ -151,7 +155,8 @@ function logger(
           Deno.writeTextFile(
             `logs/log${date}.txt`,
             typeof message == "object"
-              ? `${new Date().toLocaleString()} | index - ${JSON.stringify(message, null, 2)
+              ? `${new Date().toLocaleString()} | index - ${
+                JSON.stringify(message, null, 2)
               }\n`
               : `${new Date().toLocaleString()} | index - ${message} \n`,
             { append: true, create: true },
@@ -165,10 +170,11 @@ function logger(
   if ((message as Error).message) {
     return `index - ${id}: ${((message as Error).message).substring(0, 200)}`;
   }
-  return `loader - ${id}: ${typeof message == "object"
+  return `loader - ${id}: ${
+    typeof message == "object"
       ? JSON.stringify(message).substring(0, 200)
       : (message as string).substring(0, 200)
-    }`;
+  }`;
 }
 
 /* A simple API that returns the cache of a module. */
@@ -335,8 +341,9 @@ router.get(
       playlist.push(`#EXTM3U`);
       for (const channel in await mod.getChannels()) {
         playlist.push(
-          `#EXTINF:-1,${(channel.split("-")).map((a) => a[0].toUpperCase() + a.substring(1))
-            .join(" ")
+          `#EXTINF:-1,${
+            (channel.split("-")).map((a) => a[0].toUpperCase() + a.substring(1))
+              .join(" ")
           }`,
         );
         playlist.push(`//localhost:${PORT}/live/${channel}/index.m3u8`);
@@ -363,7 +370,8 @@ router.get(
 );
 
 router.get(
-  `/:module(${valid_modules.join("|") || "null"
+  `/:module(${
+    valid_modules.join("|") || "null"
   })/live/:channel/:playlist(index.m3u8)?/:player(player)?`,
   async (context) => {
     if (context.params.playlist == "index.m3u8") {
@@ -512,7 +520,8 @@ router.get(
 
 /* A simple API endpoint that returns the episode for the VOD requested. */
 router.get(
-  `/:module(${valid_modules.join("|") || "null"
+  `/:module(${
+    valid_modules.join("|") || "null"
   })/vod/:show/:epid/:playlist?/:player(player)?`,
   async (context) => {
     logger(
@@ -572,9 +581,10 @@ router.post(
 
     logger(
       "login",
-      `'${context.params.module}' login attempt with username ${result.username
-        ? result.username + " from request"
-        : config.username + " from file (request empty)"
+      `'${context.params.module}' login attempt with username ${
+        result.username
+          ? result.username + " from request"
+          : config.username + " from file (request empty)"
       }`,
     );
     authTokens = await Loader.login(
@@ -711,19 +721,26 @@ router.get(
 router.get(
   `/modules`,
   async (ctx) => {
-    const modules = await Promise.all<ModuleType>(valid_modules.map(async val => new (await import(`./modules/${val}.ts`)).default()))
+    const modules = await Promise.all<ModuleType>(
+      valid_modules.map(async (val) =>
+        new (await import(`./modules/${val}.ts`)).default()
+      ),
+    );
     const live_modules: string[] = [];
     const vod_modules: string[] = [];
-    modules.forEach(mod => {
+    modules.forEach((mod) => {
       if (mod.hasLive) {
-        live_modules.push(mod.MODULE_ID)
+        live_modules.push(mod.MODULE_ID);
       }
       if (mod.hasVOD) {
-        vod_modules.push(mod.MODULE_ID)
+        vod_modules.push(mod.MODULE_ID);
       }
-    })
+    });
 
-    ctx.response.body = new Response("SUCCESS", undefined, { live: live_modules, vod: vod_modules });
+    ctx.response.body = new Response("SUCCESS", undefined, {
+      live: live_modules,
+      vod: vod_modules,
+    });
   },
 );
 

@@ -30,6 +30,18 @@ app.use(
   }),
 );
 
+app.use(async (ctx, next) => {
+  if (ctx.request.method === "OPTIONS") {
+    ctx.response.headers.set("Access-Control-Allow-Origin", "*");
+    ctx.response.headers.set(
+      "Access-Control-Allow-Methods",
+      "POST, GET, OPTIONS",
+    );
+    ctx.response.headers.set("Access-Control-Allow-Origin", "*");
+    ctx.response.status = 200;
+  } else await next();
+});
+
 app.use(async (ctx, next: () => Promise<unknown>) => {
   const body: { status: string; error: string } = {
     status: "",
@@ -795,7 +807,7 @@ app.use(async (ctx, next) => {
       });
       const text = await response.arrayBuffer();
       const headers = new Headers();
-      headers.set("Access-Control-Allow-Origin", "");
+      headers.set("Access-Control-Allow-Origin", "*");
       ctx.response.body = text;
       ctx.response.headers = headers;
     } else {

@@ -32,12 +32,12 @@ app.use(
 
 app.use(async (ctx, next) => {
   if (ctx.request.method === "OPTIONS") {
+    ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type");
     ctx.response.headers.set("Access-Control-Allow-Origin", "*");
     ctx.response.headers.set(
       "Access-Control-Allow-Methods",
       "POST, GET, OPTIONS",
     );
-    ctx.response.headers.set("Access-Control-Allow-Origin", "*");
     ctx.response.status = 200;
   } else await next();
 });

@@ -189,6 +189,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         const auth = await this.getAuth();
         this.logger("liveChannels", "No tokens, trying login");
         authTokens = await this.login(auth.username, auth.password);
+        await this.setAuth({ ...auth, authTokens: authTokens });
       }
       this.logger("liveChannels", "getting the stream");
       const play = await axios.get(

@@ -259,14 +259,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     show: string,
     authTokens: string[],
     options?: Record<string, unknown>,
-  ): Promise<{
-    data: unknown[];
-    pagination?: {
-      current_page: number;
-      total_pages: number;
-      per_page: number;
-    };
-  }> {
+  ): Promise<VODListResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         // throw `Cookies Missing/Invalid`

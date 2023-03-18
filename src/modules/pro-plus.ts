@@ -1,5 +1,6 @@
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import ModuleClass, {
+  IVOD,
   IVODData,
   ModuleType,
   StreamResponse,
@@ -285,7 +286,16 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             });
         });
       });
-      return Promise.resolve({ data });
+
+      const result: IVOD = {
+        data: data,
+        pagination: {
+          current_page: 1,
+          per_page: data.length,
+          total_pages: 1,
+        },
+      };
+      return Promise.resolve(result);
     } catch (error) {
       return Promise.reject(
         this.logger(
@@ -300,7 +310,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     show: string,
     authTokens: string[],
     _options?: Record<string, unknown>,
-  ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+  ): Promise<VODListResponse> {
     try {
       if (!(authTokens.length > 0) || typeof authTokens !== "object") {
         this.logger("liveChannels", "authTokens not provided, trying login");
@@ -355,7 +365,15 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         });
       });
 
-      return Promise.resolve({ data });
+      const result: IVOD = {
+        data: data,
+        pagination: {
+          current_page: 1,
+          per_page: data.length,
+          total_pages: 1,
+        },
+      };
+      return Promise.resolve(result);
     } catch (error) {
       return Promise.reject(
         this.logger(
@@ -424,7 +442,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         new TextEncoder().encode(enc_string),
       );
       const vod_res = await axios.get<IEpisode>(
-        `https://apiprotvplus.cms.protvplus.ro/api/v2/content/${epid}/plays?acceptVideo=hls%2Cdai%2Cdash%2Cdrm-widevine&t=${server_time.data.encoded}&s=${
+        `https://apiprotvplus.cms.protvplus.ro/api/v2/content/${epid}/plays?acceptVideo=hls%2Cdai%2Cdash&t=${server_time.data.encoded}&s=${
           toHashString(hash)
         }`,
         {
@@ -435,12 +453,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
 
       return Promise.resolve({ stream: vod_res.data.url });
     } catch (error) {
+      this.logger(
+        "getVOD_EP",
+        error,
+        true,
+      );
       return Promise.reject(
-        this.logger(
-          "getVOD_EP",
-          error,
-          true,
-        ),
+        error?.response?.data?.message || error,
       );
     }
   }

@@ -1,4 +1,5 @@
 import ModuleClass, {
+  IChannelsList,
   ModuleType,
   StreamResponse,
   VODListResponse,
@@ -14,6 +15,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* Calling the constructor of the parent class, which is ModuleClass. */
     super("digi-online", true, true, false);
+    this.logo =
+      "https://www.digionline.ro/static/theme-ui-frontend/bin/images/logo-digi-online.png";
   }
   getVOD_List(
     _authTokens: string[],
@@ -185,17 +188,11 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     _authLastUpdate: Date,
   ): Promise<StreamResponse> {
     try {
-      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
-        const auth = await this.getAuth();
-        this.logger("liveChannels", "No tokens, trying login");
-        authTokens = await this.login(auth.username, auth.password);
-        await this.setAuth({ ...auth, authTokens: authTokens });
-      }
       this.logger("liveChannels", "getting the stream");
       const play = await axios.get(
-        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=Android&version_app=release&i=${
+        `https://digiapis.rcs-rds.ro/digionline/api/v13/streams_l_3.php?action=getStream&id_stream=${id}&platform=iOS&version_app=release&i=${
           authTokens[0]
-        }&sn=ro.rcsrds.digionline&s=app&quality=all`,
+        }&s=app&quality=all&iosStream=1`,
         {
           headers: {
             "authorization": "Basic YXBpLXdzLXdlYmFkbWluOmRldl90ZWFtX3Bhc3M=",
@@ -228,17 +225,28 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * It gets a list of channels from the API and returns a promise with a list of channels
    * @returns A promise that resolves to an object containing the channel name and id.
    */
-  async getChannels(): Promise<Record<string, string>> {
+  async getChannels(): Promise<IChannelsList> {
     try {
       const channels = await axios.get(
         "https://digiapis.rcs-rds.ro/digionline/api/v13/categorieschannels.php",
       );
-
-      const chList: { [k: string]: string } = {};
+      this.logger("getChannels", channels);
+      const chList: IChannelsList = {};
       channels.data.data.channels_list.forEach(
-        (element: { channel_name: string | number; id_channel: string }) => {
+        (
+          element: {
+            channel_name: string | number;
+            channel_desc: string;
+            id_channel: string;
+            media_channel: { channel_logo_url: string };
+          },
+        ) => {
           // console.log(`${element.channel_name} - ${element.id_channel}`);
-          chList[element.channel_name] = element.id_channel;
+          chList[element.channel_name] = {
+            id: element.id_channel,
+            name: element.channel_desc,
+            img: element.media_channel.channel_logo_url,
+          };
         },
       );
       return Promise.resolve(chList);

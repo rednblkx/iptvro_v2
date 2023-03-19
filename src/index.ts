@@ -367,7 +367,7 @@ router.get(
     } else {
       const mod: ModuleType =
         new (await import(`./modules/${context.params.module}.ts`)).default();
-      const data = Object.keys((await mod.getConfig()).chList);
+      const data = (await mod.getConfig()).chList;
       if (!data) {
         throw "No data received from method!";
       }
@@ -738,14 +738,14 @@ router.get(
         new (await import(`./modules/${val}.ts`)).default()
       ),
     );
-    const live_modules: string[] = [];
-    const vod_modules: string[] = [];
+    const live_modules: { id: string; logo: string }[] = [];
+    const vod_modules: { id: string; logo: string }[] = [];
     modules.forEach((mod) => {
       if (mod.hasLive) {
-        live_modules.push(mod.MODULE_ID);
+        live_modules.push({ id: mod.MODULE_ID, logo: mod.logo });
       }
       if (mod.hasVOD) {
-        vod_modules.push(mod.MODULE_ID);
+        vod_modules.push({ id: mod.MODULE_ID, logo: mod.logo });
       }
     });
 

@@ -1,5 +1,6 @@
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import ModuleClass, {
+  IChannelsList,
   IVOD,
   IVODData,
   ModuleType,
@@ -26,6 +27,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
     super("pro-plus", true, false, true);
+    this.logo = "https://protvplus.ro/html/assets/logo.svg";
   }
 
   /**
@@ -105,20 +107,6 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     _authLastUpdate: Date,
   ): Promise<StreamResponse> {
     try {
-      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
-        this.logger("liveChannels", "authTokens not provided, trying login");
-        //get config
-        const config = await this.getAuth();
-        //get authTokens
-        authTokens = await this.login(config.username, config.password);
-        //set authTokens
-        this.setAuth({
-          username: config.username,
-          password: config.password,
-          authTokens: authTokens,
-          lastupdated: new Date(),
-        });
-      }
       const headers = {
         "Authorization": `Bearer ${authTokens[0]}`,
         "Accept":
@@ -197,7 +185,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * respective IDs
    * @returns A list of channels with their respective ids.
    */
-  async getChannels(): Promise<Record<string, string>> {
+  async getChannels(): Promise<IChannelsList> {
     try {
       const channels = await axios.get<ChannelsList>(
         "https://apiprotvplus.cms.protvplus.ro/api/v2/overview?category=livetv",
@@ -223,14 +211,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         },
       );
       this.logger("getChannels", channels.data);
-      const list: { [k: string]: string } = {};
+      const list: IChannelsList = {};
       channels.data.liveTvs.forEach((obj) => {
         list[
           obj.name.normalize("NFKD").replace(/[^\w]/g, " ").trim().replace(
             " ",
             "-",
           ).replace(" ", "").toLowerCase()
-        ] = obj.id;
+        ] = {
+          id: obj.id,
+          name: obj.name,
+          img: obj.logo.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
+        };
       });
       return Promise.resolve(list);
     } catch (error) {
@@ -312,20 +304,6 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     _options?: Record<string, unknown>,
   ): Promise<VODListResponse> {
     try {
-      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
-        this.logger("liveChannels", "authTokens not provided, trying login");
-        //get config
-        const config = await this.getAuth();
-        //get authTokens
-        authTokens = await this.login(config.username, config.password);
-        //set authTokens
-        this.setAuth({
-          username: config.username,
-          password: config.password,
-          authTokens: authTokens,
-          lastupdated: new Date(),
-        });
-      }
       const vod_res = await axios.get<IVODEpisodes>(
         `https://apiprotvplus.cms.protvplus.ro/api/v2/tvshow/${show}`,
         {
@@ -390,20 +368,6 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     authTokens: string[],
   ): Promise<StreamResponse> {
     try {
-      if (!(authTokens.length > 0) || typeof authTokens !== "object") {
-        this.logger("liveChannels", "authTokens not provided, trying login");
-        //get config
-        const config = await this.getAuth();
-        //get authTokens
-        authTokens = await this.login(config.username, config.password);
-        //set authTokens
-        this.setAuth({
-          username: config.username,
-          password: config.password,
-          authTokens: authTokens,
-          lastupdated: new Date(),
-        });
-      }
       const headers = {
         "Authorization": `Bearer ${authTokens[0]}`,
         "Accept":

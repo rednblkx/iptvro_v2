@@ -23,7 +23,7 @@ export type ModuleConfig = {
     url_cache_enabled: boolean;
     url_update_interval: number;
     auth_update_interval: number;
-    chList: { [k: string]: string };
+    chList: { [k: string]: { id: string; img: string } };
   };
 };
 
@@ -80,7 +80,7 @@ export interface ModuleType extends ModuleFunctions {
     authTokens: string[],
     authLastUpdate: Date | null,
   ): Promise<StreamResponse>;
-  getChannels(): Promise<Record<string, string>>;
+  getChannels(): Promise<IChannelsList>;
   getVOD_List(
     authTokens: string[],
     options?: Record<string, unknown>,
@@ -114,15 +114,24 @@ export interface IVODData {
   img: string;
 }
 
+export interface IChannelsList {
+  [k: string]: {
+    id: string;
+    name: string;
+    img: string;
+  };
+}
+
 /* This class is used to create a new module, it contains all the functions that are required for a
 module to work */
 class ModuleFunctions {
   MODULE_ID: string;
   hasLive: boolean;
   hasVOD: boolean;
-  chList: { [k: string]: string } | null;
+  chList: IChannelsList | null;
   qualitiesList: string[] | null;
   authReq: boolean;
+  logo: string;
   private debug: boolean;
   private db: Low<ModuleConfig>;
 
@@ -142,7 +151,7 @@ class ModuleFunctions {
     authReq: boolean,
     hasLive: boolean,
     hasVOD: boolean,
-    chList?: { [k: string]: string },
+    chList?: IChannelsList,
     qualitiesList?: string[],
   ) {
     this.MODULE_ID = MODULE_ID;
@@ -150,6 +159,7 @@ class ModuleFunctions {
     this.hasLive = hasLive;
     this.hasVOD = hasVOD;
     this.chList = chList || null;
+    this.logo = "";
     this.qualitiesList = qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
     const adapter = new JSONFile<ModuleConfig>(
@@ -248,7 +258,9 @@ class ModuleFunctions {
    * @param {string[]} [chList] - An array of channel names to be used for the channel list.
    * @returns A promise that resolves when the config file is written to disk.
    */
-  async initializeConfig(chList?: { [k: string]: string }): Promise<void> {
+  async initializeConfig(
+    chList?: { [k: string]: { id: string; img: string } },
+  ): Promise<void> {
     // existsSync(`${__dirname}../configs`) || mkdirSync(`${__dirname}../configs`)
     try {
       await Deno.mkdir(`${__dirname}../configs`);

@@ -1,5 +1,6 @@
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import ModuleClass, {
+  IChannelsList,
   IVOD,
   IVODData,
   ModuleType,
@@ -25,6 +26,8 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
     super("voyo", true, true, true);
+    this.logo =
+      "https://static.wikia.nocookie.net/logopedia/images/d/d4/Voyo_logo_2021.svg";
   }
 
   /**
@@ -195,7 +198,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    * respective IDs
    * @returns A list of channels with their respective ids.
    */
-  async getChannels(): Promise<Record<string, string>> {
+  async getChannels(): Promise<IChannelsList> {
     try {
       const authTokens = (await this.getAuth()).authTokens;
       if (!authTokens[0]) {
@@ -229,14 +232,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         },
       );
       this.logger("getChannels", channels.data);
-      const list: { [k: string]: string } = {};
+      const list: IChannelsList = {};
       channels.data.liveTvs.forEach((obj) => {
         list[
           obj.name.normalize("NFKD").replace(/[^\w]/g, " ").trim().replaceAll(
             " ",
             "-",
           ).replace("--", "-").toLowerCase()
-        ] = obj.id;
+        ] = { id: obj.id, name: obj.name, img: obj.logo };
       });
       return Promise.resolve(list);
     } catch (error) {

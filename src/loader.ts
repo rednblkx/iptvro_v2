@@ -457,8 +457,24 @@ export async function searchChannel(
               config.url_cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
+          if (!auth.username || !auth.password) {
+            throw "Not posssible, credentials not set!";
+          }
+          if (
+            !(auth.authTokens.length > 0) || typeof auth.authTokens !== "object"
+          ) {
+            logger("searchChannel", "authTokens not provided, trying login");
+            //get authTokens
+            auth.authTokens = await module.login(auth.username, auth.password);
+            //set authTokens
+            module.setAuth({
+              ...auth,
+              authTokens: auth.authTokens,
+              lastupdated: new Date(),
+            });
+          }
           const data = await module.liveChannels(
-            config.chList[id],
+            config.chList[id].id,
             auth.authTokens,
             auth.lastupdated,
           );
@@ -474,7 +490,7 @@ export async function searchChannel(
           "searchChannel",
           `Channel '${id}' not found in module '${module_id}', updating list`,
         );
-        const get_ch: { [k: string]: string } = await module.getChannels();
+        const get_ch = await module.getChannels();
         await module.setConfig("chList", get_ch);
         if (get_ch[id]) {
           logger(
@@ -505,8 +521,28 @@ export async function searchChannel(
                   : ""
               }`,
             );
+            if (!auth.username || !auth.password) {
+              throw "Not posssible, credentials not set!";
+            }
+            if (
+              !(auth.authTokens.length > 0) ||
+              typeof auth.authTokens !== "object"
+            ) {
+              logger("searchChannel", "authTokens not provided, trying login");
+              //get authTokens
+              auth.authTokens = await module.login(
+                auth.username,
+                auth.password,
+              );
+              //set authTokens
+              module.setAuth({
+                ...auth,
+                authTokens: auth.authTokens,
+                lastupdated: new Date(),
+              });
+            }
             const data = await module.liveChannels(
-              get_ch[id],
+              get_ch[id].id,
               auth.authTokens,
               auth.lastupdated,
             );
@@ -575,8 +611,28 @@ export async function searchChannel(
                   : ""
               }`,
             );
+            if (!auth.username || !auth.password) {
+              throw "Not posssible, credentials not set!";
+            }
+            if (
+              !(auth.authTokens.length > 0) ||
+              typeof auth.authTokens !== "object"
+            ) {
+              logger("searchChannel", "authTokens not provided, trying login");
+              //get authTokens
+              auth.authTokens = await module.login(
+                auth.username,
+                auth.password,
+              );
+              //set authTokens
+              module.setAuth({
+                ...auth,
+                authTokens: auth.authTokens,
+                lastupdated: new Date(),
+              });
+            }
             const data = await module.liveChannels(
-              config.chList[id],
+              config.chList[id].id,
               auth.authTokens,
               auth.lastupdated,
             );
@@ -622,12 +678,28 @@ export async function getVODlist(
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
+        const auth = await module.getAuth();
+        if (!auth.username || !auth.password) {
+          throw "Not posssible, credentials not set!";
+        }
+        if (
+          !(auth.authTokens.length > 0) || typeof auth.authTokens !== "object"
+        ) {
+          logger("getVODlist", "authTokens not provided, trying login");
+          //get authTokens
+          auth.authTokens = await module.login(auth.username, auth.password);
+          //set authTokens
+          module.setAuth({
+            ...auth,
+            authTokens: auth.authTokens,
+            lastupdated: new Date(),
+          });
+        }
         return Promise.resolve(
-          module?.getVOD_List &&
-            await module.getVOD_List(
-              (await module.getAuth()).authTokens,
-              options,
-            ),
+          await module.getVOD_List(
+            auth.authTokens,
+            options,
+          ),
         );
       } else {
         return Promise.reject(
@@ -662,9 +734,26 @@ export async function getVOD(
       const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
         .default();
       if (module.hasVOD) {
-        const res = module?.getVOD && await module.getVOD(
+        const auth = await module.getAuth();
+        if (!auth.username || !auth.password) {
+          throw "Not posssible, credentials not set!";
+        }
+        if (
+          !(auth.authTokens.length > 0) || typeof auth.authTokens !== "object"
+        ) {
+          logger("getVOD", "authTokens not provided, trying login");
+          //get authTokens
+          auth.authTokens = await module.login(auth.username, auth.password);
+          //set authTokens
+          module.setAuth({
+            ...auth,
+            authTokens: auth.authTokens,
+            lastupdated: new Date(),
+          });
+        }
+        const res = await module.getVOD(
           show_id,
-          (await module.getAuth()).authTokens,
+          auth.authTokens,
           options,
         );
         return Promise.resolve(res);
@@ -721,10 +810,27 @@ export async function getVOD_EP(
               cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
+          const auth = await module.getAuth();
+          if (!auth.username || !auth.password) {
+            throw "Not posssible, credentials not set!";
+          }
+          if (
+            !(auth.authTokens.length > 0) || typeof auth.authTokens !== "object"
+          ) {
+            logger("getVOD_EP", "authTokens not provided, trying login");
+            //get authTokens
+            auth.authTokens = await module.login(auth.username, auth.password);
+            //set authTokens
+            module.setAuth({
+              ...auth,
+              authTokens: auth.authTokens,
+              lastupdated: new Date(),
+            });
+          }
           const res = await module.getVOD_EP(
             show_id,
             epid,
-            (await module.getAuth()).authTokens,
+            auth.authTokens,
           );
           await module.cacheFill(epid, { ...res || {} });
           if (playlist) {

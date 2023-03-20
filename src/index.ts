@@ -386,6 +386,7 @@ router.get(
     valid_modules.join("|") || "null"
   })/live/:channel/:playlist(index.m3u8)?/:player(player)?`,
   async (context) => {
+    const query = helpers.getQuery(context);
     if (context.params.playlist == "index.m3u8") {
       logger(
         "live",
@@ -396,7 +397,12 @@ router.get(
         context.params.module,
         valid_modules,
       );
-      const data = await Loader.rewritePlaylist(stream.data) as StreamResponse;
+      const data = await Loader.rewritePlaylist(
+        stream.data,
+        query.cors
+          ? `${context.request.url.protocol}//${context.request.url.host}/cors/`
+          : undefined,
+      ) as StreamResponse;
       if (context.params.player == "player") {
         logger(
           "live",

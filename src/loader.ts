@@ -304,6 +304,7 @@ function m3uFixURL(
  */
 export async function rewritePlaylist(
   stream: StreamResponse,
+  cors?: string,
 ): Promise<
   string | StreamResponse
 > {
@@ -315,16 +316,31 @@ export async function rewritePlaylist(
         : (initData.split(" ")).join("\n");
       if (initm3u8.includes(".m3u8")) {
         const q_m3u8 = await axios.get(
-          m3u8Select(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""),
+          m3u8Select(
+            initm3u8,
+            cors
+              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
+                ?.[1]}`
+              : stream.stream.match(/(.*)\/.*/)?.[1] || "",
+          ),
         );
         const finalP = m3uFixURL(
           q_m3u8.data,
-          q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
+          cors
+            ? `http://localhost:3000/cors/${q_m3u8.config.url?.match(/(.*)\/.*/)
+              ?.[1]}`
+            : q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
         return finalP;
       } else {
         return Promise.resolve(
-          m3uFixURL(initm3u8, stream.stream.match(/(.*)\/.*/)?.[1] || ""),
+          m3uFixURL(
+            initm3u8,
+            cors
+              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
+                ?.[1]}`
+              : stream.stream.match(/(.*)\/.*/)?.[1] || "",
+          ),
         );
       }
     } else {
@@ -457,7 +473,7 @@ export async function searchChannel(
               config.url_cache_enabled ? `, trying to retrieve from module` : ""
             }`,
           );
-          if (!auth.username || !auth.password) {
+          if (module.authReq && (!auth.username || !auth.password)) {
             throw "Not posssible, credentials not set!";
           }
           if (
@@ -521,7 +537,7 @@ export async function searchChannel(
                   : ""
               }`,
             );
-            if (!auth.username || !auth.password) {
+            if (module.authReq && (!auth.username || !auth.password)) {
               throw "Not posssible, credentials not set!";
             }
             if (
@@ -611,7 +627,7 @@ export async function searchChannel(
                   : ""
               }`,
             );
-            if (!auth.username || !auth.password) {
+            if (module.authReq && (!auth.username || !auth.password)) {
               throw "Not posssible, credentials not set!";
             }
             if (
@@ -679,7 +695,7 @@ export async function getVODlist(
         .default();
       if (module.hasVOD) {
         const auth = await module.getAuth();
-        if (!auth.username || !auth.password) {
+        if (module.authReq && (!auth.username || !auth.password)) {
           throw "Not posssible, credentials not set!";
         }
         if (
@@ -735,7 +751,7 @@ export async function getVOD(
         .default();
       if (module.hasVOD) {
         const auth = await module.getAuth();
-        if (!auth.username || !auth.password) {
+        if (module.authReq && (!auth.username || !auth.password)) {
           throw "Not posssible, credentials not set!";
         }
         if (
@@ -811,7 +827,7 @@ export async function getVOD_EP(
             }`,
           );
           const auth = await module.getAuth();
-          if (!auth.username || !auth.password) {
+          if (module.authReq && (!auth.username || !auth.password)) {
             throw "Not posssible, credentials not set!";
           }
           if (

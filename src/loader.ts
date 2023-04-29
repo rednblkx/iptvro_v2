@@ -189,7 +189,7 @@ export async function sanityCheck(): Promise<string[]> {
           }
           if (!val.chList) {
             const ch = await val.getChannels();
-	    Object.keys(ch).length > 0 && await val.setConfig("chList", ch);
+            Object.keys(ch).length > 0 && await val.setConfig("chList", ch);
           }
         } catch (error) {
           if (error instanceof Error) {

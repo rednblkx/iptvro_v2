@@ -21,7 +21,8 @@ Before running this project, you must have Deno installed. You can download it
 
 ## Usage
 
-See the [wiki](https://github.com/redmusicxd/iptvro_v2/wiki) for API documentation
+See the [wiki](https://github.com/redmusicxd/iptvro_v2/wiki) for API
+documentation
 
 To use this project, run the following command:
 
@@ -40,7 +41,8 @@ Run it
 
 `docker run -it --init -p 8090:3000 -v ./logs:/app/logs -v ./configs:/app/configs ghcr.io/redmusicxd/iptvro_v2:main`
 
-As the image runs as non-root user (UID 1000, GID 1000), you need to make sure the `configs` and `logs` directories have the right permissions.
+As the image runs as non-root user (UID 1000, GID 1000), you need to make sure
+the `configs` and `logs` directories have the right permissions.
 
 The following command should ensure they have the right permissions
 

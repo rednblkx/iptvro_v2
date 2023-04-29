@@ -21,6 +21,8 @@ Before running this project, you must have Deno installed. You can download it
 
 ## Usage
 
+See the [wiki](https://github.com/redmusicxd/iptvro_v2/wiki) for API documentation
+
 To use this project, run the following command:
 
 `deno run --allow-read --allow-write --allow-env --allow-net src/index.ts`

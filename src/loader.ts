@@ -193,7 +193,7 @@ export async function sanityCheck(): Promise<string[]> {
           }
         } catch (error) {
           if (error instanceof Error) {
-            console.log(`\n - Module '${val.MODULE_ID}' found`);
+            // console.log(`\n - Module '${val.MODULE_ID}' found`);
             logger("sanityCheck", "File empty or not found");
             await val.initializeConfig(val.chList || {});
             const auth = await val.getAuth();

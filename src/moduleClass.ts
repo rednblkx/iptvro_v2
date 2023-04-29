@@ -1,7 +1,8 @@
+import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";
 import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import moment from "npm:moment";
-const __dirname = new URL(".", import.meta.url).pathname;
+const __dirname = Deno.cwd();
 
 /**
  * The AuthConfig type is an object with two properties: auth and config. The auth property is an
@@ -162,10 +163,21 @@ class ModuleFunctions {
     this.logo = "";
     this.qualitiesList = qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
-    const adapter = new JSONFile<ModuleConfig>(
-      `${__dirname}../configs/${this.MODULE_ID}.json`,
-    );
-    this.db = new Low(adapter);
+    const adapter = new JSONFile<ModuleConfig>(path.join(__dirname, "configs", `${this.MODULE_ID}.json`));
+    this.db = new Low(adapter, {
+      "auth": {
+        "username": "",
+        "password": "",
+        "authTokens": [],
+        "lastupdated": null,
+      },
+      "config": {
+        "url_cache_enabled": true,
+        "url_update_interval": 4,
+        "auth_update_interval": 6,
+        "chList": chList || {},
+      },
+    });
   }
 
   /**
@@ -263,7 +275,7 @@ class ModuleFunctions {
   ): Promise<void> {
     // existsSync(`${__dirname}../configs`) || mkdirSync(`${__dirname}../configs`)
     try {
-      await Deno.mkdir(`${__dirname}../configs`);
+      await Deno.mkdir(path.join(__dirname, "configs"));
     } catch (error) {
       if (error instanceof Deno.errors.AlreadyExists) {
         this.logger("initializeConfig", "configs dir already exists");
@@ -346,6 +358,7 @@ class ModuleFunctions {
       }
       return Promise.resolve(this.db.data.auth);
     } catch (error) {
+      this.logger("setAuth", error, true);
       return Promise.reject(error);
     }
   }
@@ -395,8 +408,8 @@ class ModuleFunctions {
    */
   async cacheFind(id?: string): Promise<cache | null> {
     try {
-      const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-      const db = new Low(adapter);
+      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const db = new Low(adapter, []);
       await db.read();
 
       const cache = db.data &&
@@ -442,8 +455,8 @@ class ModuleFunctions {
     data: { stream: string; proxy?: string },
   ): Promise<void> {
     try {
-      const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-      const db = new Low(adapter);
+      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const db = new Low(adapter, []);
       await db.read();
       db.data ||= [];
       const cache = db.data &&
@@ -477,8 +490,8 @@ class ModuleFunctions {
    */
   async flushCache(): Promise<string> {
     try {
-      const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-      const db = new Low(adapter);
+      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const db = new Low(adapter, []);
       await db.read();
       db.data = db.data?.filter((a) => a.module !== this.MODULE_ID) || null;
       await db.write();

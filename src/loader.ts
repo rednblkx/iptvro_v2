@@ -8,7 +8,9 @@ import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
 import { Parser } from "npm:m3u8-parser";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
-const __dirname = new URL(".", import.meta.url).pathname;
+import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";
+import { pathToFileURL } from "https://dev.jspm.io/npm:@jspm/core@2.0.1/nodelibs/url";
+const __dirname = Deno.cwd();
 
 /**
  * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
@@ -129,7 +131,7 @@ function logger(
  */
 export async function sanityCheck(): Promise<string[]> {
   const files_list: string[] = [];
-  for await (const file of Deno.readDir(`${__dirname}/modules`)) {
+  for await (const file of Deno.readDir(path.join(__dirname, "src", "modules"))) {
     if (file.isFile && extname(file.name) === ".ts") {
       files_list.push(file.name);
     }
@@ -183,8 +185,12 @@ export async function sanityCheck(): Promise<string[]> {
             );
             valid = false;
           }
+          if (!val.chList) {
+            const ch = await val.getChannels();
+            await val.setConfig("chList", ch);
+          }
         } catch (error) {
-          if (error instanceof Deno.errors.NotFound) {
+          if (error instanceof Error) {
             console.log(`\n - Module '${val.MODULE_ID}' found`);
             logger("sanityCheck", "File empty or not found");
             await val.initializeConfig(val.chList || {});
@@ -197,10 +203,6 @@ export async function sanityCheck(): Promise<string[]> {
                 `\t${val.MODULE_ID} - Username/Passsword required but not set`,
               );
               // throw `${val.MODULE_ID} - Username/Passsword required but not set`;
-            }
-            if (!val.chList) {
-              const ch = await val.getChannels();
-              await val.setConfig("chList", ch);
             }
           } else {
             throw error;
@@ -369,7 +371,7 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
     ),
   );
   const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-  const db = new Low(adapter);
+  const db = new Low(adapter, []);
   await db.read();
 
   db.data ||= [];
@@ -442,7 +444,7 @@ export async function searchChannel(
         "searchChannel",
         `Searching for channel '${id}' in module '${module_id}'`,
       );
-      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+      const module: ModuleType = new (await import(pathToFileURL(path.join(__dirname, "src", "modules", `${module_id}.ts`)).toString()))
         .default();
       const config = await module.getConfig();
       const auth = await module.getAuth();

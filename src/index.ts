@@ -201,7 +201,7 @@ router.get(
     };
     const query = helpers.getQuery(context);
     const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
-    const db = new Low(adapter);
+    const db = new Low(adapter, []);
     await db.read();
     if (context.params.module) {
       logger(

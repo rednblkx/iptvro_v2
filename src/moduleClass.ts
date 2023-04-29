@@ -163,7 +163,9 @@ class ModuleFunctions {
     this.logo = "";
     this.qualitiesList = qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
-    const adapter = new JSONFile<ModuleConfig>(path.join(__dirname, "configs", `${this.MODULE_ID}.json`));
+    const adapter = new JSONFile<ModuleConfig>(
+      path.join(__dirname, "configs", `${this.MODULE_ID}.json`),
+    );
     this.db = new Low(adapter, {
       "auth": {
         "username": "",
@@ -408,7 +410,9 @@ class ModuleFunctions {
    */
   async cacheFind(id?: string): Promise<cache | null> {
     try {
-      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const adapter = new JSONFile<cache[]>(
+        path.join(__dirname, "configs", `cache.json`),
+      );
       const db = new Low(adapter, []);
       await db.read();
 
@@ -455,7 +459,9 @@ class ModuleFunctions {
     data: { stream: string; proxy?: string },
   ): Promise<void> {
     try {
-      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const adapter = new JSONFile<cache[]>(
+        path.join(__dirname, "configs", `cache.json`),
+      );
       const db = new Low(adapter, []);
       await db.read();
       db.data ||= [];
@@ -490,7 +496,9 @@ class ModuleFunctions {
    */
   async flushCache(): Promise<string> {
     try {
-      const adapter = new JSONFile<cache[]>(path.join(__dirname, "configs", `cache.json`));
+      const adapter = new JSONFile<cache[]>(
+        path.join(__dirname, "configs", `cache.json`),
+      );
       const db = new Low(adapter, []);
       await db.read();
       db.data = db.data?.filter((a) => a.module !== this.MODULE_ID) || null;

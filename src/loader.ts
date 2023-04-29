@@ -131,7 +131,9 @@ function logger(
  */
 export async function sanityCheck(): Promise<string[]> {
   const files_list: string[] = [];
-  for await (const file of Deno.readDir(path.join(__dirname, "src", "modules"))) {
+  for await (
+    const file of Deno.readDir(path.join(__dirname, "src", "modules"))
+  ) {
     if (file.isFile && extname(file.name) === ".ts") {
       files_list.push(file.name);
     }
@@ -444,7 +446,11 @@ export async function searchChannel(
         "searchChannel",
         `Searching for channel '${id}' in module '${module_id}'`,
       );
-      const module: ModuleType = new (await import(pathToFileURL(path.join(__dirname, "src", "modules", `${module_id}.ts`)).toString()))
+      const module: ModuleType = new (await import(
+        pathToFileURL(
+          path.join(__dirname, "src", "modules", `${module_id}.ts`),
+        ).toString()
+      ))
         .default();
       const config = await module.getConfig();
       const auth = await module.getAuth();

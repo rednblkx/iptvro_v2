@@ -28,6 +28,22 @@ To use this project, run the following command:
 A `configs` dir will then be created and inside it multiple .json files for each
 module(provider) where you can input the appropriate credentials.
 
+### Docker
+
+Pull the image
+
+`docker pull ghcr.io/redmusicxd/iptvro_v2:main`
+
+Run it
+
+`docker run -it --init -p 8090:3000 -v ./logs:/app/logs -v ./configs:/app/configs ghcr.io/redmusicxd/iptvro_v2:main`
+
+As the image runs as non-root user (UID 1000, GID 1000), you need to make sure the `configs` and `logs` directories have the right permissions.
+
+The following command should ensure they have the right permissions
+
+`chown -R 1000:1000 configs; chown -R 1000:1000 logs`
+
 ## Permissions
 
 Deno needs the following permissions to run this project:

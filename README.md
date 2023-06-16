@@ -2,7 +2,7 @@
 
 # Disclaimer
 
-This script is not affiliated in any shape or form or commissioned/supported by DIGI, Antena or ProTV. For more information about digionline, antenaplay or protvplus, visit their official website.
+This script is not affiliated in any shape or form or commissioned/supported by any providers used. For more information about their platforms, visit their respective official website.
 
 This script offers a way to retrieve the streams using the credentials PROVIDED BY YOU.
 

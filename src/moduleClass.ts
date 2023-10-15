@@ -58,10 +58,13 @@ type FunctionsList =
   | "getAuth"
   | "cacheFind"
   | "cacheFill"
-  | "flushCache";
+  | "flushCache"
+  | "searchShow";
 
 export type StreamResponse = {
   [k: string]: unknown;
+  show_name?: string;
+  ep_name?: string;
   stream: string;
   drm?: { url: string; headers?: { [k: string]: string } };
 };
@@ -84,7 +87,7 @@ export interface ModuleType extends ModuleFunctions {
   getChannels(): Promise<IChannelsList>;
   getVOD_List(
     authTokens: string[],
-    options?: Record<string, unknown>,
+    options?: Record<string, string>,
   ): Promise<VODListResponse>;
   getVOD(
     show: string,
@@ -96,9 +99,11 @@ export interface ModuleType extends ModuleFunctions {
     epid: string,
     authTokens: string[],
   ): Promise<StreamResponse>;
+  searchShow(authTokens: string[], string: string): Promise<VODListResponse>;
 }
 
 export interface IVOD {
+  show_name?: string;
   data: IVODData[];
   pagination?: {
     current_page: number;
@@ -129,6 +134,7 @@ class ModuleFunctions {
   MODULE_ID: string;
   hasLive: boolean;
   hasVOD: boolean;
+  searchEnabled: boolean;
   chList: IChannelsList | null;
   qualitiesList: string[] | null;
   authReq: boolean;
@@ -142,6 +148,7 @@ class ModuleFunctions {
    * config file.
    * @param {boolean} hasLive - boolean - Whether the module supports live channels
    * @param {boolean} hasVOD - boolean - Whether the module supports VOD or not.
+   * @param {boolean} searchEnabled - boolean - Whether the module has search function implemented.
    * @param {string[]} [chList] - An array of channel names. This is used to get the channel list
    * from the API.
    * @param {string[]} [qualitiesList] - An array of strings that represent the qualities that the
@@ -152,6 +159,7 @@ class ModuleFunctions {
     authReq: boolean,
     hasLive: boolean,
     hasVOD: boolean,
+    searchEnabled?: boolean,
     chList?: IChannelsList,
     qualitiesList?: string[],
   ) {
@@ -161,25 +169,13 @@ class ModuleFunctions {
     this.hasVOD = hasVOD;
     this.chList = chList || null;
     this.logo = "";
+    this.searchEnabled = searchEnabled || false;
     this.qualitiesList = qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
     const adapter = new JSONFile<ModuleConfig>(
       path.join(__dirname, "configs", `${this.MODULE_ID}.json`),
     );
-    this.db = new Low(adapter, {
-      "auth": {
-        "username": "",
-        "password": "",
-        "authTokens": [],
-        "lastupdated": null,
-      },
-      "config": {
-        "url_cache_enabled": true,
-        "url_update_interval": 4,
-        "auth_update_interval": 6,
-        "chList": chList || {},
-      },
-    });
+    this.db = new Low(adapter);
   }
 
   /**
@@ -413,7 +409,7 @@ class ModuleFunctions {
       const adapter = new JSONFile<cache[]>(
         path.join(__dirname, "configs", `cache.json`),
       );
-      const db = new Low(adapter, []);
+      const db = new Low(adapter);
       await db.read();
 
       const cache = db.data &&
@@ -462,7 +458,7 @@ class ModuleFunctions {
       const adapter = new JSONFile<cache[]>(
         path.join(__dirname, "configs", `cache.json`),
       );
-      const db = new Low(adapter, []);
+      const db = new Low(adapter);
       await db.read();
       db.data ||= [];
       const cache = db.data &&
@@ -499,7 +495,7 @@ class ModuleFunctions {
       const adapter = new JSONFile<cache[]>(
         path.join(__dirname, "configs", `cache.json`),
       );
-      const db = new Low(adapter, []);
+      const db = new Low(adapter);
       await db.read();
       db.data = db.data?.filter((a) => a.module !== this.MODULE_ID) || null;
       await db.write();

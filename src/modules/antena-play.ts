@@ -19,7 +19,7 @@ import {
 class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* Creating a new instance of the class Antena. */
-    super("antena-play", true, true, true);
+    super("antena-play", true, true, true, true);
     this.logo = "https://antenaplay.ro/images/logoV2.svg";
   }
 
@@ -154,6 +154,57 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       return Promise.reject(this.logger("getChannels", error, true));
     }
   }
+
+  async searchShow(
+    authTokens: string[],
+    string: string,
+  ): Promise<VODListResponse> {
+    try {
+      const shows = await axios.get<IVODList>(
+        `https://restapi.antenaplay.ro/v1/shows?_sort=last_video_date%3Adesc&active=Y&_scope=search%3A${string}`,
+        {
+          headers: {
+            authorization: `Bearer ${authTokens[0]}`,
+            "api-request-source": "ios",
+            "user-agent":
+              "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1",
+          },
+        },
+      );
+      this.logger("searchShow", shows.data);
+      const list: IVODData[] = [];
+      shows.data.data.forEach((l) => {
+        list.push(
+          {
+            id: l.id.toString(),
+            name: l.show_name,
+            date: l.last_video_date,
+            img: l.main_image,
+            link: `/${this.MODULE_ID}/vod/${l.id}`,
+          },
+        );
+      });
+      const result: IVOD = {
+        data: list,
+        pagination: {
+          current_page: shows.data.meta.pagination.current_page,
+          per_page: shows.data.meta.pagination.per_page,
+          total_pages: shows.data.meta.pagination.total_pages,
+        },
+      };
+      return Promise.resolve(result);
+    } catch (error) {
+      this.logger(
+        "searchShow",
+        error.message || error.toString().substring(0, 200),
+        true,
+      );
+      return Promise.reject(
+        error.message || error.toString().substring(0, 200),
+      );
+    }
+  }
+
   /**
    * It gets the list of VODs from the AntenaPlay API.
    * @param {string[]} authTokens - string[]: The authTokens that you get from the login function.
@@ -162,9 +213,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
    */
   async getVOD_List(
     authTokens: string[],
-    options?: Record<string, unknown>,
+    options?: Record<string, string>,
   ): Promise<VODListResponse> {
     try {
+      if (options?.search) {
+        const result = this.searchShow(authTokens, options?.search);
+
+        return Promise.resolve(result);
+      }
       const shows = await axios.get<IVODList>(
         `https://restapi.antenaplay.ro/v1/shows?_per_page=20&_sort=last_video_date%3Adesc&active=Y&_page=${
           options?.page || 1
@@ -265,7 +321,19 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         );
       });
+      const show_name = (await axios.get<IVODList>(
+        `https://restapi.antenaplay.ro/v1/shows?id=${show}}`,
+        {
+          headers: {
+            authorization: `Bearer ${authTokens[0]}`,
+            "api-request-source": "ios",
+            "user-agent":
+              "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1",
+          },
+        },
+      )).data.data[0].show_name;
       const result: IVOD = {
+        show_name,
         data: list,
         pagination: {
           current_page: episodes.data.meta.pagination.current_page,
@@ -322,7 +390,33 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           },
         },
       );
-      return Promise.resolve({ stream: episode_id.data.data.url });
+      const show_name = (await axios.get<IVODList>(
+        `https://restapi.antenaplay.ro/v1/shows?id=${show}}`,
+        {
+          headers: {
+            authorization: `Bearer ${authTokens[0]}`,
+            "api-request-source": "ios",
+            "user-agent":
+              "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1",
+          },
+        },
+      )).data.data[0].show_name;
+      const ep_name = (await axios.get<IVODEpisodes>(
+        `https://restapi.antenaplay.ro/v1/videos?show_id=${show}&id=${epid}`,
+        {
+          headers: {
+            authorization: `Bearer ${authTokens[0]}`,
+            "api-request-source": "ios",
+            "user-agent":
+              "AntenaPlay/3.2.5 (ro.antenaplay.app; build:88; iOS 12.5.1) Alamofire/4.9.1",
+          },
+        },
+      )).data.data[0].video_title;
+      return Promise.resolve({
+        show_name,
+        ep_name,
+        stream: episode_id.data.data.url,
+      });
     } catch (error) {
       return Promise.reject(this.logger("getVOD_EP", error, true));
     }

@@ -201,7 +201,7 @@ router.get(
     };
     const query = helpers.getQuery(context);
     const adapter = new JSONFile<cache[]>(`${Deno.cwd}/cache.json`);
-    const db = new Low(adapter, []);
+    const db = new Low(adapter);
     await db.read();
     if (context.params.module) {
       logger(
@@ -495,6 +495,7 @@ router.get(
   async (context) => {
     const query = helpers.getQuery(context);
     logger("vod", `VOD list requested from module '${context.params.module}'`);
+    logger("vod", `query params: ${JSON.stringify(query)}`);
     const list = await Loader.getVODlist(
       context.params.module,
       { ...query },

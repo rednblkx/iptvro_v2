@@ -36,7 +36,8 @@ type LoaderFunctions =
   | "getVODlist"
   | "getVOD"
   | "getVOD_EP"
-  | "login";
+  | "login"
+  | "searchShow";
 
 /**
  * The function takes in three parameters, the first two are required and the third is optional
@@ -373,7 +374,7 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
     ),
   );
   const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-  const db = new Low(adapter, []);
+  const db = new Low(adapter);
   await db.read();
 
   db.data ||= [];
@@ -695,7 +696,7 @@ export async function searchChannel(
  */
 export async function getVODlist(
   module_id: string,
-  options?: Record<string, unknown>,
+  options?: Record<string, string>,
 ) {
   if (module_id) {
     try {
@@ -738,6 +739,48 @@ export async function getVODlist(
       return Promise.reject(logger("getVODlist", error, true));
     }
   } else return Promise.reject(logger("getVODlist", "Module ID not provided"));
+}
+
+export async function searchShow(module_id: string, string: string) {
+  if (module_id) {
+    try {
+      const module: ModuleType = new (await import(`./modules/${module_id}.ts`))
+        .default();
+      if (module.searchEnabled) {
+        const auth = await module.getAuth();
+        if (module.authReq && (!auth.username || !auth.password)) {
+          throw "Not posssible, credentials not set!";
+        }
+        if (
+          !(auth.authTokens.length > 0) || typeof auth.authTokens !== "object"
+        ) {
+          logger("getVOD", "authTokens not provided, trying login");
+          //get authTokens
+          auth.authTokens = await module.login(auth.username, auth.password);
+          //set authTokens
+          module.setAuth({
+            ...auth,
+            authTokens: auth.authTokens,
+            lastupdated: new Date(),
+          });
+        }
+        const res = await module.searchShow(
+          auth.authTokens,
+          string,
+        );
+        return Promise.resolve(res);
+      } else {
+        return Promise.reject(
+          logger(
+            "searchShow",
+            `Module ${module_id} doesn't have search implemented`,
+          ),
+        );
+      }
+    } catch (error) {
+      return Promise.reject(logger("searchShow", error, true));
+    }
+  } else return Promise.reject(logger("searchShow", "Module ID not provided"));
 }
 
 /**

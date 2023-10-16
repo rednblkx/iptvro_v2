@@ -374,7 +374,7 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
     ),
   );
   const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
-  const db = new Low(adapter);
+  const db = new Low(adapter, []);
   await db.read();
 
   db.data ||= [];

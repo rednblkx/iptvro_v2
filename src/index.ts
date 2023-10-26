@@ -79,7 +79,7 @@ const moduleRoutes = new Router().use(
   `/:module(${valid_modules.join("|") || "null"})`,
   VodRouter.routes(),
   LoginRouter.routes(),
-  ModInfo.routes()
+  ModInfo.routes(),
 );
 
 app.use(universalRoutes.routes());

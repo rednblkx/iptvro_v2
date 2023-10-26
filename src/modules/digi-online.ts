@@ -8,16 +8,42 @@ import ModuleClass, {
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { Md5 } from "https://deno.land/std@0.160.0/hash/md5.ts";
 
+/* The `ModuleInstance` class is a TypeScript class that extends `ModuleClass` and implements
+`ModuleType`, providing methods for searching shows, getting VOD lists, getting VODs, getting VOD
+episodes, logging in, and retrieving live channels and their streams. */
 class ModuleInstance extends ModuleClass implements ModuleType {
-  /**
-   * A constructor function for the Digi class.
-   */
   constructor() {
-    /* Calling the constructor of the parent class, which is ModuleClass. */
-    super("digi-online", true, true, false);
-    this.logo =
-      "https://www.digionline.ro/static/theme-ui-frontend/bin/images/logo-digi-online.png";
+    super({
+      MODULE_ID: "digi-online",
+      hasLive: true,
+      hasVOD: false,
+      authReq: true,
+      logo:
+        "https://www.digionline.ro/static/theme-ui-frontend/bin/images/logo-digi-online.png",
+    });
   }
+  /**
+   * The function searchShow takes authentication tokens and a search string as parameters and returns
+   * a Promise that resolves to a VODListResponse.
+   * @param {string[]} _authTokens - The _authTokens parameter is an array of authentication tokens.
+   * These tokens are used to authenticate the user and authorize access to certain resources or
+   * actions.
+   * @param {string} _string - The `_string` parameter is a string that represents the search query for
+   * a show. It is the keyword or phrase that you want to use to search for a show.
+   */
+  searchShow(_authTokens: string[], _string: string): Promise<VODListResponse> {
+    throw new Error("Method not implemented.");
+  }
+  /**
+   * The function `getVOD_List` returns a rejected promise with an error message indicating that the
+   * method is not implemented.
+   * @param {string[]} _authTokens - An array of authentication tokens.
+   * @param [_options] - The `_options` parameter is an optional parameter of type `Record<string,
+   * unknown>`. It is used to pass additional options or configurations to the `getVOD_List` method.
+   * The type `Record<string, unknown>` means that `_options` is an object with string keys and values
+   * of unknown
+   * @returns A rejected Promise with an error message.
+   */
   getVOD_List(
     _authTokens: string[],
     _options?: Record<string, unknown>,
@@ -26,6 +52,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       this.logger("getVOD_List", "Method not implemented", true),
     );
   }
+  /**
+   * The function `getVOD` returns a rejected promise with an error message indicating that the method
+   * is not implemented.
+   * @param {string} _show - A string representing the name or identifier of the show for which you
+   * want to get the video on demand (VOD) content.
+   * @param {string[]} _authTokens - An array of authentication tokens.
+   * @param [_options] - The `_options` parameter is an optional parameter of type `Record<string,
+   * unknown>`. It is used to pass additional options or configurations to the `getVOD` method. The
+   * type `Record<string, unknown>` means that `_options` is an object with string keys and values of
+   * any type
+   * @returns a rejected Promise with an error message.
+   */
   getVOD(
     _show: string,
     _authTokens: string[],
@@ -35,6 +73,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       this.logger("getVOD", "Method not implemented", true),
     );
   }
+  /**
+   * The function getVOD_EP is a TypeScript function that returns a rejected Promise with an error
+   * message indicating that the method is not implemented.
+   * @param {string} _show - A string representing the name or identifier of the show for which you
+   * want to get the VOD (Video on Demand) episode.
+   * @param {string} _epid - The `_epid` parameter is a string that represents the episode ID of a
+   * show.
+   * @param {string[]} _authTokens - The `_authTokens` parameter is an array of authentication tokens.
+   * These tokens are used to authenticate the user and verify their access to the requested VOD (Video
+   * on Demand) episode.
+   * @returns A rejected Promise with an error message.
+   */
   getVOD_EP(
     _show: string,
     _epid: string,
@@ -46,10 +96,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It generates a random UUID.
-   * @param number - The number of uuids you want to generate.
-   * @param [uuid] - The uuid to be returned
-   * @returns A string of random uuids
+   * The function generates a UUID by recursively concatenating random strings until a specified number
+   * is reached.
+   * @param {number} number - The `number` parameter is the number of UUIDs you want to generate.
+   * @param [uuid] - The `uuid` parameter is a string that represents the generated UUID. It is
+   * initially an empty string and gets concatenated with each generated UUID in the recursive function
+   * call.
+   * @returns a string.
    */
   private uuidGen(number: number, uuid = ""): string {
     const gen = crypto.randomUUID().replace(/\-/g, "");
@@ -60,11 +113,16 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It takes a username, password, and a hash, and returns a device ID and a hash
-   * @param username - Your username
-   * @param password - The password you use to login to the website
-   * @param uhash - This is the hash that is returned from the login request.
-   * @returns An object with two properties, id and hash.
+   * The function generates an ID and hash based on the provided username, password, and uhash.
+   * @param {string} username - The `username` parameter is a string that represents the username of a
+   * user. It is used as input to generate an ID.
+   * @param {string} password - The `password` parameter is a string that represents the user's
+   * password.
+   * @param {string} uhash - The parameter "uhash" is a string that is used as a part of the hash
+   * generation process. It is concatenated with the username, password, deviceId, and a constant
+   * string "KodeativeiptvroREL_12" before being hashed using the MD5 algorithm.
+   * @returns an object with two properties: "id" and "hash". The "id" property contains the generated
+   * deviceId, and the "hash" property contains the MD5 hash generated using the provided parameters.
    */
   private generateId(username: string, password: string, uhash: string) {
     const deviceStr = `Kodeative_iptvro_${
@@ -80,10 +138,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It generates a unique ID for the user and returns it.
-   * @param {string} username - your digionline username
-   * @param {string} password - The password you use to login to the Digi Online website
-   * @returns a promise that resolves to an array of strings.
+   * The `login` function is an asynchronous function that takes a username and password as parameters,
+   * performs a login request to a remote API, and returns a Promise that resolves to an array
+   * containing the user's ID if the login is successful.
+   * @param {string} username - The `username` parameter is a string that represents the username of
+   * the user trying to log in. It is used to identify the user and authenticate their credentials.
+   * @param {string} password - The `password` parameter is a string that represents the user's
+   * password.
+   * @returns The `login` function returns a Promise that resolves to an array of tokens.
    */
   async login(username: string, password: string): Promise<string[]> {
     if (!password || !username) {
@@ -176,11 +238,17 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It gets the stream from the provider, if it fails it tries to login and then get the stream again
-   * @param {string} id - the channel id
-   * @param {string[]} authTokens - the tokens you get from the login function
-   * @param {Date} authLastUpdate - Date - the date when the auth tokens were last updated
-   * @returns The stream url and the proxy url
+   * The `liveChannels` function retrieves a live stream from a provider using the provided ID and
+   * authentication tokens.
+   * @param {string} id - The `id` parameter is a string that represents the ID of the stream you want
+   * to retrieve. It is used in the API request to specify which stream to fetch.
+   * @param {string[]} authTokens - An array of authentication tokens used for authorization.
+   * @param {Date} _authLastUpdate - _authLastUpdate is a Date object that represents the last time the
+   * authentication tokens were updated.
+   * @returns a Promise that resolves to a StreamResponse object. The StreamResponse object has two
+   * properties: "stream" and "drm". The "stream" property contains the stream's abr (adaptive bitrate)
+   * value, and the "drm" property contains the WV Proxy URL for the stream, if
+   * available.
    */
   async liveChannels(
     id: string,
@@ -222,8 +290,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It gets a list of channels from the API and returns a promise with a list of channels
-   * @returns A promise that resolves to an object containing the channel name and id.
+   * The function `getChannels` makes an asynchronous request to retrieve a list of channels from a
+   * specific API endpoint and returns a promise that resolves with the list of channels.
+   * @returns The function `getChannels` returns a Promise that resolves to an object of type
+   * `IChannelsList`.
    */
   async getChannels(): Promise<IChannelsList> {
     try {

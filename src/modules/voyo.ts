@@ -25,9 +25,17 @@ import { IVODEpisodes, IVODList, IVODListFilter } from "./types/voyo.d.ts";
 class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
-    super("voyo", true, true, true);
-    this.logo =
-      "https://static.wikia.nocookie.net/logopedia/images/d/d4/Voyo_logo_2021.svg";
+    super({
+      MODULE_ID: "voyo",
+      hasLive: true,
+      hasVOD: true,
+      authReq: true,
+      logo:
+        "https://static.wikia.nocookie.net/logopedia/images/d/d4/Voyo_logo_2021.svg",
+    });
+  }
+  searchShow(_authTokens: string[], _string: string): Promise<VODListResponse> {
+    throw new Error("Method not implemented.");
   }
 
   /**

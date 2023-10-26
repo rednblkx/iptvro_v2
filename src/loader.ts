@@ -10,118 +10,15 @@ import { Parser } from "npm:m3u8-parser";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";
 import { pathToFileURL } from "https://dev.jspm.io/npm:@jspm/core@2.0.1/nodelibs/url";
+import { logger } from "./helpers/logger.ts";
 const __dirname = Deno.cwd();
 
-/**
- * `cache` is an object with a `name` property of type `string`, a `data` property of type `{stream:
- * string, proxy?: string}`, a `module` property of type `string`, and a `lastupdated` property of type
- * `Date`.
- * @property {string} name - The name of the stream.
- * @property data - This is the data that is returned from the module.
- * @property {string} module - The module that the stream is from.
- * @property {Date} lastupdated - The date the cache was last updated.
- */
 type cache = {
   name: string;
   data: StreamResponse;
   module: string;
   lastupdated: Date;
 };
-
-type LoaderFunctions =
-  | "sanityCheck"
-  | "rewritePlaylist"
-  | "cacheCleanup"
-  | "searchChannel"
-  | "getVODlist"
-  | "getVOD"
-  | "getVOD_EP"
-  | "login"
-  | "searchShow";
-
-/**
- * The function takes in three parameters, the first two are required and the third is optional
- * @param {string} id - This is the id of the function that is calling the logger.
- * @param {string} message - The message you want to log.
- * @param {boolean} [isError] - boolean - if true, the logger will return an Error object instead of a
- * string.
- * @returns a string or an error.
- */
-function logger(
-  id: LoaderFunctions,
-  message: string | Error | Record<string, unknown>,
-  isError?: boolean,
-): string {
-  if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
-    if (isError) {
-      if ((message as Error).message) {
-        console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            (message as Error).message
-          }`,
-        );
-      } else {
-        console.error(
-          `\x1b[47m\x1b[30mloader\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-            typeof message == "object"
-              ? JSON.stringify(message).substring(0, 200)
-              : message
-          }`,
-        );
-      }
-    } else {
-      console.log(
-        `\x1b[47m\x1b[30mloader\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-          typeof message == "object"
-            ? JSON.stringify(message).substring(0, 200)
-            : message
-        }`,
-      );
-    }
-    const nowDate = new Date();
-    const date = nowDate.getFullYear() + "-" + (nowDate.getMonth() + 1) + "-" +
-      nowDate.getDate();
-    Deno.writeTextFile(
-      `logs/log${date}.txt`,
-      typeof message == "object"
-        ? `${new Date().toLocaleString()} | loader - ${id} - ${
-          JSON.stringify(message, null, 2)
-        }\n`
-        : `${new Date().toLocaleString()} | loader - ${id} ${message} \n`,
-      { append: true, create: true },
-    ).then(() => {
-      // console.log("Log wrote on dir!");
-    }).catch((err) => {
-      if (err instanceof Deno.errors.NotFound) {
-        console.log(err);
-
-        Deno.mkdir("logs").then(() => {
-          Deno.writeTextFile(
-            `logs/log${date}.txt`,
-            typeof message == "object"
-              ? `${new Date().toLocaleString()} | loader - ${id} - ${
-                JSON.stringify(message, null, 2)
-              }\n`
-              : `${
-                new Date().toLocaleString()
-              } | loader - ${id} - ${message} \n`,
-            { append: true, create: true },
-          ).then(() => {
-            // console.log("Log wrote on dir!");
-          });
-        });
-      } else console.error(err);
-    });
-  }
-  if ((message as Error).message) {
-    return `loader - ${id}: ${((message as Error).message).substring(0, 200)}`;
-  }
-  return `loader - ${id}: ${
-    typeof message == "object"
-      ? JSON.stringify(message).substring(0, 200)
-      : message.substring(0, 200)
-  }`;
-}
 
 /**
  * It reads all the files in the modules folder, imports them, checks if they are valid modules, and if
@@ -155,19 +52,21 @@ export async function sanityCheck(): Promise<string[]> {
   }));
   for (const val of modules) {
     try {
+      if (val.MODULE_ID == "dummy") continue;
       if (val instanceof ModuleFunctions && val.MODULE_ID) {
         let valid = true;
         try {
           const auth = await val.getAuth();
+          const channels = (await val.getConfig()).chList;
           console.log(`\n - Module '${val.MODULE_ID}' found`);
           if (
             (!auth.username || !auth.password) &&
             val.authReq
           ) {
-            console.log(
-              `\t${val.MODULE_ID} - Username/Passsword required but not set`,
-            );
-            // throw `${val.MODULE_ID} - Username/Passsword required but not set`;
+            // console.log(
+            //   `\t${val.MODULE_ID} - Username/Passsword required but not set`,
+            // );
+            throw `${val.MODULE_ID} - Username/Passsword required but not set`;
           }
           !val.login &&
             logger(
@@ -188,7 +87,7 @@ export async function sanityCheck(): Promise<string[]> {
             );
             valid = false;
           }
-          if (!val.chList) {
+          if (!val.chList && !channels) {
             const ch = await val.getChannels();
             Object.keys(ch).length > 0 && await val.setConfig("chList", ch);
           }
@@ -202,10 +101,10 @@ export async function sanityCheck(): Promise<string[]> {
               (!auth.username || !auth.password) &&
               val.authReq
             ) {
-              console.log(
-                `\t${val.MODULE_ID} - Username/Passsword required but not set`,
-              );
-              // throw `${val.MODULE_ID} - Username/Passsword required but not set`;
+              // console.log(
+              //   `\tUsername/Passsword required but not set`,
+              // );
+              throw `${val.MODULE_ID} - Username/Passsword required but not set`;
             }
           } else {
             throw error;
@@ -324,16 +223,20 @@ export async function rewritePlaylist(
           m3u8Select(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
-                ?.[1]}`
+              ? `http://localhost:3000/cors/${
+                stream.stream.match(/(.*)\/.*/)
+                  ?.[1]
+              }`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );
         const finalP = m3uFixURL(
           q_m3u8.data,
           cors
-            ? `http://localhost:3000/cors/${q_m3u8.config.url?.match(/(.*)\/.*/)
-              ?.[1]}`
+            ? `http://localhost:3000/cors/${
+              q_m3u8.config.url?.match(/(.*)\/.*/)
+                ?.[1]
+            }`
             : q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
         return finalP;
@@ -342,8 +245,10 @@ export async function rewritePlaylist(
           m3uFixURL(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
-                ?.[1]}`
+              ? `http://localhost:3000/cors/${
+                stream.stream.match(/(.*)\/.*/)
+                  ?.[1]
+              }`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );
@@ -373,7 +278,7 @@ export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
       new (await import(`./modules/${val}.ts`)).default()
     ),
   );
-  const adapter = new JSONFile<cache[]>(`${__dirname}../cache.json`);
+  const adapter = new JSONFile<cache[]>(`${__dirname}/cache.json`);
   const db = new Low(adapter, []);
   await db.read();
 
@@ -453,6 +358,15 @@ export async function searchChannel(
         ).toString()
       ))
         .default();
+      if (!module.hasLive) {
+        return Promise.reject(
+          logger(
+            "searchChannel",
+            `Live channels not enabled for module ${module_id}`,
+            true,
+          ),
+        );
+      }
       const config = await module.getConfig();
       const auth = await module.getAuth();
       const cache = await module.cacheFind(id);
@@ -469,7 +383,7 @@ export async function searchChannel(
           return Promise.resolve({
             data: cache.data,
             module: module_id,
-            cache: config.url_cache_enabled,
+            cache: true,
           });
         } else {
           logger(
@@ -507,7 +421,7 @@ export async function searchChannel(
           return Promise.resolve({
             data: data,
             module: module_id,
-            cache: config.url_cache_enabled,
+            cache: false,
           });
         }
       } else {
@@ -531,7 +445,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: cache.data,
               module: module_id,
-              cache: config.url_cache_enabled,
+              cache: true,
             });
           } else {
             logger(
@@ -575,7 +489,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: data,
               module: module_id,
-              cache: config.url_cache_enabled,
+              cache: false,
             });
           }
         } else {
@@ -621,7 +535,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: cache.data,
               module: cache.module,
-              cache: config.url_cache_enabled,
+              cache: true,
             });
           } else {
             logger(
@@ -665,7 +579,7 @@ export async function searchChannel(
             return Promise.resolve({
               data: data,
               module: module.MODULE_ID,
-              cache: config.url_cache_enabled,
+              cache: false,
             });
           }
         }
@@ -860,11 +774,11 @@ export async function getVOD_EP(
         if (cache !== null && cache_enabled) {
           if (playlist) {
             const m3u8 = await rewritePlaylist(cache.data) as string;
-            return Promise.resolve({ data: m3u8, cache: cache_enabled });
+            return Promise.resolve({ data: m3u8, cache: true });
           }
           return Promise.resolve({
             data: cache.data,
-            cache: cache_enabled,
+            cache: true,
           });
         } else {
           logger(
@@ -902,9 +816,9 @@ export async function getVOD_EP(
           await module.cacheFill(epid, { ...res || {} });
           if (playlist) {
             const m3u8 = await rewritePlaylist({ ...res }) as string;
-            return Promise.resolve({ data: m3u8, cache: cache_enabled });
+            return Promise.resolve({ data: m3u8, cache: false });
           }
-          return Promise.resolve({ data: res || {}, cache: cache_enabled });
+          return Promise.resolve({ data: res || {}, cache: false });
         }
       } else {
         return Promise.reject(

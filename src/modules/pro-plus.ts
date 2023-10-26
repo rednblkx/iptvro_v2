@@ -26,8 +26,16 @@ import moment from "https://deno.land/x/momentjs@2.29.1-deno/mod.ts";
 class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
-    super("pro-plus", true, false, true);
+    super({
+      MODULE_ID: "pro-plus",
+      hasLive: false,
+      hasVOD: false,
+      authReq: true,
+    });
     this.logo = "https://protvplus.ro/html/assets/logo.svg";
+  }
+  searchShow(_authTokens: string[], _string: string): Promise<VODListResponse> {
+    throw new Error("Method not implemented.");
   }
 
   /**
@@ -212,7 +220,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       );
       this.logger("getChannels", channels.data);
       const list: IChannelsList = {};
-      channels.data.liveTvs.forEach((obj) => {
+      channels.data.liveTvs?.forEach((obj) => {
         list[
           obj.name.normalize("NFKD").replace(/[^\w]/g, " ").trim().replace(
             " ",

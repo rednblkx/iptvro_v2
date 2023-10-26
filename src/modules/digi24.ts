@@ -10,40 +10,49 @@ import ModuleClass, {
 export default class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
-    super("digi24", false, true, false, {
-      "digi24": {
-        id: "digi24",
-        name: "Digi 24",
-        img:
-          "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
+    super({
+      MODULE_ID: "digi24",
+      hasLive: true,
+      hasVOD: false,
+      authReq: false,
+      chList: {
+        "digi24": {
+          id: "digi24",
+          name: "Digi 24",
+          img:
+            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
+        },
+        "digisport1": {
+          id: "digisport1",
+          name: "Digi Sport 1",
+          img:
+            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport1.png",
+        },
+        "digisport2": {
+          id: "digisport2",
+          name: "Digi Sport 2",
+          img:
+            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport2.png",
+        },
+        "digisport3": {
+          id: "digisport3",
+          name: "Digi Sport 3",
+          img:
+            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport3.png",
+        },
+        "digisport4": {
+          id: "digisport4",
+          name: "Digi Sport 4",
+          img:
+            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport4.png",
+        },
       },
-      "digisport1": {
-        id: "digisport1",
-        name: "Digi Sport 1",
-        img:
-          "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport1.png",
-      },
-      "digisport2": {
-        id: "digisport2",
-        name: "Digi Sport 2",
-        img:
-          "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport2.png",
-      },
-      "digisport3": {
-        id: "digisport3",
-        name: "Digi Sport 3",
-        img:
-          "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport3.png",
-      },
-      "digisport4": {
-        id: "digisport4",
-        name: "Digi Sport 4",
-        img:
-          "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_sport_digisport4.png",
-      },
+      logo:
+        "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
     });
-    this.logo =
-      "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png";
+  }
+  searchShow(_authTokens: string[], _string: string): Promise<VODListResponse> {
+    throw new Error("Method not implemented.");
   }
   getChannels(): Promise<IChannelsList> {
     return Promise.resolve(

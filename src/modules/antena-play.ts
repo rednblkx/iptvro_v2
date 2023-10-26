@@ -7,7 +7,7 @@ import ModuleClass, {
   VODListResponse,
 } from "../moduleClass.ts";
 
-import axios from "https://deno.land/x/axiod/mod.ts";
+import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { stringify } from "https://deno.land/x/querystring@v1.0.2/mod.js";
 import {
   IChannels,
@@ -16,18 +16,31 @@ import {
   IVODList,
 } from "./types/antena-play.d.ts";
 
+/* The `ModuleInstance` class is a TypeScript class that extends `ModuleClass` and implements
+`ModuleType`, providing methods for authentication, retrieving live channels and video-on-demand
+shows, and retrieving stream URLs for specific episodes. */
 class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
-    /* Creating a new instance of the class Antena. */
-    super("antena-play", true, true, true, true);
-    this.logo = "https://antenaplay.ro/images/logoV2.svg";
+    super({
+      MODULE_ID: "antena-play",
+      hasLive: true,
+      hasVOD: true,
+      authReq: true,
+      searchEnabled: true,
+      logo: "https://antenaplay.ro/images/logoV2.svg",
+    });
   }
 
   /**
-   * It takes a username and password, and returns a promise that resolves to an array of two strings
-   * @param {string} username - The username you use to login to antenaplay.ro
-   * @param {string} password - string - The password for the account
-   * @returns The auth_token.data.data.token
+   * The `login` function is an asynchronous function that takes a username and password as parameters,
+   * sends a POST request to a login endpoint with the provided credentials, and returns a promise that
+   * resolves to an array of authentication tokens if the login is successful, or rejects with an error
+   * message if the login fails.
+   * @param {string} username - The `username` parameter is a string that represents the user's username
+   * or email address used for authentication.
+   * @param {string} password - The password parameter is a string that represents the user's password
+   * for authentication.
+   * @returns The `login` function returns a Promise that resolves to an array of the acces tokens.
    */
   async login(username: string, password: string): Promise<string[]> {
     if (!username || !password) {
@@ -67,13 +80,19 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       );
     }
   }
+
   /**
-   * It gets the live stream URL for a channel
-   * @param {string} channel - The channel ID
-   * @param {string[]} authTokens - An array of 2 strings, the first one is the access token, the
-   * second one is the device id.
-   * @param {string} _lastupdated - This is the last time the authTokens were updated
-   * @returns A promise that resolves to an object with a stream property.
+   * The `liveChannels` function is an asynchronous function that takes in a channel name, an array of
+   * authentication tokens, and the last update date of the authentication tokens, and returns a promise
+   * that resolves to a `StreamResponse` object.
+   * @param {string} channel - The `channel` parameter is a string that represents the ID of the channel
+   * you want to retrieve the live stream for.
+   * @param {string[]} authTokens - The `authTokens` parameter is an array of two strings. The first
+   * string is the authentication token, and the second string is the device ID.
+   * @param {Date} _authLastUpdate - _authLastUpdate is a Date object that represents the last time the
+   * authentication tokens were updated.
+   * @returns a Promise that resolves to a StreamResponse object. The StreamResponse object has a
+   * property called "stream" which contains the link to the live channel stream.
    */
   async liveChannels(
     channel: string,
@@ -113,9 +132,11 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       return Promise.reject(this.logger("liveChannels", error, true));
     }
   }
+
   /**
-   * It gets the auth tokens, then uses them to get a list of channels, then returns a list of channels
-   * @returns A list of channels
+   * The function `getChannels` makes an asynchronous request to retrieve a list of channels from a REST
+   * API and returns a promise that resolves to an object containing the channel information.
+   * @returns a Promise that resolves to an object of type IChannelsList.
    */
   async getChannels(): Promise<IChannelsList> {
     try {
@@ -155,6 +176,15 @@ class ModuleInstance extends ModuleClass implements ModuleType {
     }
   }
 
+  /**
+   * The `searchShow` function is an asynchronous function that searches for shows based on a given
+   * string and returns a promise that resolves to a response containing a list of shows and pagination
+   * information.
+   * @param {string[]} authTokens - An array of authentication tokens used for authorization.
+   * @param {string} string - The `string` parameter is a search query string that is used to search for
+   * shows. It is used in the API request to filter the shows based on the search query.
+   * @returns The function `searchShow` returns a Promise that resolves to a `VODListResponse` object.
+   */
   async searchShow(
     authTokens: string[],
     string: string,
@@ -206,10 +236,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It gets the list of VODs from the AntenaPlay API.
-   * @param {string[]} authTokens - string[]: The authTokens that you get from the login function.
-   * @param {number} [page] - The page number of the VOD list.
-   * @returns An object with the following structure:
+   * The `getVOD_List` function is an asynchronous function that retrieves a list of VOD (Video on
+   * Demand) shows, with the option to search for specific shows, using authentication tokens and
+   * additional options.
+   * @param {string[]} authTokens - An array of authentication tokens used for authorization.
+   * @param [options] - The `options` parameter is an optional object that can contain additional
+   * parameters for the API request. In this code snippet, it is used to pass the `search` and `page`
+   * parameters.
+   * @returns The `getVOD_List` function returns a Promise that resolves to a `VODListResponse` object.
    */
   async getVOD_List(
     authTokens: string[],
@@ -267,27 +301,18 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       );
     }
   }
+
   /**
-   * It gets the VOD list for a given show
-   * @param {string} show - The show ID.
-   * @param {string[]} authTokens - The authTokens you get from the login function.
-   * @param {number} page - number - the page number you want to get
-   * @returns An object with the following structure:
-   * ```
-   * {
-   *   data: [
-   *     {
-   *       name: string;
-   *       img: string;
-   *       link: string;
-   *     }
-   *   ];
-   *   pagination: {
-   *     current_page: number;
-   *     per_page: number;
-   *     total_pages: number;
-   *   };
-   * }
+   * The `getVOD` function is an asynchronous function that retrieves a list of video-on-demand episodes
+   * for a given show using authentication tokens and optional additional options.
+   * @param {string} show - The "show" parameter is a string that represents the ID of a show. It is used
+   * to filter the VOD (Video on Demand) episodes based on the specified show.
+   * @param {string[]} authTokens - An array of authentication tokens used for authorization.
+   * @param [options] - The `options` parameter is an optional object that can contain additional
+   * configuration options for the API request. It can include properties such as `page` to specify the
+   * page number of the results to retrieve. If `options` is not provided, the default value for `page`
+   * is 1.
+   * @returns The `getVOD` function returns a Promise that resolves to a `VODListResponse` object.
    */
   async getVOD(
     show: string,
@@ -355,12 +380,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
   }
 
   /**
-   * It gets the VOD episode stream url.
-   * @param {string} show - The show name
-   * @param {string} epid - The episode ID, which you can get from the getVOD_SHOW function.
-   * @param {string[]} authTokens - This is an array of 2 strings, the first one is the access token,
-   * the second one is the device id.
-   * @returns The URL of the video
+   * The function `getVOD_EP` is an asynchronous function that retrieves the stream URL for a specific
+   * episode of a show using authentication tokens.
+   * @param {string} show - The `show` parameter is a string that represents the ID of the show.
+   * @param {string} epid - The `epid` parameter is the ID of the episode you want to retrieve the VOD
+   * (Video on Demand) stream for.
+   * @param {string[]} authTokens - An array of authentication tokens. The first element is the bearer
+   * token used for authorization, and the second element is the device ID.
+   * @returns a Promise that resolves to a StreamResponse object.
    */
   async getVOD_EP(
     show: string,

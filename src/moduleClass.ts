@@ -1,6 +1,6 @@
 import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";
-import { Low } from "npm:lowdb";
 import { JSONFile } from "npm:lowdb/node";
+import { Low } from "npm:lowdb";
 import moment from "npm:moment";
 const __dirname = Deno.cwd();
 
@@ -128,6 +128,17 @@ export interface IChannelsList {
   };
 }
 
+interface IModuleOptions {
+  MODULE_ID: string;
+  authReq: boolean;
+  hasLive: boolean;
+  hasVOD: boolean;
+  searchEnabled?: boolean;
+  chList?: IChannelsList;
+  qualitiesList?: string[];
+  logo?: string;
+}
+
 /* This class is used to create a new module, it contains all the functions that are required for a
 module to work */
 class ModuleFunctions {
@@ -155,25 +166,19 @@ class ModuleFunctions {
    * module supports.
    */
   constructor(
-    MODULE_ID: string,
-    authReq: boolean,
-    hasLive: boolean,
-    hasVOD: boolean,
-    searchEnabled?: boolean,
-    chList?: IChannelsList,
-    qualitiesList?: string[],
+    options: IModuleOptions,
   ) {
-    this.MODULE_ID = MODULE_ID;
-    this.authReq = authReq;
-    this.hasLive = hasLive;
-    this.hasVOD = hasVOD;
-    this.chList = chList || null;
-    this.logo = "";
-    this.searchEnabled = searchEnabled || false;
-    this.qualitiesList = qualitiesList || null;
+    this.MODULE_ID = options.MODULE_ID;
+    this.authReq = options.authReq;
+    this.hasLive = options.hasLive;
+    this.hasVOD = options.hasVOD;
+    this.chList = options.chList || null;
+    this.logo = options.logo || "";
+    this.searchEnabled = options.searchEnabled || false;
+    this.qualitiesList = options.qualitiesList || null;
     this.debug = Deno.env.get("DEBUG")?.toLowerCase() === "true";
     const adapter = new JSONFile<ModuleConfig>(
-      path.join(__dirname, "configs", `${this.MODULE_ID}.json`)
+      path.join(__dirname, "configs", `${this.MODULE_ID}.json`),
     );
     this.db = new Low(adapter, {
       "auth": {
@@ -186,7 +191,7 @@ class ModuleFunctions {
         "url_cache_enabled": true,
         "url_update_interval": 4,
         "auth_update_interval": 6,
-        "chList": chList || {},
+        "chList": this.chList || {},
       },
     });
   }
@@ -266,7 +271,7 @@ class ModuleFunctions {
     }
     if ((message as Error).message) {
       return `${this.MODULE_ID} - ${id}: ${
-        ((message as Error).message).substring(0, 200) + "..."
+        (message as Error).message.substring(0, 200) + "..."
       }`;
     }
     return `${this.MODULE_ID} - ${id}: ${
@@ -420,7 +425,7 @@ class ModuleFunctions {
   async cacheFind(id?: string): Promise<cache | null> {
     try {
       const adapter = new JSONFile<cache[]>(
-        path.join(__dirname, "configs", `cache.json`)
+        path.join(__dirname, "configs", `cache.json`),
       );
       const db = new Low(adapter, []);
       await db.read();

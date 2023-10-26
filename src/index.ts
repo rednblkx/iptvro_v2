@@ -16,6 +16,7 @@ import LiveRouter from "./routes/Live.ts";
 import VodRouter from "./routes/Vod.ts";
 import LoginRouter from "./routes/Login.ts";
 import ChannelsRouter from "./routes/UpdateChannels.ts";
+import ModInfo from "./routes/ModInfo.ts";
 import { logger } from "./helpers/logger.ts";
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
@@ -78,6 +79,7 @@ const moduleRoutes = new Router().use(
   `/:module(${valid_modules.join("|") || "null"})`,
   VodRouter.routes(),
   LoginRouter.routes(),
+  ModInfo.routes()
 );
 
 app.use(universalRoutes.routes());

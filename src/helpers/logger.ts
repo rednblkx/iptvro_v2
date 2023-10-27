@@ -1,3 +1,4 @@
+import caller from "https://raw.githubusercontent.com/apiel/caller/master/caller.ts";
 type LoggerFunctions =
   | "sanityCheck"
   | "rewritePlaylist"
@@ -14,7 +15,8 @@ type LoggerFunctions =
   | "live"
   | "clearcache"
   | "cache"
-  | "vod";
+  | "vod"
+  | "modules";
 
 /**
  * The function takes in three parameters, the first two are required and the third is optional
@@ -29,17 +31,22 @@ export function logger(
   message: unknown,
   isError?: boolean,
 ): string {
+  const source = caller().match(/.*.\/(.*.)\.ts/)[1];
   if (Deno.env.get("DEBUG")?.toLowerCase() === "true") {
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+          `${new Date().getHours()}:${
+            new Date().getMinutes()
+          } - \x1b[47m\x1b[30m${source}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
             (message as Error).message
           }`,
         );
       } else {
         console.error(
-          `\x1b[47m\x1b[30mindex\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+          `${new Date().getHours()}:${
+            new Date().getMinutes()
+          } - \x1b[47m\x1b[30m${source}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
             typeof message == "object"
               ? JSON.stringify(message).substring(0, 200)
               : message
@@ -48,7 +55,9 @@ export function logger(
       }
     } else {
       console.log(
-        `\x1b[47m\x1b[30mindex\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+        `${new Date().getHours()}:${
+          new Date().getMinutes()
+        } - \x1b[47m\x1b[30m${source}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
           typeof message == "object"
             ? JSON.stringify(message).substring(0, 200)
             : message
@@ -61,10 +70,10 @@ export function logger(
     Deno.writeTextFile(
       `logs/log${date}.txt`,
       typeof message == "object"
-        ? `${new Date().toLocaleString()} | index - ${
+        ? `${new Date().toLocaleString()} | ${source} - ${
           JSON.stringify(message, null, 2)
         }\n`
-        : `${new Date().toLocaleString()} | index - ${message} \n`,
+        : `${new Date().toLocaleString()} | ${source} - ${message} \n`,
       { append: true, create: true },
     ).then(() => {
       // console.log("Log wrote on dir!");
@@ -74,10 +83,10 @@ export function logger(
           Deno.writeTextFile(
             `logs/log${date}.txt`,
             typeof message == "object"
-              ? `${new Date().toLocaleString()} | index - ${
+              ? `${new Date().toLocaleString()} | ${source} - ${
                 JSON.stringify(message, null, 2)
               }\n`
-              : `${new Date().toLocaleString()} | index - ${message} \n`,
+              : `${new Date().toLocaleString()} | ${source} - ${message} \n`,
             { append: true, create: true },
           ).then(() => {
             // console.log("Log wrote on dir!");

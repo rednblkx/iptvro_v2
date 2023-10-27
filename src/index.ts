@@ -11,12 +11,12 @@ import {
 import { ModuleType } from "./moduleClass.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { valid_modules } from "./helpers/checkModules.ts";
-import CacheRouter from "./routes/Cache.ts";
-import LiveRouter from "./routes/Live.ts";
-import VodRouter from "./routes/Vod.ts";
-import LoginRouter from "./routes/Login.ts";
-import ChannelsRouter from "./routes/UpdateChannels.ts";
-import ModInfo from "./routes/ModInfo.ts";
+import CacheRouter from "./routes/CacheRoute.ts";
+import LiveRouter from "./routes/LiveRoute.ts";
+import VodRouter from "./routes/VodRoute.ts";
+import LoginRouter from "./routes/LoginRoute.ts";
+import ChannelsRouter from "./routes/UpdateChannelsRoute.ts";
+import ModInfo from "./routes/ModInfoRoute.ts";
 import { logger } from "./helpers/logger.ts";
 
 /* The below code is setting the port to 3000 if the environment variable PORT is not set. */
@@ -46,6 +46,7 @@ app.use(async (ctx, next: () => Promise<unknown>) => {
   };
   try {
     const query = helpers.getQuery(ctx);
+    logger("oak", `location: ${ctx.request.url}`);
     logger("oak", `query params: ${JSON.stringify(query)}`);
     await next();
   } catch (error) {
@@ -112,6 +113,7 @@ class Response {
 router.get(
   `/modules`,
   async (ctx) => {
+    logger("modules", "Modules list requested");
     const modules = await Promise.all<ModuleType>(
       valid_modules.map(async (val) =>
         new (await import(`./modules/${val}.ts`)).default()
@@ -127,6 +129,8 @@ router.get(
         vod_modules.push({ id: mod.MODULE_ID, logo: mod.logo });
       }
     });
+    logger("modules", `live_modules: ${JSON.stringify(live_modules)}`);
+    logger("modules", `vod_modules: ${JSON.stringify(vod_modules)}`);
 
     ctx.response.body = new Response("SUCCESS", undefined, {
       live: live_modules,
@@ -140,7 +144,7 @@ router.get(
  * @param url URL to check
  * @param rules Comma separated list of rules (e.g. "https://duck.com,https://example.com")
  */
-export function isUrlAllowed(
+function isUrlAllowed(
   url: string,
   rules: string,
 ): boolean {
@@ -207,6 +211,7 @@ app.use((context) => {
     error: "Endpoint did not match any route, listing all available modules: " +
       valid_modules.join(", "),
   };
+  logger("oak", "Received request however no route matches");
   context.response.status = 404;
   context.response.body = body;
 });

@@ -51,7 +51,7 @@ module(provider) where you can input the appropriate credentials.
 
 Pull the image
 
-`docker pull ghcr.io/redmusicxd/iptvro_v2:main`
+`docker pull ghcr.io/rednblkx/iptvro_v2:main`
 
 Run it
 

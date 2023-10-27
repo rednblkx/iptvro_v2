@@ -55,7 +55,7 @@ Pull the image
 
 Run it
 
-`docker run -it --init -p 8090:3000 -v ./logs:/app/logs -v ./configs:/app/configs ghcr.io/redmusicxd/iptvro_v2:main`
+`docker run -it --init -p 8090:3000 -v ./logs:/app/logs -v ./configs:/app/configs ghcr.io/rednblkx/iptvro_v2:main`
 
 As the image runs as non-root user (UID 1000, GID 1000), you need to make sure
 the `configs` and `logs` directories have the right permissions.

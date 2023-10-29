@@ -24,7 +24,7 @@ export type ModuleConfig = {
     url_cache_enabled: boolean;
     url_update_interval: number;
     auth_update_interval: number;
-    chList: { [k: string]: { id: string; img: string } };
+    chList: IChannelsList;
   };
 };
 
@@ -146,12 +146,12 @@ class ModuleFunctions {
   hasLive: boolean;
   hasVOD: boolean;
   searchEnabled: boolean;
-  chList: IChannelsList | null;
+  chList: IChannelsList | Record<string, never>;
   qualitiesList: string[] | null;
   authReq: boolean;
   logo: string;
   private debug: boolean;
-  private db: Low<ModuleConfig>;
+  protected db: Low<ModuleConfig>;
 
   /**
    * The constructor of the class.
@@ -172,7 +172,7 @@ class ModuleFunctions {
     this.authReq = options.authReq;
     this.hasLive = options.hasLive;
     this.hasVOD = options.hasVOD;
-    this.chList = options.chList || null;
+    this.chList = options.chList || {};
     this.logo = options.logo || "";
     this.searchEnabled = options.searchEnabled || false;
     this.qualitiesList = options.qualitiesList || null;
@@ -180,7 +180,7 @@ class ModuleFunctions {
     const adapter = new JSONFile<ModuleConfig>(
       path.join(__dirname, "configs", `${this.MODULE_ID}.json`),
     );
-    this.db = new Low(adapter, {
+    this.db = new Low<ModuleConfig>(adapter, {
       "auth": {
         "username": "",
         "password": "",
@@ -212,25 +212,22 @@ class ModuleFunctions {
       if (isError) {
         if ((message as Error).message) {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-              (message as Error).message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
             }`,
           );
         } else {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
-              typeof message == "object"
-                ? JSON.stringify(message).substring(0, 200) + "..."
-                : message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200) + "..."
+              : message
             }`,
           );
         }
       } else {
         console.log(
-          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
-            typeof message == "object"
-              ? JSON.stringify(message).substring(0, 200) + "..."
-              : message
+          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object"
+            ? JSON.stringify(message).substring(0, 200) + "..."
+            : message
           }`,
         );
       }
@@ -240,11 +237,9 @@ class ModuleFunctions {
       Deno.writeTextFile(
         `logs/log${date}.txt`,
         typeof message == "object"
-          ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
-            JSON.stringify(message, null, 2)
+          ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)
           }\n`
-          : `${
-            new Date().toLocaleString()
+          : `${new Date().toLocaleString()
           } | ${this.MODULE_ID} - ${message} \n`,
         { append: true, create: true },
       ).then(() => {
@@ -255,11 +250,9 @@ class ModuleFunctions {
             Deno.writeTextFile(
               `logs/log${date}.txt`,
               typeof message == "object"
-                ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
-                  JSON.stringify(message, null, 2)
+                ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)
                 }\n`
-                : `${
-                  new Date().toLocaleString()
+                : `${new Date().toLocaleString()
                 } | ${this.MODULE_ID} - ${message} \n`,
               { append: true, create: true },
             ).then(() => {
@@ -269,16 +262,16 @@ class ModuleFunctions {
         } else console.error(err);
       });
     }
-    if ((message as Error).message) {
-      return `${this.MODULE_ID} - ${id}: ${
-        (message as Error).message.substring(0, 200) + "..."
-      }`;
+    if (isError) {
+      if ((message as Error).message) {
+        return `${this.MODULE_ID} - ${id}: ${(message as Error).message.substring(0, 200) + "..."
+          }`;
+      }
     }
-    return `${this.MODULE_ID} - ${id}: ${
-      typeof message == "object"
+    return `${this.MODULE_ID} - ${id}: ${typeof message == "object"
         ? JSON.stringify(message).substring(0, 200) + "..."
         : (message as string).substring(0, 200)
-    }`;
+      }`;
   }
 
   /**
@@ -447,8 +440,7 @@ class ModuleFunctions {
           if (Deno.env.get("DEBUG") == ("true" || true)) {
             this.logger(
               "cacheFind",
-              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${
-                moment(cache.lastupdated).fromNow()
+              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()
               }`,
             );
           }

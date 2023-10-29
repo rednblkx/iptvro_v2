@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  iptv_ro:
+    container_name: iptv_ro
+    image: ghcr.io/rednblkx/iptvro_v2:main
+    ports:
+     - 3000:3000
+    volumes:
+     - ./logs:/app/logs
+     - ./configs:/app/configs

@@ -212,22 +212,25 @@ class ModuleFunctions {
       if (isError) {
         if ((message as Error).message) {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${(message as Error).message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              (message as Error).message
             }`,
           );
         } else {
           console.error(
-            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${typeof message == "object"
-              ? JSON.stringify(message).substring(0, 200) + "..."
-              : message
+            `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
+              typeof message == "object"
+                ? JSON.stringify(message).substring(0, 200) + "..."
+                : message
             }`,
           );
         }
       } else {
         console.log(
-          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${typeof message == "object"
-            ? JSON.stringify(message).substring(0, 200) + "..."
-            : message
+          `\x1b[47m\x1b[30m${this.MODULE_ID}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
+            typeof message == "object"
+              ? JSON.stringify(message).substring(0, 200) + "..."
+              : message
           }`,
         );
       }
@@ -237,9 +240,11 @@ class ModuleFunctions {
       Deno.writeTextFile(
         `logs/log${date}.txt`,
         typeof message == "object"
-          ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)
+          ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
+            JSON.stringify(message, null, 2)
           }\n`
-          : `${new Date().toLocaleString()
+          : `${
+            new Date().toLocaleString()
           } | ${this.MODULE_ID} - ${message} \n`,
         { append: true, create: true },
       ).then(() => {
@@ -250,9 +255,11 @@ class ModuleFunctions {
             Deno.writeTextFile(
               `logs/log${date}.txt`,
               typeof message == "object"
-                ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${JSON.stringify(message, null, 2)
+                ? `${new Date().toLocaleString()} | ${this.MODULE_ID} - ${
+                  JSON.stringify(message, null, 2)
                 }\n`
-                : `${new Date().toLocaleString()
+                : `${
+                  new Date().toLocaleString()
                 } | ${this.MODULE_ID} - ${message} \n`,
               { append: true, create: true },
             ).then(() => {
@@ -264,14 +271,16 @@ class ModuleFunctions {
     }
     if (isError) {
       if ((message as Error).message) {
-        return `${this.MODULE_ID} - ${id}: ${(message as Error).message.substring(0, 200) + "..."
-          }`;
+        return `${this.MODULE_ID} - ${id}: ${
+          (message as Error).message.substring(0, 200) + "..."
+        }`;
       }
     }
-    return `${this.MODULE_ID} - ${id}: ${typeof message == "object"
+    return `${this.MODULE_ID} - ${id}: ${
+      typeof message == "object"
         ? JSON.stringify(message).substring(0, 200) + "..."
         : (message as string).substring(0, 200)
-      }`;
+    }`;
   }
 
   /**
@@ -440,7 +449,8 @@ class ModuleFunctions {
           if (Deno.env.get("DEBUG") == ("true" || true)) {
             this.logger(
               "cacheFind",
-              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${moment(cache.lastupdated).fromNow()
+              `Cached link found for '${id}', module '${this.MODULE_ID}', saved ${
+                moment(cache.lastupdated).fromNow()
               }`,
             );
           }

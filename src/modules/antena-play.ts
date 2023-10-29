@@ -29,11 +29,11 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       searchEnabled: true,
       logo: "https://antenaplay.ro/images/logoV2.svg",
     });
-    this.getConfig().then(data => {
+    this.getConfig().then((data) => {
       if (data?.chList) {
         this.chList = data.chList;
       }
-    })
+    });
   }
 
   /**
@@ -131,7 +131,11 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         },
       );
       this.logger("liveChannels", channel_stream.data);
-      return Promise.resolve({ channel_name: Object.values(this.chList).find(ch => ch.id == channel)?.name, stream: channel_stream.data.data.link });
+      return Promise.resolve({
+        channel_name: Object.values(this.chList).find((ch) => ch.id == channel)
+          ?.name,
+        stream: channel_stream.data.data.link,
+      });
     } catch (error) {
       return Promise.reject(this.logger("liveChannels", error, true));
     }

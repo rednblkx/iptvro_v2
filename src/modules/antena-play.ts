@@ -450,7 +450,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       return Promise.resolve({
         show_name,
         ep_name,
-        stream: episode_id.data.data.url.replace(/vod3ro|sod1/, ["vod7digi", "vod4ro"][Math.floor(Math.random() * 2)]),
+        stream: episode_id.data.data.url,
       });
     } catch (error) {
       return Promise.reject(this.logger("getVOD_EP", error, true));

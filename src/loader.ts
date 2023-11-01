@@ -223,20 +223,16 @@ export async function rewritePlaylist(
           m3u8Select(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${
-                stream.stream.match(/(.*)\/.*/)
-                  ?.[1]
-              }`
+              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
+                ?.[1]}`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );
         const finalP = m3uFixURL(
           q_m3u8.data,
           cors
-            ? `http://localhost:3000/cors/${
-              q_m3u8.config.url?.match(/(.*)\/.*/)
-                ?.[1]
-            }`
+            ? `http://localhost:3000/cors/${q_m3u8.config.url?.match(/(.*)\/.*/)
+              ?.[1]}`
             : q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
         return finalP;
@@ -245,10 +241,8 @@ export async function rewritePlaylist(
           m3uFixURL(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${
-                stream.stream.match(/(.*)\/.*/)
-                  ?.[1]
-              }`
+              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
+                ?.[1]}`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );
@@ -275,10 +269,10 @@ export async function rewritePlaylist(
 export async function cacheCleanup(valid_modules: string[]): Promise<cache[]> {
   const modules: ModuleType[] = await Promise.all<ModuleType>(
     valid_modules.map(async (val) =>
-      new (await import(`./modules/${val}.ts`)).default()
+      new (await import(`${__dirname}/src/modules/${val}.ts`)).default()
     ),
   );
-  const adapter = new JSONFile<cache[]>(`${__dirname}/cache.json`);
+  const adapter = new JSONFile<cache[]>(`${__dirname}/configs/cache.json`);
   const db = new Low(adapter, []);
   await db.read();
 

@@ -134,7 +134,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       return Promise.resolve({
         channel_name: Object.values(this.chList).find((ch) => ch.id == channel)
           ?.name,
-        stream: channel_stream.data.data.link.replace(/vod3ro|sod1/, "vod7digi"),
+        stream: channel_stream.data.data.link.replace(
+          /vod3ro|sod1/,
+          "vod7digi",
+        ),
       });
     } catch (error) {
       return Promise.reject(this.logger("liveChannels", error, true));

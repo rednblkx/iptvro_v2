@@ -223,16 +223,20 @@ export async function rewritePlaylist(
           m3u8Select(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
-                ?.[1]}`
+              ? `http://localhost:3000/cors/${
+                stream.stream.match(/(.*)\/.*/)
+                  ?.[1]
+              }`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );
         const finalP = m3uFixURL(
           q_m3u8.data,
           cors
-            ? `http://localhost:3000/cors/${q_m3u8.config.url?.match(/(.*)\/.*/)
-              ?.[1]}`
+            ? `http://localhost:3000/cors/${
+              q_m3u8.config.url?.match(/(.*)\/.*/)
+                ?.[1]
+            }`
             : q_m3u8.config.url?.match(/(.*)\/.*/)?.[1] || "",
         );
         return finalP;
@@ -241,8 +245,10 @@ export async function rewritePlaylist(
           m3uFixURL(
             initm3u8,
             cors
-              ? `http://localhost:3000/cors/${stream.stream.match(/(.*)\/.*/)
-                ?.[1]}`
+              ? `http://localhost:3000/cors/${
+                stream.stream.match(/(.*)\/.*/)
+                  ?.[1]
+              }`
               : stream.stream.match(/(.*)\/.*/)?.[1] || "",
           ),
         );

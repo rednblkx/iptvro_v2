@@ -36,16 +36,16 @@ export function logger(
     if (isError) {
       if ((message as Error).message) {
         console.error(
-          `${new Date().getHours()}:${
-            new Date().getMinutes()
+          `${
+            new Date().toLocaleTimeString()
           } - \x1b[47m\x1b[30m${source}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
             (message as Error).message
           }`,
         );
       } else {
         console.error(
-          `${new Date().getHours()}:${
-            new Date().getMinutes()
+          `${
+            new Date().toLocaleTimeString()
           } - \x1b[47m\x1b[30m${source}\x1b[0m - !\x1b[41m\x1b[30m${id}\x1b[0m!: ${
             typeof message == "object"
               ? JSON.stringify(message).substring(0, 200)
@@ -55,8 +55,8 @@ export function logger(
       }
     } else {
       console.log(
-        `${new Date().getHours()}:${
-          new Date().getMinutes()
+        `${
+          new Date().toLocaleTimeString()
         } - \x1b[47m\x1b[30m${source}\x1b[0m - \x1b[35m${id}\x1b[0m: ${
           typeof message == "object"
             ? JSON.stringify(message).substring(0, 200)

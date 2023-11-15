@@ -289,7 +289,7 @@ class ModuleFunctions {
    * @returns A promise that resolves when the config file is written to disk.
    */
   async initializeConfig(
-    chList?: { [k: string]: { id: string; img: string } },
+    chList?: IChannelsList,
   ): Promise<void> {
     // existsSync(`${__dirname}../configs`) || mkdirSync(`${__dirname}../configs`)
     try {

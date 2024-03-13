@@ -169,9 +169,7 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
       );
       key.status === 200 && this.logger("liveChannels", "Got token");
       const stream = await axios.get(
-        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&drm=${
-          id === "digi24" ? 0 : 1
-        }&is=4&ns=${id}&pe=site&s=site&sn=${
+        `https://balancer2.digi24.ro/streamer.php?&scope=${id}&key=${key.data}&outputFormat=json&type=hq&quality=hq&drm=1&is=4&ns=${id}&pe=site&s=site&sn=${
           id.includes("sport") ? "digisport.ro" : "digi24.ro"
         }&p=browser&pd=linux`,
       );

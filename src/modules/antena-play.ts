@@ -33,7 +33,7 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       if (data?.chList) {
         this.chList = data.chList;
       }
-    }).catch(err => {
+    }).catch((err) => {
       if (err instanceof Deno.errors.NotFound) {
         this.initializeConfig();
       }

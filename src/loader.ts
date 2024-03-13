@@ -4,8 +4,8 @@ import {
   StreamResponse,
 } from "./moduleClass.ts";
 import { extname } from "https://deno.land/std@0.172.0/path/mod.ts";
-import { Low } from "npm:lowdb";
-import { JSONFile } from "npm:lowdb/node";
+import { Low } from "npm:lowdb@5.1.0";
+import { JSONFile } from "npm:lowdb@5.1.0/node";
 import { Parser } from "npm:m3u8-parser";
 import axios from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";

@@ -1,6 +1,6 @@
 import { helpers, Router } from "https://deno.land/x/oak@v10.6.0/mod.ts";
-import { Low } from "npm:lowdb";
-import { JSONFile } from "npm:lowdb/node";
+import { Low } from "npm:lowdb@5.1.0";
+import { JSONFile } from "npm:lowdb@5.1.0/node";
 import { logger } from "../helpers/logger.ts";
 import { Response } from "../helpers/ApiResponse.ts";
 import { ModuleType } from "../moduleClass.ts";

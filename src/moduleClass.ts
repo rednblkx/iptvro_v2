@@ -1,6 +1,6 @@
 import { path } from "https://deno.land/x/eta@v1.12.3/file-methods.ts";
-import { JSONFile } from "npm:lowdb/node";
-import { Low } from "npm:lowdb";
+import { JSONFile } from "npm:lowdb@5.1.0/node";
+import { Low } from "npm:lowdb@5.1.0";
 import moment from "npm:moment";
 const __dirname = Deno.cwd();
 

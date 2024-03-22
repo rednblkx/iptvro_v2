@@ -11,17 +11,18 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
   constructor() {
     /* It calls the constructor of the parent class, which is `ModuleClass`. */
     super({
-      MODULE_ID: "digi24",
+      MODULE_ID: "digisport",
       hasLive: true,
       hasVOD: false,
       authReq: false,
       chList: {
-        "digi24": {
-          id: "digi24",
-          name: "Digi 24",
-          img:
-            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
-        },
+        // No Longer Available
+        // "digi24": {
+        //   id: "digi24",
+        //   name: "Digi 24",
+        //   img:
+        //     "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
+        // },
         "digisport1": {
           id: "digisport1",
           name: "Digi Sport 1",
@@ -57,12 +58,12 @@ export default class ModuleInstance extends ModuleClass implements ModuleType {
   getChannels(): Promise<IChannelsList> {
     return Promise.resolve(
       {
-        "digi24": {
-          id: "digi24",
-          name: "Digi 24",
-          img:
-            "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
-        },
+        // "digi24": {
+        //   id: "digi24",
+        //   name: "Digi 24",
+        //   img:
+        //     "https://do-static-03-cdn.rcs-rds.ro/digionline/mobile-content/v12/images/droid/logo_tv_channel_stiri_digi24.png",
+        // },
         "digisport1": {
           id: "digisport1",
           name: "Digi Sport 1",

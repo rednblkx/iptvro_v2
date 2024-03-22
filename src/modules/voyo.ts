@@ -247,7 +247,11 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             " ",
             "-",
           ).replace("--", "-").toLowerCase()
-        ] = { id: obj.id, name: obj.name, img: obj?.logo?.replace("{WIDTH}x{HEIGHT}", "1920x1080") };
+        ] = {
+          id: obj.id,
+          name: obj.name,
+          img: obj?.logo?.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
+        };
       });
       return Promise.resolve(list);
     } catch (error) {
@@ -430,7 +434,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             id: obj.id,
             name: obj.title,
             link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
-            date: moment(obj?.releaseDateLabel?.replaceAll(" ", ""), "DD.MM.YYYY")
+            date: moment(
+              obj?.releaseDateLabel?.replaceAll(" ", ""),
+              "DD.MM.YYYY",
+            )
               .format(),
             img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
           });
@@ -479,7 +486,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             id: obj.id,
             name: obj.title,
             link: `/${this.MODULE_ID}/vod/${show}/${obj.id}`,
-            date: moment(obj?.releaseDateLabel?.replaceAll(" ", ""), "DD.MM.YYYY")
+            date: moment(
+              obj?.releaseDateLabel?.replaceAll(" ", ""),
+              "DD.MM.YYYY",
+            )
               .format(),
             img: obj.image.replace("{WIDTH}x{HEIGHT}", "1920x1080"),
           });

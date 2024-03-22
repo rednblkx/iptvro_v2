@@ -63,9 +63,9 @@ export async function sanityCheck(): Promise<string[]> {
             (!auth.username || !auth.password) &&
             val.authReq
           ) {
-            // console.log(
-            //   `\t${val.MODULE_ID} - Username/Passsword required but not set`,
-            // );
+            console.log(
+              `\t${val.MODULE_ID} - Username/Passsword required but not set`,
+            );
             throw `${val.MODULE_ID} - Username/Passsword required but not set`;
           }
           !val.login &&
@@ -93,7 +93,7 @@ export async function sanityCheck(): Promise<string[]> {
           }
         } catch (error) {
           if (error instanceof Error) {
-            // console.log(`\n - Module '${val.MODULE_ID}' found`);
+            console.log(`\n - Module '${val.MODULE_ID}' found`);
             logger("sanityCheck", "File empty or not found");
             await val.initializeConfig(val.chList || {});
             const auth = await val.getAuth();

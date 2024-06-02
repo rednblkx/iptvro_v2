@@ -1,13 +1,13 @@
 import {
   Application,
+  Context,
   helpers,
   Router,
-  Context
 } from "https://deno.land/x/oak@v10.6.0/mod.ts";
 import {
   dejsEngine,
   oakAdapter,
-  viewEngine
+  viewEngine,
 } from "https://deno.land/x/view_engine@v10.6.0/mod.ts";
 import { ModuleType } from "./moduleClass.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
@@ -174,7 +174,7 @@ function isUrlAllowed(
   return true;
 }
 
-app.use(async (ctx : Context, next) => {
+app.use(async (ctx: Context, next) => {
   try {
     if (ctx.request.url.toString().includes("/cors/")) {
       const url = ctx.request.url.toString().slice(

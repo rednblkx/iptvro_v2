@@ -302,7 +302,10 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         "X-DeviceType": "mobile",
       };
 
-      if (Object.keys(options || {}).length !== 0) {
+      if (
+        Object.keys(options || {}).length !== 0 &&
+        (options?.page || options?.category)
+      ) {
         const vod_res = await axios.get<IVODListFilter>(
           `https://apivoyo.cms.protvplus.ro/api/v1/content/filter?page=${
             options?.page || 1
@@ -371,12 +374,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
 
       return Promise.resolve({ data });
     } catch (error) {
+      this.logger(
+        "getVOD_List",
+        error,
+        true,
+      );
       return Promise.reject(
-        this.logger(
-          "getVOD_List",
-          error,
-          true,
-        ),
+        error?.response?.data?.message || error,
       );
     }
   }
@@ -400,11 +404,14 @@ class ModuleInstance extends ModuleClass implements ModuleType {
           lastupdated: new Date(),
         });
       }
-      if (Object.keys(options || {}).length !== 0) {
+      if (
+        Object.keys(options || {}).length !== 0 &&
+        (options?.page || options?.season)
+      ) {
         const vod_res = await axios.get<IVODEpisodes>(
-          `https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}${
-            options?.season ? `?season=${options?.season}` : ""
-          }`,
+          `https://apivoyo.cms.protvplus.ro/api/v1/${
+            show.includes("show") ? "tvshow" : "movie"
+          }/${show}${options?.season ? `?season=${options?.season}` : ""}`,
           {
             headers: {
               "Authorization": `Bearer ${authTokens[0]}`,
@@ -425,9 +432,23 @@ class ModuleInstance extends ModuleClass implements ModuleType {
             },
           },
         );
-        this.logger("getVOD_List", vod_res.data);
+        this.logger("getVOD", vod_res.data);
 
         const data: IVODData[] = [];
+
+        if (vod_res.data.content?.type == "movie") {
+          data.push({
+            id: vod_res.data.content?.id,
+            name: vod_res.data.content?.title,
+            link: `/${this.MODULE_ID}/vod/${show}/${vod_res.data.content?.id}`,
+            date: vod_res.data.content?.releaseDateLabel,
+            img: vod_res.data.content?.image.replace(
+              "{WIDTH}x{HEIGHT}",
+              "1920x1080",
+            ),
+          });
+          return Promise.resolve({ data });
+        }
 
         vod_res.data.sections[0].content?.forEach((obj) => {
           data.push({
@@ -446,7 +467,9 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         return Promise.resolve({ data });
       }
       const vod_res = await axios.get<IVODEpisodes>(
-        `https://apivoyo.cms.protvplus.ro/api/v1/tvshow/${show}`,
+        `https://apivoyo.cms.protvplus.ro/api/v1/${
+          show.includes("show") ? "tvshow" : "movie"
+        }/${show}`,
         {
           headers: {
             "Authorization": `Bearer ${authTokens[0]}`,
@@ -470,6 +493,20 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       this.logger("getVOD_List", vod_res.data);
 
       const data: IVODData[] = [];
+
+      if (vod_res.data.content?.type == "movie") {
+        data.push({
+          id: vod_res.data.content?.id,
+          name: vod_res.data.content?.title,
+          link: `/${this.MODULE_ID}/vod/${show}/${vod_res.data.content?.id}`,
+          date: vod_res.data.content?.releaseDateLabel,
+          img: vod_res.data.content?.image.replace(
+            "{WIDTH}x{HEIGHT}",
+            "1920x1080",
+          ),
+        });
+        return Promise.resolve({ data });
+      }
 
       if (vod_res.data.seasons.length > 0) {
         vod_res.data.seasons.forEach((obj) => {
@@ -498,12 +535,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
 
       return Promise.resolve({ data });
     } catch (error) {
+      this.logger(
+        "getVOD",
+        error,
+        true,
+      );
       return Promise.reject(
-        this.logger(
-          "getVOD",
-          error,
-          true,
-        ),
+        error?.response?.data?.message || error,
       );
     }
   }
@@ -582,12 +620,13 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         subtitles: vod_res.data.subtitles,
       });
     } catch (error) {
+      this.logger(
+        "getVOD_EP",
+        error?.response?.data?.message,
+        true,
+      );
       return Promise.reject(
-        this.logger(
-          "getVOD_EP",
-          error,
-          true,
-        ),
+        error?.response?.data?.message || error,
       );
     }
   }

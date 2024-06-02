@@ -597,8 +597,9 @@ export async function searchChannel(
         // return Promise.reject(new Error(`searchChannel - ${error.message || error.toString().substring(0, 200)}`))
       }
     }
+    logger("searchChannel", `No module has channel '${id}'`);
     return Promise.reject(
-      logger("searchChannel", `No module has channel '${id}'`),
+      `No module has channel '${id}'`,
     );
   }
 }
@@ -641,18 +642,23 @@ export async function getVODlist(
           ),
         );
       } else {
+        logger(
+          "getVODlist",
+          `Module ${module_id} doesn't have VOD available`,
+          true,
+        );
         return Promise.reject(
-          logger(
-            "getVODlist",
-            `Module ${module_id} doesn't have VOD available`,
-            true,
-          ),
+          `Module ${module_id} doesn't have VOD available`,
         );
       }
     } catch (error) {
-      return Promise.reject(logger("getVODlist", error, true));
+      logger("getVODlist", error, true);
+      return Promise.reject(error);
     }
-  } else return Promise.reject(logger("getVODlist", "Module ID not provided"));
+  } else {
+    logger("getVODlist", "Module ID not provided");
+    return Promise.reject("Module ID not provided");
+  }
 }
 
 export async function searchShow(module_id: string, string: string) {
@@ -684,17 +690,22 @@ export async function searchShow(module_id: string, string: string) {
         );
         return Promise.resolve(res);
       } else {
+        logger(
+          "searchShow",
+          `Module ${module_id} doesn't have search implemented`,
+        );
         return Promise.reject(
-          logger(
-            "searchShow",
-            `Module ${module_id} doesn't have search implemented`,
-          ),
+          `Module ${module_id} doesn't have search implemented`,
         );
       }
     } catch (error) {
-      return Promise.reject(logger("searchShow", error, true));
+      logger("searchShow", error, true);
+      return Promise.reject(error);
     }
-  } else return Promise.reject(logger("searchShow", "Module ID not provided"));
+  } else {
+    logger("searchShow", "Module ID not provided");
+    return Promise.reject("Module ID not provided");
+  }
 }
 
 /**
@@ -821,17 +832,22 @@ export async function getVOD_EP(
           return Promise.resolve({ data: res || {}, cache: false });
         }
       } else {
+        logger(
+          "getVOD_EP",
+          `Module ${module_id} doesn't have VOD enabled/implemented`,
+        );
         return Promise.reject(
-          logger(
-            "getVOD_EP",
-            `Module ${module_id} doesn't have VOD enabled/implemented`,
-          ),
+          `Module ${module_id} doesn't have VOD enabled/implemented`,
         );
       }
     } catch (error) {
-      return Promise.reject(logger("getVOD_EP", error, true));
+      logger("getVOD_EP", "Module returned error", true);
+      return Promise.reject(error);
     }
-  } else return Promise.reject(logger("getVOD_EP", "Module ID not provided"));
+  } else {
+    logger("getVOD_EP", "Module ID not provided");
+    return Promise.reject("Module ID not provided");
+  }
 }
 
 /**
@@ -858,7 +874,8 @@ export async function login(
       );
     }
   } catch (error) {
-    return Promise.reject(logger("login", error, true));
+    logger("login", error, true);
+    return Promise.reject(error);
   }
 }
 

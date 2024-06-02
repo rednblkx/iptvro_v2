@@ -359,12 +359,13 @@ export async function searchChannel(
       ))
         .default();
       if (!module.hasLive) {
+        logger(
+          "searchChannel",
+          `Live channels not enabled for module ${module_id}`,
+          true,
+        );
         return Promise.reject(
-          logger(
-            "searchChannel",
-            `Live channels not enabled for module ${module_id}`,
-            true,
-          ),
+          `Live channels not enabled for module ${module_id}`,
         );
       }
       const config = await module.getConfig();
@@ -493,17 +494,19 @@ export async function searchChannel(
             });
           }
         } else {
+          logger(
+            "searchChannel",
+            `Module ${module_id} doesn't have channel '${id}'`,
+          );
           return Promise.reject(
-            logger(
-              "searchChannel",
-              `Module ${module_id} doesn't have channel '${id}'`,
-            ),
+            `Module ${module_id} doesn't have channel '${id}'`,
           );
         }
       }
     } catch (error) {
+      logger("searchChannel", error, true);
       return Promise.reject(
-        logger("searchChannel", error, true),
+        error,
       );
     }
   } else {

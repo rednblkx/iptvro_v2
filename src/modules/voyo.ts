@@ -175,8 +175,9 @@ class ModuleInstance extends ModuleClass implements ModuleType {
       );
       this.logger("liveChannels", live_channel);
       if (live_channel.data.message) {
+        this.logger("liveChannels", live_channel.data.message, true);
         return Promise.reject(
-          this.logger("liveChannels", live_channel.data.message, true),
+          live_channel.data.message,
         );
       }
       if (live_channel.data.videoType === "hls") {
@@ -193,11 +194,12 @@ class ModuleInstance extends ModuleClass implements ModuleType {
         },
       });
     } catch (error) {
-      return Promise.reject(this.logger(
+      this.logger(
         "liveChannels",
         error,
         true,
-      ));
+      );
+      return Promise.reject(error.response?.data?.message || error);
     }
   }
 
